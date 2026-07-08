@@ -1,69 +1,76 @@
-require('dotenv').config();
-const express = require('express');
-const cors = require('cors');
-const { createClient } = require('@supabase/supabase-js');
+import { useState } from 'react';
+import './App.css';
 
-const app = express();
-const port = process.env.PORT || 3000;
+function App() {
+    const [message, setMessage] = useState('');
+    const [response, setResponse] = useState('');
+    const [loading, setLoading] = useState(false);
 
-app.use(cors());
-app.use(express.json());
+    const sendMessage = async () => {
+        if (!message.trim()) return;
+        setLoading(true);
+        setResponse('');
 
-const supabase = createClient(
-    process.env.SUPABASE_URL,
-    process.env.SUPABASE_KEY
-);
+        try {
+            const res = await fetch('https://my-home-backend-9j56.onrender.com/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message }),
+            });
 
-app.get('/health', (req, res) => {
-    res.json({ status: 'ok', message: '后端服务正常运行！' });
-});
+            const reader = res.body.getReader();
+            const decoder = new TextDecoder();
+            let fullText = '';
 
-app.get('/test-db', async (req, res) => {
-    try {
-        const { data, error } = await supabase.from('sessions').select('*').limit(1);
-        if (error) throw error;
-        res.json({ success: true, message: '数据库连接成功！', data });
-    } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
-    }
-});
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                const chunk = decoder.decode(value);
+                const lines = chunk.split('\\n');
+                for (const line of lines) {
+                    if (line.startsWith('data: ')) {
+                        const jsonStr = line.replace('data: ', '');
+                        if (jsonStr === '[DONE]') continue;
+                        try {
+                            const json = JSON.parse(jsonStr);
+                            const content = json.choices?.[0]?.delta?.content || '';
+                            fullText += content;
+                            setResponse(fullText);
+                        } catch (e) {}
+                    }
+                }
+            }
 
-app.post('/chat', async (req, res) => {
-    const { message } = req.body;
-    if (!message) {
-        return res.status(400).json({ error: '消息不能为空' });
-    }
+            if (!fullText) {
+                setResponse('无回复');
+            }
 
-    try {
-        const response = await fetch('https://api.deepseek.com/chat/completions', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${process.env.DEEPSEEK_API_KEY}`
-            },
-            body: JSON.stringify({
-                model: 'deepseek-chat',
-                max_tokens: 1024,
-                messages: [{ role: 'user', content: message }]
-            })
-        });
-
-        if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(`API 错误: ${response.status} ${errorText}`);
+        } catch (error) {
+            setResponse('❌ 请求失败');
         }
+        setLoading(false);
+    };
 
-        const data = await response.json();
-        const reply = data.choices[0].message.content;
-        res.json({ reply });
-    } catch (error) {
-        console.error('API 错误:', error.message);
-        res.status(500).json({ error: 'AI 服务暂时不可用' });
-    }
-});
+    return (
+        <div className="app">
+            <h1>🐟 鱼说</h1>
+            <div className="chat-box">
+                <textarea
+                    value={message}
+                    onChange={(e) => setMessage(e.target.value)}
+                    placeholder="输入消息..."
+                    rows={3}
+                />
+                <button onClick={sendMessage} disabled={loading}>
+                    {loading ? '发送中...' : '发送'}
+                </button>
+                <div className="response-box">
+                    <strong>回复：</strong>
+                    <p>{response || '等待回复...'}</p>
+                </div>
+            </div>
+        </div>
+    );
+}
 
-app.listen(port, () => {
-    console.log(`后端服务已启动: http://localhost:${port}`);
-    console.log(`健康检查: http://localhost:${port}/health`);
-    console.log(`数据库测试: http://localhost:${port}/test-db`);
-});
+export default App;
