@@ -20,7 +20,7 @@ function App() {
       const data = await res.json();
       setResponse(data.reply || '无回复');
     } catch (error) {
-      setResponse('❌ 请求失败');
+      setResponse('? 请求失败');
     }
     setLoading(false);
   };
@@ -29,7 +29,7 @@ function App() {
     <div className="app">
       <div className="chat-container">
         <header className="chat-header">
-          <h1>🐟 鱼说</h1>
+          <h1>?? 鱼说</h1>
           <p>简单 · 温柔 · 聊得来</p>
         </header>
 
@@ -41,7 +41,7 @@ function App() {
           )}
           {loading && (
             <div className="bubble bot">
-              <div className="bubble-content typing">🐟 思考中...</div>
+              <div className="bubble-content typing">?? 思考中...</div>
             </div>
           )}
         </div>
