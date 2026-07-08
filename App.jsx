@@ -35,14 +35,14 @@ app.post('/chat', async (req, res) => {
     }
 
     try {
-        const response = await fetch('https://xn--vduyey89e.com/chat/completions', {
+        const response = await fetch('https://api.deepseek.com/chat/completions', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer sk-7uNLb1PGIdrBICkbm2ZB7zXcFhYOkdLquiqoCPVViIJgbSTW`
+                'Authorization': `Bearer ${process.env.DEEPSEEK_API_KEY}`
             },
             body: JSON.stringify({
-                model: 'claude-opus-4-6',
+                model: 'deepseek-chat',
                 max_tokens: 1024,
                 messages: [{ role: 'user', content: message }]
             })
