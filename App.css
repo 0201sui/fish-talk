@@ -1,66 +1,109 @@
-import { useState } from 'react';
-import './App.css';
-
-function App() {
-  const [message, setMessage] = useState('');
-  const [response, setResponse] = useState('');
-  const [loading, setLoading] = useState(false);
-
-  const sendMessage = async () => {
-    if (!message.trim()) return;
-    setLoading(true);
-    setResponse('');
-
-    try {
-      const res = await fetch('https://my-home-backend-9j56.onrender.com/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message }),
-      });
-      const data = await res.json();
-      setResponse(data.reply || '无回复');
-    } catch (error) {
-      setResponse('? 请求失败');
-    }
-    setLoading(false);
-  };
-
-  return (
-    <div className="app">
-      <div className="chat-container">
-        <header className="chat-header">
-          <h1>?? 鱼说</h1>
-          <p>简单 · 温柔 · 聊得来</p>
-        </header>
-
-        <div className="chat-body">
-          {response && (
-            <div className="bubble bot">
-              <div className="bubble-content">{response}</div>
-            </div>
-          )}
-          {loading && (
-            <div className="bubble bot">
-              <div className="bubble-content typing">?? 思考中...</div>
-            </div>
-          )}
-        </div>
-
-        <div className="chat-footer">
-          <textarea
-            className="input-area"
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            placeholder="输入消息..."
-            rows="2"
-          />
-          <button className="send-btn" onClick={sendMessage} disabled={loading}>
-            {loading ? '发送中' : '发送'}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
 }
 
-export default App;
+body {
+  background: #f7f5f2;
+  font-family: system-ui, -apple-system, sans-serif;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+}
+
+.app {
+  width: 100%;
+  max-width: 600px;
+  padding: 16px;
+}
+
+.chat-container {
+  background: #ffffff;
+  border-radius: 32px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.06);
+  padding: 24px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.chat-header h1 {
+  font-size: 24px;
+  color: #2c2a28;
+  margin-bottom: 4px;
+}
+
+.chat-header p {
+  font-size: 14px;
+  color: #8a8580;
+}
+
+.chat-body {
+  min-height: 200px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.bubble {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.bubble.bot .bubble-content {
+  background: #f0edea;
+  color: #1e1c1a;
+  padding: 12px 18px;
+  border-radius: 20px;
+  max-width: 80%;
+  word-wrap: break-word;
+  line-height: 1.6;
+}
+
+.typing {
+  opacity: 0.6;
+  font-style: italic;
+}
+
+.chat-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.input-area {
+  width: 100%;
+  padding: 12px 16px;
+  border: 1px solid #e4e0db;
+  border-radius: 20px;
+  font-size: 14px;
+  resize: none;
+  font-family: inherit;
+  background: #faf8f7;
+  transition: border 0.2s;
+}
+
+.input-area:focus {
+  outline: none;
+  border-color: #b0a8a0;
+  background: #ffffff;
+}
+
+.send-btn {
+  padding: 12px 0;
+  background: #2c2a28;
+  color: white;
+  border: none;
+  border-radius: 40px;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.send-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
