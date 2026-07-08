@@ -1,70 +1,69 @@
-import { useState, useEffect } from 'react';
-import './App.css';
+require('dotenv').config();
+const express = require('express');
+const cors = require('cors');
+const { createClient } = require('@supabase/supabase-js');
 
-function App() {
-  const [message, setMessage] = useState('');
-  const [response, setResponse] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [status, setStatus] = useState('检查后端连接...');
+const app = express();
+const port = process.env.PORT || 3000;
 
-  useEffect(() => {
-    fetch('https://my-home-backend-9j56.onrender.com/health')
-      .then(res => res.json())
-      .then(data => {
-        setStatus('✅ 后端连接正常：' + data.message);
-      })
-      .catch(() => {
-        setStatus('❌ 后端未启动，请检查 Render 服务');
-      });
-  }, []);
+app.use(cors());
+app.use(express.json());
 
-  const sendMessage = async () => {
-    if (!message.trim()) return;
-    setLoading(true);
-    setResponse('思考中...');
+const supabase = createClient(
+    process.env.SUPABASE_URL,
+    process.env.SUPABASE_KEY
+);
+
+app.get('/health', (req, res) => {
+    res.json({ status: 'ok', message: '后端服务正常运行！' });
+});
+
+app.get('/test-db', async (req, res) => {
     try {
-      const res = await fetch('https://my-home-backend-9j56.onrender.com/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message }),
-      });
-      const data = await res.json();
-      setResponse(data.reply || data.error || '无回复');
+        const { data, error } = await supabase.from('sessions').select('*').limit(1);
+        if (error) throw error;
+        res.json({ success: true, message: '数据库连接成功！', data });
     } catch (error) {
-      setResponse('❌ 请求失败');
+        res.status(500).json({ success: false, message: error.message });
     }
-    setLoading(false);
-  };
+});
 
-  return (
-    <div style={{ maxWidth: '600px', margin: '50px auto', padding: '20px', fontFamily: 'sans-serif' }}>
-      <h1>🧪 前后端联调测试</h1>
-      <p style={{ color: status.includes('✅') ? 'green' : 'red' }}>{status}</p>
-      <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
-        <input
-          type="text"
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          placeholder="输入消息..."
-          style={{ flex: 1, padding: '10px', fontSize: '16px' }}
-          onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
-        />
-        <button
-          onClick={sendMessage}
-          disabled={loading}
-          style={{ padding: '10px 20px', fontSize: '16px', cursor: 'pointer' }}
-        >
-          {loading ? '发送中...' : '发送'}
-        </button>
-      </div>
-      {response && (
-        <div style={{ marginTop: '20px', padding: '15px', background: '#f0f0f0', borderRadius: '8px' }}>
-          <strong>🤖 回复：</strong>
-          <p style={{ whiteSpace: 'pre-wrap' }}>{response}</p>
-        </div>
-      )}
-    </div>
-  );
-}
+app.post('/chat', async (req, res) => {
+    const { message } = req.body;
+    if (!message) {
+        return res.status(400).json({ error: '消息不能为空' });
+    }
 
-export default App;
+    try {
+        const response = await fetch('https://api.deepseek.com/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${process.env.DEEPSEEK_API_KEY}`
+            },
+            body: JSON.stringify({
+                model: 'deepseek-chat',
+                max_tokens: 1024,
+                messages: [{ role: 'user', content: message }]
+            })
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`API 错误: ${response.status} ${errorText}`);
+        }
+
+        const data = await response.json();
+        const reply = data.choices[0].message.content;
+        res.json({ reply });
+    } catch (error) {
+        console.error('API 错误:', error.message);
+        res.status(500).json({ error: 'AI 服务暂时不可用' });
+    }
+});
+
+app.listen(port, () => {
+    console.log(`后端服务已启动: http://localhost:${port}`);
+    console.log(`健康检查: http://localhost:${port}/health`);
+    console.log(`数据库测试: http://localhost:${port}/test-db`);
+});
