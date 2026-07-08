@@ -11,10 +11,10 @@ function App() {
     fetch('https://my-home-backend-9j56.onrender.com/health')
       .then(res => res.json())
       .then(data => {
-        setStatus('✅ 后端连接正常：' + data.message);
+        setStatus('? 后端连接正常：' + data.message);
       })
       .catch(() => {
-        setStatus('❌ 后端未启动，请检查 Render 服务');
+        setStatus('? 后端未启动，请检查 Render 服务');
       });
   }, []);
 
@@ -31,7 +31,7 @@ function App() {
       const data = await res.json();
       setResponse(data.reply || data.error || '无回复');
     } catch (error) {
-      setResponse('❌ 请求失败');
+      setResponse('? 请求失败');
     }
     setLoading(false);
   };
@@ -40,9 +40,9 @@ function App() {
     <div className="app">
       <div className="chat-container">
         <header className="chat-header">
-          <h1>🐰 Bunny's Home</h1>
+          <h1>?? Bunny's Home</h1>
           <p className="subtitle">给你的 AI 一个家</p>
-          <p className="status" style={{ color: status.includes('✅') ? '#7c9a7c' : '#c47a7a' }}>
+          <p className="status" style={{ color: status.includes('?') ? '#7c9a7c' : '#c47a7a' }}>
             {status}
           </p>
         </header>
@@ -50,7 +50,7 @@ function App() {
         <main className="chat-main">
           {response && (
             <div className="message assistant">
-              <span className="avatar">🤖</span>
+              <span className="avatar">??</span>
               <div className="bubble">
                 <p>{response}</p>
               </div>
@@ -58,7 +58,7 @@ function App() {
           )}
           {loading && (
             <div className="message assistant">
-              <span className="avatar">🤖</span>
+              <span className="avatar">??</span>
               <div className="bubble thinking">
                 <span className="dot">.</span><span className="dot">.</span><span className="dot">.</span>
               </div>
