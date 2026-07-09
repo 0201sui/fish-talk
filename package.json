@@ -1,11 +1,11 @@
 {
-  "name": "fish-talk",
-  "version": "0.0.0",
+  "name": "fish-talk-home",
+  "private": true,
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "lint": "oxlint --fix",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -13,10 +13,7 @@
     "react-dom": "^18.2.0"
   },
   "devDependencies": {
-    "@types/react": "^18.2.0",
-    "@types/react-dom": "^18.2.0",
-    "@vitejs/plugin-react": "^4.0.0",
-    "oxlint": "^0.2.0",
-    "vite": "^5.0.0"
+    "@vitejs/plugin-react": "^4.2.1",
+    "vite": "^5.1.4"
   }
 }
