@@ -38,7 +38,6 @@
   padding: 8px 14px;
   cursor: pointer;
   font-size: 13px;
-  transition: background 0.2s;
 }
 
 .new-chat-btn:hover {
@@ -59,7 +58,6 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  transition: background 0.2s;
   font-size: 14px;
   color: #3a7a9a;
 }
@@ -95,17 +93,13 @@
   opacity: 1;
 }
 
-.session-item .delete-btn:hover {
-  background: #f5e0e0;
-}
-
 /* ===== 主区域 ===== */
 .main-area {
   flex: 1;
   display: flex;
   flex-direction: column;
-  min-width: 0;
   height: 100%;
+  min-width: 0;
   overflow: hidden;
 }
 
@@ -116,7 +110,6 @@
   align-items: center;
   justify-content: space-between;
   background: rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(10px);
   flex-shrink: 0;
 }
 
@@ -144,10 +137,6 @@
   color: #2a6b8a;
 }
 
-.menu-btn:hover {
-  background: rgba(91, 163, 196, 0.15);
-}
-
 .chat-header-right {
   display: flex;
   align-items: center;
@@ -161,7 +150,6 @@
   background: white;
   color: #3a7a9a;
   font-size: 12px;
-  cursor: pointer;
 }
 
 .settings-btn {
@@ -172,28 +160,27 @@
   cursor: pointer;
   font-size: 12px;
   color: #2a6b8a;
-  transition: background 0.2s;
   white-space: nowrap;
 }
 
-.settings-btn:hover {
-  background: rgba(91, 163, 196, 0.15);
-}
-
-/* ===== 消息区域 ===== */
+/* ===== 消息区域（关键！） ===== */
 .messages-area {
   flex: 1;
-  overflow-y: auto;
+  min-height: 0;
+  overflow-y: scroll;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
   padding: 16px;
   display: flex;
   flex-direction: column;
   gap: 12px;
-  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
 }
 
 .message {
   display: flex;
   max-width: 80%;
+  flex-shrink: 0;
 }
 
 .message.user {
@@ -258,11 +245,10 @@
 
 /* ===== 输入区域 ===== */
 .input-area {
-  padding: 12px 16px;
-  padding-bottom: max(12px, env(safe-area-inset-bottom));
+  padding: 10px 16px;
+  padding-bottom: max(10px, env(safe-area-inset-bottom));
   border-top: 1px solid #b8d8e8;
   background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(10px);
   flex-shrink: 0;
 }
 
@@ -292,7 +278,6 @@
 
 .input-wrapper textarea:focus {
   border-color: #5ba3c4;
-  box-shadow: 0 0 0 2px rgba(91, 163, 196, 0.2);
 }
 
 .send-btn {
@@ -303,21 +288,12 @@
   padding: 10px 16px;
   cursor: pointer;
   font-size: 18px;
-  transition: transform 0.2s, box-shadow 0.2s;
   flex-shrink: 0;
-  box-shadow: 0 2px 8px rgba(91, 163, 196, 0.3);
-}
-
-.send-btn:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(91, 163, 196, 0.4);
 }
 
 .send-btn:disabled {
   background: #c8dce6;
   cursor: not-allowed;
-  transform: none;
-  box-shadow: none;
 }
 
 /* ===== 设置弹窗 ===== */
@@ -397,7 +373,6 @@
   border-radius: 8px;
   font-size: 14px;
   cursor: pointer;
-  transition: background 0.2s;
 }
 
 .btn-cancel {
@@ -406,18 +381,10 @@
   color: #2a6b8a;
 }
 
-.btn-cancel:hover {
-  background: #d4eaf7;
-}
-
 .btn-save {
   background: #5ba3c4;
   border: none;
   color: white;
-}
-
-.btn-save:hover {
-  background: #4a8fb0;
 }
 
 /* ===== 欢迎页 ===== */
@@ -493,18 +460,5 @@
     bottom: 0;
     background: rgba(0, 40, 60, 0.3);
     z-index: 99;
-  }
-
-  .chat-header-left h1 {
-    font-size: 15px;
-  }
-
-  .messages-area {
-    padding: 12px;
-  }
-
-  .input-area {
-    padding: 10px 12px;
-    padding-bottom: max(10px, env(safe-area-inset-bottom));
   }
 }
