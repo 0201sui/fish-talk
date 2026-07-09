@@ -28,10 +28,10 @@ function App() {
 
   // 开屏动画 2.5 秒后消失
   useEffect(() => {
-    const timer = setTimeout(() => setShowSplash(false), 2500);
+    
     return () => clearTimeout(timer);
   }, []);
-
+const timer = setTimeout(() => setShowSplash(false), 4000);
   const scrollToBottom = () => {
     setTimeout(() => {
       if (messagesAreaRef.current) {
@@ -243,20 +243,37 @@ function App() {
 
   // 开屏动画
   if (showSplash) {
-    return (
-      <div className="splash">
-        <div className="splash-bubbles">
-          <span></span><span></span><span></span><span></span><span></span>
-        </div>
-        <div className="splash-content">
-          <div className="splash-whale">🐋</div>
-          <h1 className="splash-title">鱼说</h1>
-          <p className="splash-subtitle">在深海里，听见你的声音</p>
-        </div>
-        <div className="splash-wave"></div>
+  return (
+    <div className="splash">
+      <div className="splash-bubbles">
+        <span></span><span></span><span></span><span></span><span></span><span></span><span></span>
       </div>
-    );
-  }
+      <div className="splash-content">
+        <div className="splash-whale">
+          <svg viewBox="0 0 200 120" className="whale-svg">
+            <g className="whale-body-group">
+              <ellipse cx="90" cy="60" rx="50" ry="30" fill="rgba(255,255,255,0.9)" />
+              <ellipse cx="55" cy="55" rx="18" ry="15" fill="rgba(255,255,255,0.9)" />
+              <circle cx="48" cy="52" r="3" fill="#1a3a5c" />
+              <path d="M 38 58 Q 42 62 46 58" stroke="#1a3a5c" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+            </g>
+            <g className="whale-tail">
+              <path d="M 140 60 Q 155 45 175 35 Q 160 55 165 60 Q 160 65 175 85 Q 155 75 140 60" fill="rgba(255,255,255,0.85)" />
+            </g>
+            <ellipse cx="80" cy="48" rx="3" ry="1.5" fill="rgba(255,255,255,0.5)" className="whale-shine" />
+          </svg>
+          <div className="whale-spray">
+            <span></span><span></span><span></span>
+          </div>
+        </div>
+        <h1 className="splash-title">鱼说</h1>
+        <p className="splash-subtitle">在深海里，听见你的声音</p>
+      </div>
+      <div className="splash-wave"></div>
+      <div className="splash-wave splash-wave-2"></div>
+    </div>
+  );
+}
 
   return (
     <div className="app">
