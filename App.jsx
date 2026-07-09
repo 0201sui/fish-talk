@@ -246,24 +246,28 @@ function App() {
       textarea.style.height = Math.min(textarea.scrollHeight, 100) + 'px';
     }
   };
-
-  // 开屏动画
-  if (showSplash) {
-    return (
-      <div className={`splash ${splashFading ? 'splash-fading' : ''}`}>
-        <div className="splash-bubbles">
-          <span></span><span></span><span></span><span></span><span></span>
+// 开屏动画
+if (showSplash) {
+  return (
+    <div className={`splash ${splashFading ? 'splash-fading' : ''}`}>
+      <div className="splash-center">
+        <div className="splash-whale">🐋</div>
+        <div className="whale-bubbles">
+          <span></span><span></span><span></span>
         </div>
-        <div className="splash-content">
-          <div className="splash-whale">🐋</div>
-          <h1 className="splash-title">鱼说</h1>
-          <p className="splash-subtitle">在深海里，听见你的声音</p>
-        </div>
-        <div className="splash-wave"></div>
       </div>
-    );
-  }
-
+      <div className="splash-bottom">
+        <h1 className="splash-title">鱼说</h1>
+        <p className="splash-subtitle">在深海里，听见你的声音</p>
+      </div>
+      <div className="splash-waves">
+        <div className="wave wave-1"></div>
+        <div className="wave wave-2"></div>
+        <div className="wave wave-3"></div>
+      </div>
+    </div>
+  );
+}
   return (
     <div className="app">
       {showSidebar && <div className="sidebar-overlay" onClick={() => setShowSidebar(false)} />}
