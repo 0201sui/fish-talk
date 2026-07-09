@@ -155,7 +155,7 @@ function App() {
     }
   };
 
-  // 发送消息
+  // 在这片海域留下你的声音...
   const sendMessage = async () => {
     if (!input.trim() || loading) return;
 
@@ -211,7 +211,7 @@ function App() {
     setLoading(false);
   };
 
-  // 在这片海域留下你的声音...
+  // 输入消息
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
