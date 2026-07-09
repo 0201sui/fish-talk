@@ -494,8 +494,8 @@
 }
 
 .splash-whale {
-  font-size: 200px;
-  margin-bottom: 8px;
+  font-size: 100px;
+  margin-bottom: -35px;
   animation: whaleAppear 1.2s ease both, whaleSwim 3.5s ease-in-out 1.2s infinite;
 }
 
