@@ -485,98 +485,97 @@
 
 .splash-content {
   text-align: center;
-  animation: splashRise 1.2s ease 0.3s both;
   position: relative;
   z-index: 2;
 }
 
-@keyframes splashRise {
-  from { opacity: 0; transform: translateY(30px); }
-  to { opacity: 1; transform: translateY(0); }
+.splash-whale {
+  position: relative;
+  margin-bottom: 30px;
+  height: 100px;
 }
 
-.splash-whale {
-  margin-bottom: 24px;
-  position: relative;
-}
-.whale-svg {
-  width: 120px;
-  height: 150px;
+.whale-emoji {
+  font-size: 70px;
   animation: whaleBreach 3s ease-in-out infinite;
+  position: relative;
+  z-index: 2;
 }
 
 @keyframes whaleBreach {
-  0%, 100% { transform: translateY(0); }
-  40% { transform: translateY(-15px); }
-  60% { transform: translateY(-15px); }
+  0% { transform: translateY(40px) rotate(15deg); opacity: 0; }
+  15% { opacity: 1; }
+  35% { transform: translateY(-10px) rotate(-5deg); }
+  50% { transform: translateY(-5px) rotate(0deg); }
+  65% { transform: translateY(-10px) rotate(3deg); }
+  80% { transform: translateY(0px) rotate(0deg); }
+  100% { transform: translateY(5px) rotate(-2deg); }
 }
 
-@keyframes whaleSwim {
-  0%, 100% { transform: translateX(0) translateY(0); }
-  25% { transform: translateX(5px) translateY(-3px); }
-  50% { transform: translateX(0) translateY(0); }
-  75% { transform: translateX(-5px) translateY(3px); }
-}
-
-.whale-body-group {
-  animation: whaleBodyRock 2s ease-in-out infinite;
-  transform-origin: center;
-}
-
-@keyframes whaleBodyRock {
-  0%, 100% { transform: rotate(0deg); }
-  30% { transform: rotate(1deg); }
-  70% { transform: rotate(-1deg); }
-}
-
-@keyframes tailWag {
-  0%, 100% { transform: rotate(0deg); }
-  25% { transform: rotate(8deg); }
-  75% { transform: rotate(-8deg); }
-}
-.whale-tail {
-  animation: tailWag 1.5s ease-in-out infinite;
-  transform-origin: 80px 155px;
-}
-
-@keyframes tailWag {
-  0%, 100% { transform: rotate(0deg); }
-  30% { transform: rotate(5deg); }
-  70% { transform: rotate(-5deg); }
-}
-.whale-shine {
-  animation: shineGlow 2s ease-in-out infinite;
-}
-
-@keyframes shineGlow {
-  0%, 100% { opacity: 0.3; }
-  50% { opacity: 0.7; }
-}
-
-.whale-spray {
+.whale-splash-drops {
   position: absolute;
-  top: -10px;
+  top: 50%;
   left: 50%;
-  transform: translateX(-30px);
+  transform: translate(-50%, -50%);
+  width: 100px;
+  height: 100px;
+  pointer-events: none;
 }
 
-.whale-spray span {
+.whale-splash-drops span {
   position: absolute;
-  width: 4px;
-  height: 4px;
-  background: rgba(255, 255, 255, 0.6);
+  width: 6px;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.7);
   border-radius: 50%;
-  animation: sprayUp 2s ease-out infinite;
+  top: 50%;
+  left: 50%;
+  animation: splashDrop 3s ease-out infinite;
 }
 
-.whale-spray span:nth-child(1) { left: 0; animation-delay: 0.5s; }
-.whale-spray span:nth-child(2) { left: 8px; animation-delay: 0.7s; }
-.whale-spray span:nth-child(3) { left: 4px; animation-delay: 0.9s; }
+.whale-splash-drops span:nth-child(1) { animation-delay: 0.3s; }
+.whale-splash-drops span:nth-child(2) { animation-delay: 0.4s; }
+.whale-splash-drops span:nth-child(3) { animation-delay: 0.5s; }
+.whale-splash-drops span:nth-child(4) { animation-delay: 0.35s; }
+.whale-splash-drops span:nth-child(5) { animation-delay: 0.45s; }
 
-@keyframes sprayUp {
-  0% { transform: translateY(0); opacity: 0; }
-  20% { opacity: 0.8; }
-  100% { transform: translateY(-25px) scale(0.5); opacity: 0; }
+@keyframes splashDrop {
+  0% { transform: translate(0, 0) scale(0); opacity: 0; }
+  15% { opacity: 1; transform: translate(0, 0) scale(1); }
+  30% { opacity: 0.8; }
+  100% { opacity: 0; }
+}
+
+.whale-splash-drops span:nth-child(1) { animation-name: drop1; }
+.whale-splash-drops span:nth-child(2) { animation-name: drop2; }
+.whale-splash-drops span:nth-child(3) { animation-name: drop3; }
+.whale-splash-drops span:nth-child(4) { animation-name: drop4; }
+.whale-splash-drops span:nth-child(5) { animation-name: drop5; }
+
+@keyframes drop1 {
+  0% { transform: translate(0,0) scale(0); opacity: 0; }
+  15% { opacity: 0.8; transform: translate(0,0) scale(1); }
+  100% { transform: translate(-30px, -40px) scale(0); opacity: 0; }
+}
+@keyframes drop2 {
+  0% { transform: translate(0,0) scale(0); opacity: 0; }
+  15% { opacity: 0.8; transform: translate(0,0) scale(1); }
+  100% { transform: translate(25px, -35px) scale(0); opacity: 0; }
+}
+@keyframes drop3 {
+  0% { transform: translate(0,0) scale(0); opacity: 0; }
+  15% { opacity: 0.8; transform: translate(0,0) scale(1); }
+  100% { transform: translate(-15px, -45px) scale(0); opacity: 0; }
+}
+@keyframes drop4 {
+  0% { transform: translate(0,0) scale(0); opacity: 0; }
+  15% { opacity: 0.8; transform: translate(0,0) scale(1); }
+  100% { transform: translate(35px, -25px) scale(0); opacity: 0; }
+}
+@keyframes drop5 {
+  0% { transform: translate(0,0) scale(0); opacity: 0; }
+  15% { opacity: 0.8; transform: translate(0,0) scale(1); }
+  100% { transform: translate(-5px, -50px) scale(0); opacity: 0; }
 }
 
 .splash-title {
@@ -586,13 +585,19 @@
   letter-spacing: 12px;
   margin-bottom: 12px;
   text-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
+  animation: titleAppear 1s ease 0.8s both;
+}
+
+@keyframes titleAppear {
+  from { opacity: 0; transform: translateY(15px); letter-spacing: 20px; }
+  to { opacity: 1; transform: translateY(0); letter-spacing: 12px; }
 }
 
 .splash-subtitle {
   font-size: 13px;
   color: rgba(255, 255, 255, 0.5);
   letter-spacing: 3px;
-  animation: subtitleFade 2s ease 1s both;
+  animation: subtitleFade 1s ease 1.5s both;
 }
 
 @keyframes subtitleFade {
