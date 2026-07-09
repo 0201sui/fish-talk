@@ -256,7 +256,7 @@ function App() {
             <span></span><span></span><span></span>
           </div>
         </div>
-        <div className="splash-bottom">
+    <div className="splash-bottom" style={{position:'absolute',bottom:'120px',left:'0',right:'0',textAlign:'center'}}>
           <h1 className="splash-title">鱼说</h1>
           <p className="splash-subtitle">在深海里，听见你的声音</p>
         </div>
