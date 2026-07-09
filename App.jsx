@@ -4,7 +4,6 @@ import './App.css';
 const API_URL = 'https://my-home-backend-9j56.onrender.com';
 
 function App() {
-  // 状态管理
   const [sessions, setSessions] = useState([]);
   const [currentSessionId, setCurrentSessionId] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -25,7 +24,6 @@ function App() {
   const messagesEndRef = useRef(null);
   const textareaRef = useRef(null);
 
-  // 自动滚动到底部
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
@@ -34,25 +32,20 @@ function App() {
     scrollToBottom();
   }, [messages, loading]);
 
-  // 加载会话列表
   useEffect(() => {
     fetchSessions();
     fetchSettings();
   }, []);
 
-  // 切换会话时加载消息
   useEffect(() => {
     if (currentSessionId) {
       fetchMessages(currentSessionId);
     }
   }, [currentSessionId]);
 
-  // 保存模型选择
   useEffect(() => {
     localStorage.setItem('selectedModel', model);
   }, [model]);
-
-  // ===== API 调用函数 =====
 
   const fetchSessions = async () => {
     try {
@@ -155,11 +148,9 @@ function App() {
     }
   };
 
-  // 在这片海域留下你的声音...
   const sendMessage = async () => {
     if (!input.trim() || loading) return;
 
-    // 如果没有会话，先创建一个
     let sessionId = currentSessionId;
     if (!sessionId) {
       try {
@@ -211,7 +202,6 @@ function App() {
     setLoading(false);
   };
 
-  // 输入消息
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -219,7 +209,6 @@ function App() {
     }
   };
 
-  // 自动调整输入框高度
   const handleInputChange = (e) => {
     setInput(e.target.value);
     const textarea = textareaRef.current;
@@ -231,13 +220,11 @@ function App() {
 
   return (
     <div className="app">
-      {/* 手机端侧边栏遮罩 */}
       {showSidebar && <div className="sidebar-overlay" onClick={() => setShowSidebar(false)} />}
 
-      {/* 侧边栏 */}
       <aside className={`sidebar ${showSidebar ? 'open' : ''}`}>
         <div className="sidebar-header">
-          <h2>对话列表</h2>
+          <h2>🐚 对话列表</h2>
           <button className="new-chat-btn" onClick={createSession}>+ 新对话</button>
         </div>
         <div className="session-list">
@@ -248,26 +235,24 @@ function App() {
               onClick={() => { setCurrentSessionId(session.id); setShowSidebar(false); }}
             >
               <span className="session-name" onDoubleClick={(e) => renameSession(session.id, e)}>
-                {session.name || '未命名对话'}
+                🫧 {session.name || '未命名对话'}
               </span>
               <button className="delete-btn" onClick={(e) => deleteSession(session.id, e)}>×</button>
             </div>
           ))}
           {sessions.length === 0 && (
-            <p style={{ padding: '20px', color: '#b0a090', fontSize: '13px', textAlign: 'center' }}>
-              还没有对话，点击上方"+ 新对话"开始
+            <p style={{ padding: '20px', color: '#7ab0c4', fontSize: '13px', textAlign: 'center' }}>
+              海洋里还没有故事，点击"+ 新对话"开始吧 🌊
             </p>
           )}
         </div>
       </aside>
 
-      {/* 主区域 */}
       <div className="main-area">
-        {/* 顶栏 */}
         <header className="chat-header">
           <div className="chat-header-left">
             <button className="menu-btn" onClick={() => setShowSidebar(true)}>☰</button>
-         <title>裴拟的海洋馆 🐠</title>
+            <h1>🐠 裴拟的海洋馆</h1>
           </div>
           <div className="chat-header-right">
             <select className="model-select" value={model} onChange={(e) => setModel(e.target.value)}>
@@ -278,12 +263,13 @@ function App() {
           </div>
         </header>
 
-        {/* 消息列表 */}
         <div className="messages-area">
           {messages.length === 0 && !loading && (
             <div className="welcome">
-              <h2>欢迎来到海洋馆 🌊</h2>
-              <p>输入消息开始对话吧</p>
+              <div className="welcome-icon">🌊</div>
+              <h2>欢迎来到海洋馆</h2>
+              <p>在这片属于我们的海域，留下你的故事吧</p>
+              <div className="welcome-decoration">🐠 🐙 🦈 🐚 🪸</div>
             </div>
           )}
           {messages.map((msg, index) => (
@@ -305,7 +291,6 @@ function App() {
           <div ref={messagesEndRef} />
         </div>
 
-        {/* 输入区域 */}
         <div className="input-area">
           <div className="input-wrapper">
             <textarea
@@ -313,17 +298,16 @@ function App() {
               value={input}
               onChange={handleInputChange}
               onKeyDown={handleKeyDown}
-              placeholder="输入消息... (Enter 发送, Shift+Enter 换行)"
+              placeholder="在这片海域留下你的声音..."
               rows={1}
             />
             <button className="send-btn" onClick={sendMessage} disabled={loading || !input.trim()}>
-              发送
+              🐋
             </button>
           </div>
         </div>
       </div>
 
-      {/* 设置弹窗 */}
       {showSettings && (
         <div className="modal-overlay" onClick={() => setShowSettings(false)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
