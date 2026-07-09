@@ -245,30 +245,26 @@ function App() {
       textarea.style.height = Math.min(textarea.scrollHeight, 100) + 'px';
     }
   };
-
-  // 开屏动画
-  if (showSplash) {
-    return (
-      <div className={`splash ${splashFading ? 'splash-fading' : ''}`}>
-        <div className="splash-center">
-          <div className="splash-whale">🐋</div>
-          <div className="whale-bubbles">
-            <span></span><span></span><span></span>
-          </div>
-        </div>
-    <div className="splash-bottom" style={{position:'absolute',bottom:'120px',left:'0',right:'0',textAlign:'center'}}>
-          <h1 className="splash-title">鱼说</h1>
-          <p className="splash-subtitle">在深海里，听见你的声音</p>
-        </div>
-        <div className="splash-waves">
-          <div className="wave wave-1"></div>
-          <div className="wave wave-2"></div>
-          <div className="wave wave-3"></div>
-        </div>
+// 开屏动画
+if (showSplash) {
+  return (
+    <div className={`splash ${splashFading ? 'splash-fading' : ''}`} style={{
+      position:'fixed', top:0, left:0, right:0, bottom:0,
+      background:'linear-gradient(180deg, #0a1f35 0%, #153350 60%, #1a3d5e 100%)',
+      display:'flex', flexDirection:'column', alignItems:'center',
+      zIndex:9999, overflow:'hidden', opacity: splashFading ? 0 : 1,
+      transition:'opacity 0.8s ease'
+    }}>
+      <div style={{flex:1, display:'flex', alignItems:'center', justifyContent:'center', position:'relative'}}>
+        <div className="splash-whale" style={{fontSize:'160px', lineHeight:1}}>🐋</div>
       </div>
-    );
-  }
-
+      <div style={{paddingBottom:'100px', textAlign:'center'}}>
+        <h1 style={{fontSize:'42px', color:'white', fontWeight:200, letterSpacing:'12px'}}>鱼说</h1>
+        <p style={{fontSize:'14px', color:'rgba(255,255,255,0.45)', letterSpacing:'3px', marginTop:'12px'}}>在深海里，听见你的声音</p>
+      </div>
+    </div>
+  );
+}
   return (
     <div className="app">
       {showSidebar && <div className="sidebar-overlay" onClick={() => setShowSidebar(false)} />}
