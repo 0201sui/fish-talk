@@ -5,6 +5,7 @@ const API_URL = 'https://my-home-backend-9j56.onrender.com';
 
 function App() {
   const [showSplash, setShowSplash] = useState(true);
+  const [splashFading, setSplashFading] = useState(false);
   const [sessions, setSessions] = useState([]);
   const [currentSessionId, setCurrentSessionId] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -26,12 +27,16 @@ function App() {
   const messagesAreaRef = useRef(null);
   const textareaRef = useRef(null);
 
-  // 开屏动画 2.5 秒后消失
+  // 开屏动画：2.5秒后开始淡出，3.3秒后彻底移除
   useEffect(() => {
-  
-    return () => clearTimeout(timer);
+    const fadeTimer = setTimeout(() => setSplashFading(true), 2500);
+    const removeTimer = setTimeout(() => setShowSplash(false), 3300);
+    return () => {
+      clearTimeout(fadeTimer);
+      clearTimeout(removeTimer);
+    };
   }, []);
-const timer = setTimeout(() => setShowSplash(false), 4000);
+
   const scrollToBottom = () => {
     setTimeout(() => {
       if (messagesAreaRef.current) {
@@ -117,6 +122,7 @@ const timer = setTimeout(() => setShowSplash(false), 4000);
         setSessions(prev => [data.session, ...prev]);
         setCurrentSessionId(data.session.id);
         setMessages([]);
+        setShowSidebar(false);
       }
     } catch (err) {
       console.error('创建会话失败:', err);
@@ -244,7 +250,7 @@ const timer = setTimeout(() => setShowSplash(false), 4000);
   // 开屏动画
   if (showSplash) {
     return (
-      <div className="splash">
+      <div className={`splash ${splashFading ? 'splash-fading' : ''}`}>
         <div className="splash-bubbles">
           <span></span><span></span><span></span><span></span><span></span>
         </div>
