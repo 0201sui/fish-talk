@@ -241,8 +241,8 @@ const timer = setTimeout(() => setShowSplash(false), 4000);
     }
   };
 
-  // 开屏动画
-  if (showSplash) {
+  // 开屏动画//
+ if (showSplash) {
   return (
     <div className="splash">
       <div className="splash-bubbles">
@@ -250,23 +250,9 @@ const timer = setTimeout(() => setShowSplash(false), 4000);
       </div>
       <div className="splash-content">
         <div className="splash-whale">
-          <svg viewBox="0 0 160 200" className="whale-svg">
-  <g className="whale-body-group">
-    <path d="M 80 20 C 105 20 120 40 120 65 C 120 90 110 130 100 150 C 95 160 85 160 80 150 C 75 160 65 160 60 150 C 50 130 40 90 40 65 C 40 40 55 20 80 20 Z" fill="rgba(255,255,255,0.9)" />
-    <ellipse cx="80" cy="75" rx="30" ry="8" fill="rgba(255,255,255,0.95)" />
-    <circle cx="65" cy="50" r="3.5" fill="#132d4a" />
-    <circle cx="95" cy="50" r="3.5" fill="#132d4a" />
-    <path d="M 72 65 Q 80 70 88 65" stroke="#132d4a" strokeWidth="1.5" fill="none" strokeLinecap="round" />
-    <path d="M 40 80 C 25 75 15 65 20 55" stroke="rgba(255,255,255,0.7)" strokeWidth="3" fill="none" strokeLinecap="round" />
-    <path d="M 120 80 C 135 75 145 65 140 55" stroke="rgba(255,255,255,0.7)" strokeWidth="3" fill="none" strokeLinecap="round" />
-  </g>
-  <g className="whale-tail">
-    <path d="M 70 155 C 55 170 40 180 35 175 C 30 170 45 160 60 155" fill="rgba(255,255,255,0.8)" />
-    <path d="M 90 155 C 105 170 120 180 125 175 C 130 170 115 160 100 155" fill="rgba(255,255,255,0.8)" />
-  </g>
-</svg>
-          <div className="whale-spray">
-            <span></span><span></span><span></span>
+          <div className="whale-emoji">🐋</div>
+          <div className="whale-splash-drops">
+            <span></span><span></span><span></span><span></span><span></span>
           </div>
         </div>
         <h1 className="splash-title">鱼说</h1>
@@ -277,7 +263,6 @@ const timer = setTimeout(() => setShowSplash(false), 4000);
     </div>
   );
 }
-
   return (
     <div className="app">
       {showSidebar && <div className="sidebar-overlay" onClick={() => setShowSidebar(false)} />}
