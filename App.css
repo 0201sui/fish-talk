@@ -499,11 +499,16 @@
   margin-bottom: 24px;
   position: relative;
 }
-
 .whale-svg {
-  width: 160px;
-  height: 100px;
-  animation: whaleSwim 3s ease-in-out infinite;
+  width: 120px;
+  height: 150px;
+  animation: whaleBreach 3s ease-in-out infinite;
+}
+
+@keyframes whaleBreach {
+  0%, 100% { transform: translateY(0); }
+  40% { transform: translateY(-15px); }
+  60% { transform: translateY(-15px); }
 }
 
 @keyframes whaleSwim {
@@ -524,17 +529,21 @@
   70% { transform: rotate(-1deg); }
 }
 
-.whale-tail {
-  animation: tailWag 1.2s ease-in-out infinite;
-  transform-origin: 140px 60px;
-}
-
 @keyframes tailWag {
   0%, 100% { transform: rotate(0deg); }
   25% { transform: rotate(8deg); }
   75% { transform: rotate(-8deg); }
 }
+.whale-tail {
+  animation: tailWag 1.5s ease-in-out infinite;
+  transform-origin: 80px 155px;
+}
 
+@keyframes tailWag {
+  0%, 100% { transform: rotate(0deg); }
+  30% { transform: rotate(5deg); }
+  70% { transform: rotate(-5deg); }
+}
 .whale-shine {
   animation: shineGlow 2s ease-in-out infinite;
 }
