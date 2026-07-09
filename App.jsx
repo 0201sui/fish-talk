@@ -27,7 +27,6 @@ function App() {
   const messagesAreaRef = useRef(null);
   const textareaRef = useRef(null);
 
-  // 开屏动画：2.5秒后开始淡出，3.3秒后彻底移除
   useEffect(() => {
     const fadeTimer = setTimeout(() => setSplashFading(true), 2500);
     const removeTimer = setTimeout(() => setShowSplash(false), 3300);
@@ -246,28 +245,30 @@ function App() {
       textarea.style.height = Math.min(textarea.scrollHeight, 100) + 'px';
     }
   };
-// 开屏动画
-if (showSplash) {
-  return (
-    <div className={`splash ${splashFading ? 'splash-fading' : ''}`}>
-      <div className="splash-center">
-        <div className="splash-whale">🐋</div>
-        <div className="whale-bubbles">
-          <span></span><span></span><span></span>
+
+  // 开屏动画
+  if (showSplash) {
+    return (
+      <div className={`splash ${splashFading ? 'splash-fading' : ''}`}>
+        <div className="splash-center">
+          <div className="splash-whale">🐋</div>
+          <div className="whale-bubbles">
+            <span></span><span></span><span></span>
+          </div>
+        </div>
+        <div className="splash-bottom">
+          <h1 className="splash-title">鱼说</h1>
+          <p className="splash-subtitle">在深海里，听见你的声音</p>
+        </div>
+        <div className="splash-waves">
+          <div className="wave wave-1"></div>
+          <div className="wave wave-2"></div>
+          <div className="wave wave-3"></div>
         </div>
       </div>
-      <div className="splash-bottom">
-        <h1 className="splash-title">鱼说</h1>
-        <p className="splash-subtitle">在深海里，听见你的声音</p>
-      </div>
-      <div className="splash-waves">
-        <div className="wave wave-1"></div>
-        <div className="wave wave-2"></div>
-        <div className="wave wave-3"></div>
-      </div>
-    </div>
-  );
-}
+    );
+  }
+
   return (
     <div className="app">
       {showSidebar && <div className="sidebar-overlay" onClick={() => setShowSidebar(false)} />}
