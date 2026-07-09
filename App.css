@@ -469,13 +469,13 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: linear-gradient(180deg, #0d2847 0%, #1a3a5c 40%, #2a5a7a 100%);
+  background: linear-gradient(180deg, #0a1f35 0%, #132d4a 30%, #1a3a5c 60%, #234d6e 100%);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   z-index: 9999;
-  animation: splashFadeOut 0.5s ease 2s forwards;
+  animation: splashFadeOut 0.8s ease 3.5s forwards;
   overflow: hidden;
 }
 
@@ -494,28 +494,50 @@
 }
 
 .splash-whale {
-  font-size: 60px;
-  margin-bottom: 16px;
-  animation: splashDive 2s ease-in-out infinite;
+  font-size: 100px;
+  margin-bottom: 24px;
+  animation: whaleAppear 1.2s ease both, whaleSwim 3.5s ease-in-out 1.2s infinite;
 }
 
-@keyframes splashDive {
-  0%, 100% { transform: translateY(0) rotate(0deg); }
-  50% { transform: translateY(10px) rotate(-5deg); }
+@keyframes whaleAppear {
+  from { opacity: 0; transform: translateX(-80px) translateY(20px) rotate(10deg); }
+  to { opacity: 1; transform: translateX(0) translateY(0) rotate(0deg); }
+}
+
+@keyframes whaleSwim {
+  0% { transform: translateX(0) translateY(0) rotate(0deg); }
+  20% { transform: translateX(10px) translateY(-8px) rotate(-4deg); }
+  40% { transform: translateX(5px) translateY(-3px) rotate(-1deg); }
+  60% { transform: translateX(-8px) translateY(-6px) rotate(3deg); }
+  80% { transform: translateX(-4px) translateY(-2px) rotate(1deg); }
+  100% { transform: translateX(0) translateY(0) rotate(0deg); }
 }
 
 .splash-title {
-  font-size: 36px;
+  font-size: 38px;
   color: white;
-  font-weight: 300;
-  letter-spacing: 8px;
+  font-weight: 200;
+  letter-spacing: 12px;
   margin-bottom: 12px;
+  text-shadow: 0 0 20px rgba(255, 255, 255, 0.15);
+  animation: titleAppear 1s ease 0.8s both;
+}
+
+@keyframes titleAppear {
+  from { opacity: 0; letter-spacing: 20px; }
+  to { opacity: 1; letter-spacing: 12px; }
 }
 
 .splash-subtitle {
-  font-size: 14px;
-  color: rgba(255, 255, 255, 0.6);
-  letter-spacing: 2px;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.5);
+  letter-spacing: 3px;
+  animation: subtitleFade 1s ease 1.5s both;
+}
+
+@keyframes subtitleFade {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 .splash-bubbles {
@@ -528,37 +550,36 @@
 .splash-bubbles span {
   position: absolute;
   bottom: -20px;
-  width: 10px;
-  height: 10px;
-  border: 1.5px solid rgba(255, 255, 255, 0.3);
+  border: 1.5px solid rgba(255, 255, 255, 0.2);
   border-radius: 50%;
-  animation: bubbleRise 3s ease-in infinite;
+  animation: bubbleRise 4s ease-in infinite;
 }
 
-.splash-bubbles span:nth-child(1) { left: 15%; animation-delay: 0s; width: 8px; height: 8px; }
-.splash-bubbles span:nth-child(2) { left: 35%; animation-delay: 0.5s; width: 12px; height: 12px; }
-.splash-bubbles span:nth-child(3) { left: 55%; animation-delay: 1s; width: 6px; height: 6px; }
-.splash-bubbles span:nth-child(4) { left: 75%; animation-delay: 0.3s; width: 10px; height: 10px; }
-.splash-bubbles span:nth-child(5) { left: 90%; animation-delay: 0.8s; width: 7px; height: 7px; }
+.splash-bubbles span:nth-child(1) { left: 10%; width: 8px; height: 8px; animation-delay: 0s; }
+.splash-bubbles span:nth-child(2) { left: 25%; width: 12px; height: 12px; animation-delay: 0.8s; }
+.splash-bubbles span:nth-child(3) { left: 45%; width: 6px; height: 6px; animation-delay: 1.5s; }
+.splash-bubbles span:nth-child(4) { left: 65%; width: 10px; height: 10px; animation-delay: 0.3s; }
+.splash-bubbles span:nth-child(5) { left: 80%; width: 7px; height: 7px; animation-delay: 1.2s; }
 
 @keyframes bubbleRise {
-  0% { bottom: -20px; opacity: 0; }
-  10% { opacity: 1; }
-  100% { bottom: 100%; opacity: 0; }
+  0% { bottom: -20px; opacity: 0; transform: translateX(0); }
+  10% { opacity: 0.6; }
+  50% { transform: translateX(8px); }
+  100% { bottom: 110%; opacity: 0; transform: translateX(-5px); }
 }
 
 .splash-wave {
   position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 60px;
-  background: rgba(255, 255, 255, 0.05);
+  bottom: -5px;
+  left: -10%;
+  right: -10%;
+  height: 40px;
+  background: rgba(255, 255, 255, 0.03);
   border-radius: 100% 100% 0 0;
-  animation: waveMove 2s ease-in-out infinite;
+  animation: waveMove 3s ease-in-out infinite;
 }
 
 @keyframes waveMove {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-10px); }
+  0%, 100% { transform: translateX(0) translateY(0); }
+  50% { transform: translateX(10px) translateY(-5px); }
 }
