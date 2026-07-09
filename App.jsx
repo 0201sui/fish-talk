@@ -28,10 +28,10 @@ function App() {
 
   // 开屏动画 2.5 秒后消失
   useEffect(() => {
-    const timer = setTimeout(() => setShowSplash(false), 2500);
+  
     return () => clearTimeout(timer);
   }, []);
-
+const timer = setTimeout(() => setShowSplash(false), 4000);
   const scrollToBottom = () => {
     setTimeout(() => {
       if (messagesAreaRef.current) {
