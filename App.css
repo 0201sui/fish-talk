@@ -495,7 +495,7 @@
 .splash-whale {
   font-size: 150px;
   line-height: 1;
-  margin-bottom: 50px;
+  margin-bottom: 8px;
   animation: whaleSwim 3s ease-in-out infinite;
   filter: drop-shadow(0 10px 40px rgba(100, 200, 255, 0.3));
 }
