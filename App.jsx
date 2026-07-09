@@ -211,7 +211,7 @@ function App() {
     setLoading(false);
   };
 
-  // 按 Enter 发送，Shift+Enter 换行
+  // 在这片海域留下你的声音...
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -267,7 +267,7 @@ function App() {
         <header className="chat-header">
           <div className="chat-header-left">
             <button className="menu-btn" onClick={() => setShowSidebar(true)}>☰</button>
-            <h1>Bunny's Home 🏠</h1>
+         <title>裴拟的海洋馆 🐠</title>
           </div>
           <div className="chat-header-right">
             <select className="model-select" value={model} onChange={(e) => setModel(e.target.value)}>
@@ -282,7 +282,7 @@ function App() {
         <div className="messages-area">
           {messages.length === 0 && !loading && (
             <div className="welcome">
-              <h2>欢迎回家 💕</h2>
+              <h2>欢迎来到海洋馆 🌊</h2>
               <p>输入消息开始对话吧</p>
             </div>
           )}
