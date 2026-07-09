@@ -163,7 +163,7 @@
   white-space: nowrap;
 }
 
-/* ===== 消息区域（关键！） ===== */
+/* ===== 消息区域 ===== */
 .messages-area {
   flex: 1;
   min-height: 0;
@@ -462,6 +462,7 @@
     z-index: 99;
   }
 }
+
 /* ===== 开屏动画 ===== */
 .splash {
   position: fixed;
@@ -533,24 +534,11 @@
   animation: splashDrop 3s ease-out infinite;
 }
 
-.whale-splash-drops span:nth-child(1) { animation-delay: 0.3s; }
-.whale-splash-drops span:nth-child(2) { animation-delay: 0.4s; }
-.whale-splash-drops span:nth-child(3) { animation-delay: 0.5s; }
-.whale-splash-drops span:nth-child(4) { animation-delay: 0.35s; }
-.whale-splash-drops span:nth-child(5) { animation-delay: 0.45s; }
-
-@keyframes splashDrop {
-  0% { transform: translate(0, 0) scale(0); opacity: 0; }
-  15% { opacity: 1; transform: translate(0, 0) scale(1); }
-  30% { opacity: 0.8; }
-  100% { opacity: 0; }
-}
-
-.whale-splash-drops span:nth-child(1) { animation-name: drop1; }
-.whale-splash-drops span:nth-child(2) { animation-name: drop2; }
-.whale-splash-drops span:nth-child(3) { animation-name: drop3; }
-.whale-splash-drops span:nth-child(4) { animation-name: drop4; }
-.whale-splash-drops span:nth-child(5) { animation-name: drop5; }
+.whale-splash-drops span:nth-child(1) { animation: drop1 3s ease-out infinite; animation-delay: 0.3s; }
+.whale-splash-drops span:nth-child(2) { animation: drop2 3s ease-out infinite; animation-delay: 0.4s; }
+.whale-splash-drops span:nth-child(3) { animation: drop3 3s ease-out infinite; animation-delay: 0.5s; }
+.whale-splash-drops span:nth-child(4) { animation: drop4 3s ease-out infinite; animation-delay: 0.35s; }
+.whale-splash-drops span:nth-child(5) { animation: drop5 3s ease-out infinite; animation-delay: 0.45s; }
 
 @keyframes drop1 {
   0% { transform: translate(0,0) scale(0); opacity: 0; }
