@@ -4,6 +4,7 @@ import './App.css';
 const API_URL = 'https://my-home-backend-9j56.onrender.com';
 
 function App() {
+  const [showSplash, setShowSplash] = useState(true);
   const [sessions, setSessions] = useState([]);
   const [currentSessionId, setCurrentSessionId] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -25,6 +26,12 @@ function App() {
   const messagesAreaRef = useRef(null);
   const textareaRef = useRef(null);
 
+  // 开屏动画 2.5 秒后消失
+  useEffect(() => {
+    const timer = setTimeout(() => setShowSplash(false), 2500);
+    return () => clearTimeout(timer);
+  }, []);
+
   const scrollToBottom = () => {
     setTimeout(() => {
       if (messagesAreaRef.current) {
@@ -40,7 +47,6 @@ function App() {
   useEffect(() => {
     fetchSessions();
     fetchSettings();
-    // 修复移动端视口高度
     const setVH = () => {
       const vh = window.innerHeight * 0.01;
       document.documentElement.style.setProperty('--vh', `${vh}px`);
@@ -189,7 +195,6 @@ function App() {
     setInput('');
     setLoading(true);
 
-    // 收起手机键盘
     if (textareaRef.current) {
       textareaRef.current.blur();
     }
@@ -236,6 +241,23 @@ function App() {
     }
   };
 
+  // 开屏动画
+  if (showSplash) {
+    return (
+      <div className="splash">
+        <div className="splash-bubbles">
+          <span></span><span></span><span></span><span></span><span></span>
+        </div>
+        <div className="splash-content">
+          <div className="splash-whale">🐋</div>
+          <h1 className="splash-title">鱼说</h1>
+          <p className="splash-subtitle">在深海里，听见你的声音</p>
+        </div>
+        <div className="splash-wave"></div>
+      </div>
+    );
+  }
+
   return (
     <div className="app">
       {showSidebar && <div className="sidebar-overlay" onClick={() => setShowSidebar(false)} />}
@@ -270,7 +292,7 @@ function App() {
         <header className="chat-header">
           <div className="chat-header-left">
             <button className="menu-btn" onClick={() => setShowSidebar(true)}>☰</button>
-            <h1> 裴拟的海洋馆🐟</h1>
+            <h1>🐠 裴拟的海洋馆</h1>
           </div>
           <div className="chat-header-right">
             <select className="model-select" value={model} onChange={(e) => setModel(e.target.value)}>
