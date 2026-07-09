@@ -462,7 +462,6 @@
     z-index: 99;
   }
 }
-
 /* ===== 开屏动画 ===== */
 .splash {
   position: fixed;
@@ -474,7 +473,6 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
   z-index: 9999;
   overflow: hidden;
   opacity: 1;
@@ -485,108 +483,161 @@
   opacity: 0;
 }
 
-.splash-content {
+/* 三段式布局 */
+.splash-top {
+  flex: 1;
+}
+
+.splash-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.splash-bottom {
+  flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0;
+  justify-content: flex-end;
+  width: 100%;
+  position: relative;
+  overflow: hidden;
 }
 
+/* 鲸鱼 */
 .splash-whale {
-  font-size: 150px;
-  line-height: 1;
-  margin-bottom: 8px;
-  animation: whaleSwim 3s ease-in-out infinite;
-  filter: drop-shadow(0 10px 40px rgba(100, 200, 255, 0.3));
+  font-size: 80px;
+  animation: whaleFloat 3s ease-in-out infinite;
+  filter: drop-shadow(0 0 20px rgba(100, 200, 255, 0.4));
 }
 
-@keyframes whaleSwim {
-  0%, 100% {
-    transform: translateY(0) translateX(0) rotate(-2deg);
-  }
-  25% {
-    transform: translateY(-18px) translateX(10px) rotate(0deg);
-  }
-  50% {
-    transform: translateY(-5px) translateX(-8px) rotate(3deg);
-  }
-  75% {
-    transform: translateY(-12px) translateX(5px) rotate(-1deg);
-  }
+@keyframes whaleFloat {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  30% { transform: translateY(-12px) rotate(2deg); }
+  70% { transform: translateY(8px) rotate(-2deg); }
 }
 
-.splash-title {
-  font-size: 42px;
-  color: white;
-  font-weight: 200;
-  letter-spacing: 12px;
-  text-shadow: 0 0 20px rgba(100, 200, 255, 0.4), 0 0 60px rgba(100, 200, 255, 0.2);
-  animation: titleGlow 2s ease-in-out infinite alternate;
-}
-
-@keyframes titleGlow {
-  from {
-    text-shadow: 0 0 20px rgba(100, 200, 255, 0.4), 0 0 60px rgba(100, 200, 255, 0.2);
-  }
-  to {
-    text-shadow: 0 0 30px rgba(100, 200, 255, 0.7), 0 0 80px rgba(100, 200, 255, 0.4);
-  }
-}
-
-.splash-subtitle {
-  font-size: 14px;
-  color: rgba(255, 255, 255, 0.5);
-  letter-spacing: 3px;
-  margin-top: 16px;
-  animation: subtitleFade 1.2s ease 0.5s both;
-}
-
-@keyframes subtitleFade {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
+/* 背景大气泡 */
 .splash-bubbles {
   position: absolute;
-  width: 100%;
-  height: 100%;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   pointer-events: none;
 }
 
 .splash-bubbles span {
   position: absolute;
-  bottom: -20px;
-  border: 1.5px solid rgba(255, 255, 255, 0.15);
-  background: rgba(255, 255, 255, 0.05);
   border-radius: 50%;
-  animation: bubbleRise 4s ease-in infinite;
+  background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.15), rgba(100,200,255,0.05));
+  animation: bgBubbleRise 8s ease-in infinite;
 }
 
-.splash-bubbles span:nth-child(1) { left: 10%; width: 14px; height: 14px; animation-delay: 0s; }
-.splash-bubbles span:nth-child(2) { left: 25%; width: 22px; height: 22px; animation-delay: 0.8s; }
-.splash-bubbles span:nth-child(3) { left: 50%; width: 10px; height: 10px; animation-delay: 1.5s; }
-.splash-bubbles span:nth-child(4) { left: 70%; width: 18px; height: 18px; animation-delay: 0.3s; }
-.splash-bubbles span:nth-child(5) { left: 85%; width: 12px; height: 12px; animation-delay: 1.2s; }
+.splash-bubbles span:nth-child(1) { width: 20px; height: 20px; left: 10%; bottom: -20px; animation-delay: 0s; animation-duration: 7s; }
+.splash-bubbles span:nth-child(2) { width: 14px; height: 14px; left: 30%; bottom: -20px; animation-delay: 1.5s; animation-duration: 9s; }
+.splash-bubbles span:nth-child(3) { width: 18px; height: 18px; left: 55%; bottom: -20px; animation-delay: 3s; animation-duration: 8s; }
+.splash-bubbles span:nth-child(4) { width: 12px; height: 12px; left: 75%; bottom: -20px; animation-delay: 2s; animation-duration: 10s; }
+.splash-bubbles span:nth-child(5) { width: 16px; height: 16px; left: 90%; bottom: -20px; animation-delay: 4s; animation-duration: 7.5s; }
 
-@keyframes bubbleRise {
-  0% { bottom: -20px; opacity: 0; transform: translateX(0); }
-  10% { opacity: 0.6; }
-  50% { transform: translateX(10px); }
-  100% { bottom: 110%; opacity: 0; transform: translateX(-8px); }
+@keyframes bgBubbleRise {
+  0% { transform: translateY(0) scale(1); opacity: 0.6; }
+  100% { transform: translateY(-100vh) scale(0.3); opacity: 0; }
+}
+
+/* 底部小水泡（标题旁边往上冒） */
+.splash-bottom-bubbles {
+  position: absolute;
+  bottom: 60px;
+  left: 0;
+  right: 0;
+  height: 200px;
+  pointer-events: none;
+}
+
+.splash-bottom-bubbles span {
+  position: absolute;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.6), rgba(100,200,255,0.2));
+  animation: smallBubbleRise 4s ease-in infinite;
+}
+
+.splash-bottom-bubbles span:nth-child(1) { width: 6px; height: 6px; left: 20%; bottom: 0; animation-delay: 0s; }
+.splash-bottom-bubbles span:nth-child(2) { width: 8px; height: 8px; left: 35%; bottom: 0; animation-delay: 0.8s; }
+.splash-bottom-bubbles span:nth-child(3) { width: 5px; height: 5px; left: 50%; bottom: 0; animation-delay: 1.6s; }
+.splash-bottom-bubbles span:nth-child(4) { width: 7px; height: 7px; left: 65%; bottom: 0; animation-delay: 2.4s; }
+.splash-bottom-bubbles span:nth-child(5) { width: 6px; height: 6px; left: 80%; bottom: 0; animation-delay: 3.2s; }
+.splash-bottom-bubbles span:nth-child(6) { width: 9px; height: 9px; left: 45%; bottom: 0; animation-delay: 3.5s; }
+
+@keyframes smallBubbleRise {
+  0% { transform: translateY(0) scale(1); opacity: 0.8; }
+  50% { opacity: 0.5; }
+  100% { transform: translateY(-180px) scale(0.4); opacity: 0; }
+}
+
+/* 标题 */
+.splash-title {
+  font-size: 32px;
+  color: #e0f4ff;
+  letter-spacing: 10px;
+  margin: 0;
+  text-shadow: 0 0 20px rgba(100, 200, 255, 0.5);
+  animation: titleGlow 2.5s ease-in-out infinite alternate;
+  z-index: 2;
+}
+
+@keyframes titleGlow {
+  0% { text-shadow: 0 0 10px rgba(100, 200, 255, 0.3); }
+  100% { text-shadow: 0 0 30px rgba(100, 200, 255, 0.8), 0 0 60px rgba(100, 200, 255, 0.3); }
+}
+
+.splash-subtitle {
+  font-size: 13px;
+  color: rgba(180, 220, 255, 0.7);
+  margin-top: 8px;
+  margin-bottom: 30px;
+  letter-spacing: 2px;
+  z-index: 2;
+}
+
+/* 底部水波 */
+.splash-wave-group {
+  width: 100%;
+  height: 50px;
+  position: relative;
 }
 
 .splash-wave {
   position: absolute;
-  bottom: -5px;
-  left: -10%;
-  right: -10%;
-  height: 40px;
-  background: rgba(255, 255, 255, 0.03);
-  border-radius: 100% 100% 0 0;
-  animation: waveMove 3s ease-in-out infinite;
+  bottom: 0;
+  left: -50%;
+  width: 200%;
+  height: 100%;
+  border-radius: 45% 45% 0 0;
+  animation: waveShift 5s ease-in-out infinite;
 }
 
-@keyframes waveMove {
-  0%, 100% { transform: translateX(0) translateY(0); }
-  50% { transform: translateX(10px) translateY(-5px); }
+.splash-wave-1 {
+  background: rgba(100, 200, 255, 0.15);
+  animation-duration: 4s;
+}
+
+.splash-wave-2 {
+  background: rgba(100, 200, 255, 0.1);
+  animation-duration: 5.5s;
+  animation-delay: 0.5s;
+  bottom: -5px;
+}
+
+.splash-wave-3 {
+  background: rgba(100, 200, 255, 0.08);
+  animation-duration: 7s;
+  animation-delay: 1s;
+  bottom: -10px;
+}
+
+@keyframes waveShift {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(25%); }
 }
