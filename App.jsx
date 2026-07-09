@@ -26,12 +26,11 @@ function App() {
   const messagesAreaRef = useRef(null);
   const textareaRef = useRef(null);
 
-  // 开屏动画 2.5 秒后消失
   useEffect(() => {
-    
+    const timer = setTimeout(() => setShowSplash(false), 4000);
     return () => clearTimeout(timer);
   }, []);
-const timer = setTimeout(() => setShowSplash(false), 4000);
+
   const scrollToBottom = () => {
     setTimeout(() => {
       if (messagesAreaRef.current) {
@@ -241,28 +240,28 @@ const timer = setTimeout(() => setShowSplash(false), 4000);
     }
   };
 
-  // 开屏动画//
- if (showSplash) {
-  return (
-    <div className="splash">
-      <div className="splash-bubbles">
-        <span></span><span></span><span></span><span></span><span></span><span></span><span></span>
-      </div>
-      <div className="splash-content">
-        <div className="splash-whale">
-          <div className="whale-emoji">🐋</div>
-          <div className="whale-splash-drops">
-            <span></span><span></span><span></span><span></span><span></span>
-          </div>
+  if (showSplash) {
+    return (
+      <div className="splash">
+        <div className="splash-bubbles">
+          <span></span><span></span><span></span><span></span><span></span><span></span><span></span>
         </div>
-        <h1 className="splash-title">鱼说</h1>
-        <p className="splash-subtitle">在深海里，听见你的声音</p>
+        <div className="splash-content">
+          <div className="splash-whale">
+            <div className="whale-emoji">🐋</div>
+            <div className="whale-splash-drops">
+              <span></span><span></span><span></span><span></span><span></span>
+            </div>
+          </div>
+          <h1 className="splash-title">鱼说</h1>
+          <p className="splash-subtitle">在深海里，听见你的声音</p>
+        </div>
+        <div className="splash-wave"></div>
+        <div className="splash-wave splash-wave-2"></div>
       </div>
-      <div className="splash-wave"></div>
-      <div className="splash-wave splash-wave-2"></div>
-    </div>
-  );
-}
+    );
+  }
+
   return (
     <div className="app">
       {showSidebar && <div className="sidebar-overlay" onClick={() => setShowSidebar(false)} />}
@@ -297,7 +296,7 @@ const timer = setTimeout(() => setShowSplash(false), 4000);
         <header className="chat-header">
           <div className="chat-header-left">
             <button className="menu-btn" onClick={() => setShowSidebar(true)}>☰</button>
-            <h1>裴拟的海洋馆🐟</h1>
+            <h1> 裴拟的海洋馆🐟</h1>
           </div>
           <div className="chat-header-right">
             <select className="model-select" value={model} onChange={(e) => setModel(e.target.value)}>
