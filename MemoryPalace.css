@@ -9,7 +9,7 @@
   z-index: 2000;
 }
 
-/* 顶栏：固定不动 */
+/* 顶栏 */
 .mp-top {
   display: flex;
   align-items: center;
@@ -39,7 +39,6 @@
   border: 1px solid rgba(120,180,220,0.12);
 }
 
-/* 板块按钮 */
 .mp-block-btn {
   display: flex;
   align-items: center;
@@ -55,7 +54,6 @@
 }
 .mp-block-btn:active { background: rgba(25,45,80,0.95); }
 
-/* 箭头 */
 .mp-arr {
   font-size: 18px;
   color: rgba(168,212,232,0.5);
@@ -63,7 +61,6 @@
 }
 .mp-arr.open { transform: rotate(90deg); }
 
-/* 板块展开后的内容 */
 .mp-block-body {
   padding: 16px 18px 20px;
   background: rgba(10,22,42,0.6);
@@ -74,42 +71,27 @@
 }
 
 /* ===== 搜索 ===== */
-.mp-search {
-  display: flex;
-  gap: 8px;
-}
+.mp-search { display: flex; gap: 8px; }
 .mp-search input {
-  flex: 1;
-  padding: 10px 14px;
-  border-radius: 20px;
+  flex: 1; padding: 10px 14px; border-radius: 20px;
   border: 1px solid rgba(120,180,220,0.25);
   background: rgba(255,255,255,0.06);
-  color: #e0e8f0;
-  font-size: 14px;
-  outline: none;
+  color: #e0e8f0; font-size: 14px; outline: none;
 }
 .mp-search input:focus { border-color: rgba(120,180,220,0.5); }
 .mp-search input::placeholder { color: rgba(168,212,232,0.4); }
 .mp-search button {
-  padding: 10px 16px;
-  border-radius: 20px;
-  border: none;
-  background: #1a4a6a;
-  color: #c8e4f4;
-  font-size: 14px;
-  cursor: pointer;
+  padding: 10px 16px; border-radius: 20px; border: none;
+  background: #1a4a6a; color: #c8e4f4; font-size: 14px; cursor: pointer;
 }
 
 /* ===== 关键词 ===== */
 .mp-kw-wrap { display: flex; flex-wrap: wrap; gap: 6px; }
 .mp-kw {
-  padding: 5px 11px;
-  border-radius: 12px;
+  padding: 5px 11px; border-radius: 12px;
   background: rgba(26,74,106,0.4);
   border: 1px solid rgba(120,180,220,0.2);
-  font-size: 12px;
-  cursor: pointer;
-  color: #a8d4e8;
+  font-size: 12px; cursor: pointer; color: #a8d4e8;
   display: inline-flex; align-items: center; gap: 4px;
 }
 .mp-kw.on { background: #1a5a8a; border-color: #a8d4e8; color: #fff; }
@@ -118,7 +100,7 @@
 /* ===== 工具栏 ===== */
 .mp-toolbar { display: flex; gap: 8px; flex-wrap: wrap; }
 
-/* ===== 按钮们 ===== */
+/* ===== 按钮 ===== */
 .mp-btn-outline {
   padding: 9px 16px; border-radius: 8px;
   border: 1px solid rgba(120,180,220,0.25);
@@ -170,12 +152,26 @@
 .mp-form input::placeholder, .mp-form textarea::placeholder { color: rgba(168,212,232,0.35); }
 .mp-form-act { display: flex; gap: 8px; justify-content: flex-end; }
 
-/* ===== 记忆条目 ===== */
+/* ===== 记忆条目列表（可滚动） ===== */
+.mp-item-list {
+  max-height: 50vh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-right: 4px;
+  padding-bottom: 8px;
+}
+
+/* ===== 单条记忆 ===== */
 .mp-item {
   background: rgba(18,36,58,0.75);
   border: 1px solid rgba(120,180,220,0.1);
   border-radius: 10px;
   padding: 10px 12px;
+  flex-shrink: 0;
 }
 .mp-item.sel {
   border-color: rgba(100,200,150,0.5);
