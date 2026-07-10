@@ -192,7 +192,7 @@ export default function MemoryPalace({ onClose, currentSessionId }) {
   return (
     <div className="memory-palace">
       <div className="mp-header">
-        <h2>🧠 记忆宫殿</h2>
+        <h2> 记忆宫殿</h2>
         <button className="mp-close-btn" onClick={onClose}>×</button>
       </div>
 
