@@ -1,8 +1,23 @@
 import { useState, useEffect, useRef } from 'react';
 import MemoryPalace from './MemoryPalace';
+import ApiConfig from './ApiConfig';
 import './App.css';
 
 const API_URL = 'https://my-home-backend-9j56.onrender.com';
+
+function getApiConfig() {
+  try {
+    const saved = localStorage.getItem('apiProviders');
+    if (!saved) return null;
+    const parsed = JSON.parse(saved);
+    const provider = (parsed.providers || []).find(p => p.id === parsed.activeId);
+    return provider || null;
+  } catch (e) { return null; }
+}
+
+function getActiveModel() {
+  return localStorage.getItem('selectedModel') || '';
+}
 
 function App() {
   const [showSplash, setShowSplash] = useState(true);
@@ -12,10 +27,10 @@ function App() {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
-  const [model, setModel] = useState(localStorage.getItem('selectedModel') || 'claude');
   const [showSettings, setShowSettings] = useState(false);
   const [showSidebar, setShowSidebar] = useState(false);
   const [showMemoryPalace, setShowMemoryPalace] = useState(false);
+  const [showApiConfig, setShowApiConfig] = useState(false);
   const [settings, setSettings] = useState({
     system_prompt: '',
     temperature: 0.7,
@@ -25,17 +40,40 @@ function App() {
     max_reply_tokens: 1024
   });
 
+  // 动态模型列表
+  const [modelList, setModelList] = useState([]);
+  const [model, setModel] = useState('');
+
   const messagesEndRef = useRef(null);
   const messagesAreaRef = useRef(null);
   const textareaRef = useRef(null);
 
+  const refreshModelList = () => {
+    const provider = getApiConfig();
+    if (provider && provider.models && provider.models.length > 0) {
+      setModelList(provider.models);
+      const saved = getActiveModel();
+      if (saved && provider.models.includes(saved)) {
+        setModel(saved);
+      } else {
+        setModel(provider.models[0]);
+        localStorage.setItem('selectedModel', provider.models[0]);
+      }
+    } else {
+      setModelList(['claude', 'deepseek']);
+      const saved = getActiveModel();
+      setModel(saved || 'claude');
+    }
+  };
+
+  useEffect(() => {
+    refreshModelList();
+  }, []);
+
   useEffect(() => {
     const fadeTimer = setTimeout(() => setSplashFading(true), 2500);
     const removeTimer = setTimeout(() => setShowSplash(false), 3300);
-    return () => {
-      clearTimeout(fadeTimer);
-      clearTimeout(removeTimer);
-    };
+    return () => { clearTimeout(fadeTimer); clearTimeout(removeTimer); };
   }, []);
 
   const scrollToBottom = () => {
@@ -46,9 +84,7 @@ function App() {
     }, 50);
   };
 
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages, loading]);
+  useEffect(() => { scrollToBottom(); }, [messages, loading]);
 
   useEffect(() => {
     fetchSessions();
@@ -63,9 +99,7 @@ function App() {
   }, []);
 
   useEffect(() => {
-    if (currentSessionId) {
-      fetchMessages(currentSessionId);
-    }
+    if (currentSessionId) fetchMessages(currentSessionId);
   }, [currentSessionId]);
 
   useEffect(() => {
@@ -82,40 +116,29 @@ function App() {
           setCurrentSessionId(data.sessions[0].id);
         }
       }
-    } catch (err) {
-      console.error('加载会话失败:', err);
-    }
+    } catch (err) { console.error('加载会话失败:', err); }
   };
 
   const fetchMessages = async (sessionId) => {
     try {
       const res = await fetch(`${API_URL}/sessions/${sessionId}/messages`);
       const data = await res.json();
-      if (data.messages) {
-        setMessages(data.messages);
-      }
-    } catch (err) {
-      console.error('加载消息失败:', err);
-    }
+      if (data.messages) setMessages(data.messages);
+    } catch (err) { console.error('加载消息失败:', err); }
   };
 
   const fetchSettings = async () => {
     try {
       const res = await fetch(`${API_URL}/settings`);
       const data = await res.json();
-      if (data.settings) {
-        setSettings(data.settings);
-      }
-    } catch (err) {
-      console.error('加载设置失败:', err);
-    }
+      if (data.settings) setSettings(data.settings);
+    } catch (err) { console.error('加载设置失败:', err); }
   };
 
   const createSession = async () => {
     try {
       const res = await fetch(`${API_URL}/sessions`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: '新对话' })
       });
       const data = await res.json();
@@ -125,9 +148,7 @@ function App() {
         setMessages([]);
         setShowSidebar(false);
       }
-    } catch (err) {
-      console.error('创建会话失败:', err);
-    }
+    } catch (err) { console.error('创建会话失败:', err); }
   };
 
   const deleteSession = async (id, e) => {
@@ -140,9 +161,7 @@ function App() {
         setCurrentSessionId(sessions.find(s => s.id !== id)?.id || null);
         setMessages([]);
       }
-    } catch (err) {
-      console.error('删除会话失败:', err);
-    }
+    } catch (err) { console.error('删除会话失败:', err); }
   };
 
   const renameSession = async (id, e) => {
@@ -151,27 +170,21 @@ function App() {
     if (!newName) return;
     try {
       await fetch(`${API_URL}/sessions/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: newName })
       });
       setSessions(prev => prev.map(s => s.id === id ? { ...s, name: newName } : s));
-    } catch (err) {
-      console.error('重命名失败:', err);
-    }
+    } catch (err) { console.error('重命名失败:', err); }
   };
 
   const saveSettings = async () => {
     try {
       await fetch(`${API_URL}/settings`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(settings)
       });
       setShowSettings(false);
-    } catch (err) {
-      console.error('保存设置失败:', err);
-    }
+    } catch (err) { console.error('保存设置失败:', err); }
   };
 
   const sendMessage = async () => {
@@ -181,8 +194,7 @@ function App() {
     if (!sessionId) {
       try {
         const res = await fetch(`${API_URL}/sessions`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ name: input.slice(0, 20) || '新对话' })
         });
         const data = await res.json();
@@ -191,10 +203,7 @@ function App() {
           sessionId = data.session.id;
           setCurrentSessionId(sessionId);
         }
-      } catch (err) {
-        console.error('创建会话失败:', err);
-        return;
-      }
+      } catch (err) { console.error('创建会话失败:', err); return; }
     }
 
     const userMessage = { role: 'user', content: input, created_at: new Date().toISOString() };
@@ -203,34 +212,37 @@ function App() {
     setInput('');
     setLoading(true);
 
-    if (textareaRef.current) {
-      textareaRef.current.blur();
-    }
+    if (textareaRef.current) textareaRef.current.blur();
 
     try {
+      // 构建请求体，包含 API 配置
+      const provider = getApiConfig();
+      const chatBody = {
+        message: currentInput,
+        session_id: sessionId,
+        model: model
+      };
+
+      if (provider) {
+        chatBody.api_key = provider.apiKey;
+        chatBody.base_url = provider.baseUrl;
+      }
+
       const res = await fetch(`${API_URL}/chat`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message: currentInput,
-          session_id: sessionId,
-          model: model
-        })
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(chatBody)
       });
       const data = await res.json();
       if (data.reply) {
-        const assistantMessage = { role: 'assistant', content: data.reply, created_at: new Date().toISOString() };
-        setMessages(prev => [...prev, assistantMessage]);
+        setMessages(prev => [...prev, { role: 'assistant', content: data.reply, created_at: new Date().toISOString() }]);
       } else {
-        const errorMessage = { role: 'assistant', content: '抱歉，出了点问题: ' + (data.error || '未知错误'), created_at: new Date().toISOString() };
-        setMessages(prev => [...prev, errorMessage]);
+        setMessages(prev => [...prev, { role: 'assistant', content: '抱歉，出了点问题: ' + (data.error || '未知错误'), created_at: new Date().toISOString() }]);
       }
     } catch (err) {
-      const errorMessage = { role: 'assistant', content: '网络错误，请稍后再试', created_at: new Date().toISOString() };
-      setMessages(prev => [...prev, errorMessage]);
+      setMessages(prev => [...prev, { role: 'assistant', content: '网络错误，请稍后再试', created_at: new Date().toISOString() }]);
     }
 
-    // 检查是否需要自动总结
+    // 自动总结检查
     try {
       const compressSettings = JSON.parse(localStorage.getItem('compressSettings') || '{}');
       const autoRounds = compressSettings.autoCompressRounds || 0;
@@ -240,28 +252,18 @@ function App() {
         const msgCount = countData.messages ? countData.messages.length : 0;
         if (msgCount > 0 && msgCount % autoRounds === 0) {
           await fetch(`${API_URL}/memories/compress/${sessionId}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              max_words: compressSettings.maxWords || 200,
-              delete_after: compressSettings.deleteAfterCompress || false
-            })
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ max_words: compressSettings.maxWords || 200, delete_after: compressSettings.deleteAfterCompress || false })
           });
-          console.log('自动总结已触发');
         }
       }
-    } catch (e) {
-      console.log('自动总结检查失败:', e);
-    }
+    } catch (e) {}
 
     setLoading(false);
   };
 
   const handleKeyDown = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage();
-    }
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
   };
 
   const handleInputChange = (e) => {
@@ -276,17 +278,11 @@ function App() {
   if (showSplash) {
     return (
       <div className={`splash ${splashFading ? 'splash-fading' : ''}`}>
-        <div className="splash-bubbles">
-          <span></span><span></span><span></span><span></span><span></span>
-        </div>
+        <div className="splash-bubbles"><span></span><span></span><span></span><span></span><span></span></div>
         <div className="splash-top"></div>
-        <div className="splash-center">
-          <div className="splash-whale">🐋</div>
-        </div>
+        <div className="splash-center"><div className="splash-whale">🐋</div></div>
         <div className="splash-bottom">
-          <div className="splash-bottom-bubbles">
-            <span></span><span></span><span></span><span></span><span></span><span></span>
-          </div>
+          <div className="splash-bottom-bubbles"><span></span><span></span><span></span><span></span><span></span><span></span></div>
           <h1 className="splash-title">鱼说</h1>
           <p className="splash-subtitle">在深海里，听见你的声音</p>
           <div className="splash-wave-group">
@@ -310,11 +306,8 @@ function App() {
         </div>
         <div className="session-list">
           {sessions.map(session => (
-            <div
-              key={session.id}
-              className={`session-item ${session.id === currentSessionId ? 'active' : ''}`}
-              onClick={() => { setCurrentSessionId(session.id); setShowSidebar(false); }}
-            >
+            <div key={session.id} className={`session-item ${session.id === currentSessionId ? 'active' : ''}`}
+              onClick={() => { setCurrentSessionId(session.id); setShowSidebar(false); }}>
               <span className="session-name" onDoubleClick={(e) => renameSession(session.id, e)}>
                 🫧 {session.name || '未命名对话'}
               </span>
@@ -331,6 +324,9 @@ function App() {
           <button className="memory-palace-btn" onClick={() => { setShowMemoryPalace(true); setShowSidebar(false); }}>
             记忆宫殿
           </button>
+          <button className="memory-palace-btn" style={{ marginTop: '8px' }} onClick={() => { setShowApiConfig(true); setShowSidebar(false); }}>
+            API 配置
+          </button>
         </div>
       </aside>
 
@@ -342,8 +338,9 @@ function App() {
           </div>
           <div className="chat-header-right">
             <select className="model-select" value={model} onChange={(e) => setModel(e.target.value)}>
-              <option value="claude">Claude</option>
-              <option value="deepseek">DeepSeek</option>
+              {modelList.map(m => (
+                <option key={m} value={m}>{m}</option>
+              ))}
             </select>
             <button className="settings-btn" onClick={() => setShowSettings(true)}>⚙ 设置</button>
           </div>
@@ -360,17 +357,13 @@ function App() {
           )}
           {messages.map((msg, index) => (
             <div key={index} className={`message ${msg.role}`}>
-              <div className="bubble">
-                <p>{msg.content}</p>
-              </div>
+              <div className="bubble"><p>{msg.content}</p></div>
             </div>
           ))}
           {loading && (
             <div className="message assistant">
               <div className="bubble">
-                <div className="typing-indicator">
-                  <span></span><span></span><span></span>
-                </div>
+                <div className="typing-indicator"><span></span><span></span><span></span></div>
               </div>
             </div>
           )}
@@ -379,17 +372,9 @@ function App() {
 
         <div className="input-area">
           <div className="input-wrapper">
-            <textarea
-              ref={textareaRef}
-              value={input}
-              onChange={handleInputChange}
-              onKeyDown={handleKeyDown}
-              placeholder="在这片海域留下你的声音..."
-              rows={1}
-            />
-            <button className="send-btn" onClick={sendMessage} disabled={loading || !input.trim()}>
-              🐋
-            </button>
+            <textarea ref={textareaRef} value={input} onChange={handleInputChange} onKeyDown={handleKeyDown}
+              placeholder="在这片海域留下你的声音..." rows={1} />
+            <button className="send-btn" onClick={sendMessage} disabled={loading || !input.trim()}>🐋</button>
           </div>
         </div>
       </div>
@@ -400,54 +385,27 @@ function App() {
             <h2>⚙ 设置</h2>
             <div className="modal-field">
               <label>系统提示词</label>
-              <textarea
-                value={settings.system_prompt}
-                onChange={(e) => setSettings({ ...settings, system_prompt: e.target.value })}
-                placeholder="定义 AI 的人格和行为方式..."
-              />
+              <textarea value={settings.system_prompt} onChange={(e) => setSettings({ ...settings, system_prompt: e.target.value })} placeholder="定义 AI 的人格和行为方式..." />
             </div>
             <div className="modal-field">
-              <label>温度 (0-1，越高越有创意)</label>
-              <input
-                type="number"
-                step="0.1"
-                min="0"
-                max="1"
-                value={settings.temperature}
-                onChange={(e) => setSettings({ ...settings, temperature: parseFloat(e.target.value) })}
-              />
+              <label>温度 (0-1)</label>
+              <input type="number" step="0.1" min="0" max="1" value={settings.temperature} onChange={(e) => setSettings({ ...settings, temperature: parseFloat(e.target.value) })} />
             </div>
             <div className="modal-field">
               <label>上下文保留轮数</label>
-              <input
-                type="number"
-                value={settings.max_context_rounds}
-                onChange={(e) => setSettings({ ...settings, max_context_rounds: parseInt(e.target.value) })}
-              />
+              <input type="number" value={settings.max_context_rounds} onChange={(e) => setSettings({ ...settings, max_context_rounds: parseInt(e.target.value) })} />
             </div>
             <div className="modal-field">
-              <label>压缩触发阈值 (token 数)</label>
-              <input
-                type="number"
-                value={settings.compress_threshold}
-                onChange={(e) => setSettings({ ...settings, compress_threshold: parseInt(e.target.value) })}
-              />
+              <label>压缩触发阈值 (token)</label>
+              <input type="number" value={settings.compress_threshold} onChange={(e) => setSettings({ ...settings, compress_threshold: parseInt(e.target.value) })} />
             </div>
             <div className="modal-field">
               <label>压缩后保留轮数</label>
-              <input
-                type="number"
-                value={settings.compress_keep_rounds}
-                onChange={(e) => setSettings({ ...settings, compress_keep_rounds: parseInt(e.target.value) })}
-              />
+              <input type="number" value={settings.compress_keep_rounds} onChange={(e) => setSettings({ ...settings, compress_keep_rounds: parseInt(e.target.value) })} />
             </div>
             <div className="modal-field">
-              <label>最大回复 token 数</label>
-              <input
-                type="number"
-                value={settings.max_reply_tokens}
-                onChange={(e) => setSettings({ ...settings, max_reply_tokens: parseInt(e.target.value) })}
-              />
+              <label>最大回复 token</label>
+              <input type="number" value={settings.max_reply_tokens} onChange={(e) => setSettings({ ...settings, max_reply_tokens: parseInt(e.target.value) })} />
             </div>
             <div className="modal-actions">
               <button className="btn-cancel" onClick={() => setShowSettings(false)}>取消</button>
@@ -457,12 +415,9 @@ function App() {
         </div>
       )}
 
-      {showMemoryPalace && (
-        <MemoryPalace
-          onClose={() => setShowMemoryPalace(false)}
-          currentSessionId={currentSessionId}
-        />
-      )}
+      {showMemoryPalace && <MemoryPalace onClose={() => setShowMemoryPalace(false)} currentSessionId={currentSessionId} />}
+
+      {showApiConfig && <ApiConfig onClose={() => { setShowApiConfig(false); refreshModelList(); }} onConfigChange={() => refreshModelList()} />}
     </div>
   );
 }
