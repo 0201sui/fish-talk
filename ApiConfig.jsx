@@ -45,6 +45,7 @@ export default function ApiConfig({ onClose, onConfigChange }) {
     };
     persist(next);
     setForm({ name: '', baseUrl: '', apiKey: '', modelsInput: '' });
+    onClose && onClose();
   };
 
   const deleteProvider = (id) => {
@@ -110,7 +111,6 @@ export default function ApiConfig({ onClose, onConfigChange }) {
     });
   };
 
-  // ===== 样式常量 =====
   const S = {
     overlay: {
       position: 'fixed',
@@ -351,13 +351,11 @@ export default function ApiConfig({ onClose, onConfigChange }) {
     <div style={S.overlay} onClick={onClose}>
       <div style={S.modal} onClick={e => e.stopPropagation()}>
 
-        {/* 头部 */}
         <div style={S.header}>
           <h2 style={S.headerTitle}>🔑 API 配置</h2>
           <button style={S.closeBtn} onClick={onClose}>×</button>
         </div>
 
-        {/* 主体 */}
         <div style={S.body}>
 
           {/* 已有提供商 */}
@@ -450,7 +448,7 @@ export default function ApiConfig({ onClose, onConfigChange }) {
                 <input style={S.input} placeholder="如：gpt-4o, gpt-3.5-turbo"
                   value={form.modelsInput} onChange={e => setForm(f => ({ ...f, modelsInput: e.target.value }))} />
               </div>
-              <button style={S.btnSubmit} onClick={addProvider}>＋ 添加提供商</button>
+              <button style={S.btnSubmit} onClick={addProvider}>💾 保存</button>
             </div>
           </div>
 
