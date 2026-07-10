@@ -9,14 +9,13 @@
   display: flex;
   flex-direction: column;
   z-index: 2000;
-  overflow: hidden;
 }
 
 .mp-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 20px;
+  padding: 14px 20px;
   background: rgba(10, 20, 40, 0.8);
   border-bottom: 1px solid rgba(120, 180, 220, 0.15);
   flex-shrink: 0;
@@ -40,73 +39,53 @@
   line-height: 1;
 }
 
-/* 主体可滚动 */
-.mp-body {
+/* ===== 顶部标签栏 ===== */
+.mp-tabs {
+  display: flex;
+  flex-shrink: 0;
+  border-bottom: 1px solid rgba(120, 180, 220, 0.12);
+}
+
+.mp-tab {
+  flex: 1;
+  padding: 14px 0;
+  background: none;
+  border: none;
+  border-bottom: 3px solid transparent;
+  color: rgba(168, 212, 232, 0.45);
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.mp-tab.active {
+  color: #c8e4f4;
+  border-bottom-color: #4a9aba;
+  background: rgba(74, 154, 186, 0.06);
+}
+
+/* ===== 页面内容区（占满剩余空间，可滚动） ===== */
+.mp-page {
   flex: 1;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-  padding: 12px 16px 30px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-/* ===== 手风琴板块 ===== */
-.mp-section {
-  border-radius: 12px;
-  overflow: hidden;
-  border: 1px solid rgba(120, 180, 220, 0.12);
-  flex-shrink: 0;
-}
-
-.mp-section-btn {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 16px 20px;
-  background: rgba(20, 40, 70, 0.8);
-  cursor: pointer;
-  user-select: none;
-}
-
-.mp-section-btn:active {
-  background: rgba(30, 50, 80, 0.9);
-}
-
-.mp-section-title {
-  font-size: 16px;
-  font-weight: 500;
-  color: #c8e4f4;
-}
-
-.mp-arrow {
-  font-size: 20px;
-  color: rgba(168, 212, 232, 0.6);
-  transition: transform 0.25s;
-  display: inline-block;
-}
-
-.mp-arrow.open {
-  transform: rotate(90deg);
-}
-
-.mp-section-content {
   padding: 16px;
-  background: rgba(12, 25, 45, 0.6);
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
 
-/* ===== 记忆板块 ===== */
+/* ===== 记忆页 ===== */
 .mp-search {
   display: flex;
   gap: 8px;
+  flex-shrink: 0;
 }
 
 .mp-search input {
   flex: 1;
-  padding: 9px 14px;
+  padding: 10px 14px;
   border-radius: 18px;
   border: 1px solid rgba(120, 180, 220, 0.25);
   background: rgba(255, 255, 255, 0.06);
@@ -124,12 +103,12 @@
 }
 
 .mp-search button {
-  padding: 9px 14px;
+  padding: 10px 16px;
   border-radius: 18px;
   border: none;
   background: #1a4a6a;
   color: #c8e4f4;
-  font-size: 13px;
+  font-size: 14px;
   cursor: pointer;
 }
 
@@ -137,6 +116,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+  flex-shrink: 0;
 }
 
 .mp-keyword-tag {
@@ -163,11 +143,11 @@
   opacity: 0.5;
 }
 
-/* 操作栏 */
 .mp-memory-toolbar {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+  flex-shrink: 0;
 }
 
 .mp-btn-add {
@@ -178,10 +158,6 @@
   color: #a8d4e8;
   font-size: 13px;
   cursor: pointer;
-}
-
-.mp-btn-add:active {
-  background: rgba(255, 255, 255, 0.12);
 }
 
 .mp-btn-merge {
@@ -206,26 +182,18 @@
   cursor: pointer;
 }
 
-/* 记忆列表滚动区 */
-.mp-memory-scroll {
-  max-height: 55vh;
-  overflow-y: scroll;
-  -webkit-overflow-scrolling: touch;
-  overscroll-behavior: contain;
-  touch-action: pan-y;
+/* 记忆列表 */
+.mp-memory-list {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  padding-right: 4px;
 }
 
-/* 单条记忆 */
 .mp-memory-item {
   background: rgba(20, 38, 60, 0.7);
   border: 1px solid rgba(120, 180, 220, 0.1);
   border-radius: 10px;
   padding: 10px 12px;
-  flex-shrink: 0;
 }
 
 .mp-memory-item.selected {
@@ -250,8 +218,8 @@
 }
 
 .mp-checkbox {
-  width: 15px;
-  height: 15px;
+  width: 16px;
+  height: 16px;
   accent-color: #4a9a6a;
   cursor: pointer;
   flex-shrink: 0;
@@ -289,7 +257,7 @@
 }
 
 .mp-memory-body {
-  padding: 10px 0 4px 35px;
+  padding: 10px 0 4px 36px;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -325,7 +293,7 @@
 }
 
 .mp-memory-actions button {
-  padding: 5px 10px;
+  padding: 6px 10px;
   border-radius: 6px;
   border: none;
   font-size: 12px;
@@ -340,7 +308,13 @@
 
 .mp-btn-del { color: #e88888 !important; }
 
-/* ===== 总结板块 ===== */
+/* ===== 总结页 ===== */
+.mp-compress-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
 .mp-field {
   display: flex;
   flex-direction: column;
@@ -348,7 +322,7 @@
 }
 
 .mp-field label {
-  font-size: 13px;
+  font-size: 14px;
   color: #a8d4e8;
 }
 
@@ -356,7 +330,6 @@
   color: #fff;
 }
 
-/* 滑块 */
 .mp-slider {
   width: 100%;
   height: 6px;
@@ -365,14 +338,14 @@
   appearance: none;
   background: rgba(120, 180, 220, 0.15);
   outline: none;
-  margin: 8px 0 4px;
+  margin: 10px 0 6px;
 }
 
 .mp-slider::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: 22px;
-  height: 22px;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
   background: #3a8aba;
   cursor: pointer;
@@ -380,8 +353,8 @@
 }
 
 .mp-slider::-moz-range-thumb {
-  width: 22px;
-  height: 22px;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
   background: #3a8aba;
   cursor: pointer;
@@ -391,24 +364,23 @@
 .mp-slider-labels {
   display: flex;
   justify-content: space-between;
-  font-size: 11px;
+  font-size: 12px;
   color: rgba(168, 212, 232, 0.4);
-  padding: 0 2px;
-  margin-top: 2px;
+  padding: 0 4px;
 }
 
 .mp-checkbox-label {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 13px;
+  gap: 10px;
+  font-size: 14px;
   color: #a8d4e8;
   cursor: pointer;
 }
 
 .mp-checkbox-label input {
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
   accent-color: #4a9a6a;
 }
 
@@ -418,10 +390,9 @@
   border: none;
   background: linear-gradient(135deg, #1a4a7a, #2a6a9a);
   color: #e0f0ff;
-  font-size: 14px;
+  font-size: 15px;
   cursor: pointer;
   text-align: center;
-  margin-top: 4px;
 }
 
 .mp-btn-compress-main:disabled {
@@ -433,25 +404,71 @@
   background: linear-gradient(135deg, #2a5a8a, #3a7aaa);
 }
 
+/* ===== 导入导出页 ===== */
+.mp-data-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.mp-data-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.mp-data-group h4 {
+  margin: 0;
+  font-size: 15px;
+  color: #a8d4e8;
+  font-weight: 500;
+}
+
+.mp-data-btns {
+  display: flex;
+  gap: 10px;
+}
+
+.mp-data-btns button {
+  flex: 1;
+  padding: 13px 16px;
+  border-radius: 10px;
+  border: 1px solid rgba(120, 180, 220, 0.2);
+  background: rgba(255, 255, 255, 0.06);
+  color: #c8e4f4;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.mp-data-btns button:active {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.mp-data-btns button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 /* ===== 表单 ===== */
 .mp-form-inline {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  padding: 10px;
+  padding: 12px;
   background: rgba(15, 28, 48, 0.8);
-  border-radius: 8px;
+  border-radius: 10px;
   border: 1px solid rgba(120, 180, 220, 0.12);
+  flex-shrink: 0;
 }
 
 .mp-form-inline input,
 .mp-form-inline textarea {
-  padding: 9px 12px;
+  padding: 10px 12px;
   border-radius: 8px;
   border: 1px solid rgba(120, 180, 220, 0.2);
   background: rgba(255, 255, 255, 0.05);
   color: #e0e8f0;
-  font-size: 13px;
+  font-size: 14px;
   outline: none;
   resize: vertical;
 }
@@ -474,54 +491,15 @@
 
 .mp-form-save,
 .mp-form-cancel {
-  padding: 6px 13px;
+  padding: 7px 14px;
   border-radius: 6px;
   border: none;
-  font-size: 12px;
+  font-size: 13px;
   cursor: pointer;
 }
 
 .mp-form-save { background: #1a5a8a; color: #e0f0ff; }
 .mp-form-cancel { background: rgba(255, 255, 255, 0.08); color: #a8d4e8; }
-
-/* ===== 导入导出 ===== */
-.mp-data-group {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.mp-data-group h4 {
-  margin: 0;
-  font-size: 14px;
-  color: #a8d4e8;
-  font-weight: 500;
-}
-
-.mp-data-btns {
-  display: flex;
-  gap: 8px;
-}
-
-.mp-data-btns button {
-  flex: 1;
-  padding: 11px 14px;
-  border-radius: 8px;
-  border: 1px solid rgba(120, 180, 220, 0.2);
-  background: rgba(255, 255, 255, 0.06);
-  color: #c8e4f4;
-  font-size: 13px;
-  cursor: pointer;
-}
-
-.mp-data-btns button:active {
-  background: rgba(255, 255, 255, 0.12);
-}
-
-.mp-data-btns button:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
 
 /* 通用 */
 .mp-hint {
