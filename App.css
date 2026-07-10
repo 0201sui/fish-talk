@@ -641,11 +641,22 @@
   0%, 100% { transform: translateX(0); }
   50% { transform: translateX(25%); }
 }
-/* ===== 记忆宫殿入口按钮 ===== */
+/* ===== 侧边栏布局修复：列表可滚动，底部按钮固定 ===== */
+.sidebar {
+  display: flex;
+  flex-direction: column;
+}
+
+.session-list {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+}
+
 .sidebar-bottom {
   padding: 12px 16px;
   border-top: 1px solid rgba(120, 180, 220, 0.15);
-  margin-top: auto;
+  flex-shrink: 0;
 }
 
 .memory-palace-btn {
