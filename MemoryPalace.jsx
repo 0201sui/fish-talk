@@ -236,13 +236,11 @@ export default function MemoryPalace({ onClose, currentSessionId }) {
 
   return (
     <div className="mp">
-      {/* 顶栏 */}
       <div className="mp-top">
         <h2>记忆宫殿</h2>
         <button className="mp-x" onClick={onClose}>×</button>
       </div>
 
-      {/* 整体滚动区：三个板块都在里面 */}
       <div className="mp-scroll">
 
         {/* ========== 记忆 ========== */}
@@ -286,42 +284,44 @@ export default function MemoryPalace({ onClose, currentSessionId }) {
               {loading && <p className="mp-note">加载中...</p>}
               {!loading && memories.length === 0 && <p className="mp-note">还没有记忆，去总结一些对话吧</p>}
 
-              {memories.map(m => (
-                <div key={m.id} className={`mp-item ${selectedIds.includes(m.id)?'sel':''}`}>
-                  {editingId === m.id ? (
-                    <div className="mp-form">
-                      <input value={formTitle} onChange={e => setFormTitle(e.target.value)} placeholder="标题" />
-                      <textarea value={formSummary} onChange={e => setFormSummary(e.target.value)} rows={3} />
-                      <input value={formKeywords} onChange={e => setFormKeywords(e.target.value)} placeholder="关键词" />
-                      <div className="mp-form-act"><button className="mp-btn-pri" onClick={() => handleUpdate(m.id)}>保存</button><button className="mp-btn-ghost" onClick={cancelEdit}>取消</button></div>
-                    </div>
-                  ) : (
-                    <>
-                      <div className="mp-item-head" onClick={() => setExpandedId(expandedId===m.id?null:m.id)}>
-                        <div className="mp-item-left">
-                          <input type="checkbox" checked={selectedIds.includes(m.id)} onChange={() => toggleSelect(m.id)} onClick={e => e.stopPropagation()} />
-                          <span className={`mp-arr-s ${expandedId===m.id?'open':''}`}>▸</span>
-                          <span className="mp-item-title">{m.title || '无标题'}</span>
-                        </div>
-                        <span className="mp-item-date">{formatDate(m.timestamp)}</span>
+              <div className="mp-item-list">
+                {memories.map(m => (
+                  <div key={m.id} className={`mp-item ${selectedIds.includes(m.id)?'sel':''}`}>
+                    {editingId === m.id ? (
+                      <div className="mp-form">
+                        <input value={formTitle} onChange={e => setFormTitle(e.target.value)} placeholder="标题" />
+                        <textarea value={formSummary} onChange={e => setFormSummary(e.target.value)} rows={3} />
+                        <input value={formKeywords} onChange={e => setFormKeywords(e.target.value)} placeholder="关键词" />
+                        <div className="mp-form-act"><button className="mp-btn-pri" onClick={() => handleUpdate(m.id)}>保存</button><button className="mp-btn-ghost" onClick={cancelEdit}>取消</button></div>
                       </div>
-                      {expandedId === m.id && (
-                        <div className="mp-item-body">
-                          <p>{m.summary}</p>
-                          {m.keywords && m.keywords.length > 0 && (
-                            <div className="mp-tags">{m.keywords.map(k => <span key={k} className="mp-tag">{k}</span>)}</div>
-                          )}
-                          <div className="mp-item-act">
-                            <button onClick={() => startEdit(m)}>编辑</button>
-                            <button onClick={() => handleDeleteSource(m.id)}>删原始记录</button>
-                            <button className="mp-del" onClick={() => handleDelete(m.id)}>删除</button>
+                    ) : (
+                      <>
+                        <div className="mp-item-head" onClick={() => setExpandedId(expandedId===m.id?null:m.id)}>
+                          <div className="mp-item-left">
+                            <input type="checkbox" checked={selectedIds.includes(m.id)} onChange={() => toggleSelect(m.id)} onClick={e => e.stopPropagation()} />
+                            <span className={`mp-arr-s ${expandedId===m.id?'open':''}`}>▸</span>
+                            <span className="mp-item-title">{m.title || '无标题'}</span>
                           </div>
+                          <span className="mp-item-date">{formatDate(m.timestamp)}</span>
                         </div>
-                      )}
-                    </>
-                  )}
-                </div>
-              ))}
+                        {expandedId === m.id && (
+                          <div className="mp-item-body">
+                            <p>{m.summary}</p>
+                            {m.keywords && m.keywords.length > 0 && (
+                              <div className="mp-tags">{m.keywords.map(k => <span key={k} className="mp-tag">{k}</span>)}</div>
+                            )}
+                            <div className="mp-item-act">
+                              <button onClick={() => startEdit(m)}>编辑</button>
+                              <button onClick={() => handleDeleteSource(m.id)}>删原始记录</button>
+                              <button className="mp-del" onClick={() => handleDelete(m.id)}>删除</button>
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </div>
