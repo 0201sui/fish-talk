@@ -303,9 +303,9 @@ function App() {
           )}
         </div>
         <div className="sidebar-bottom">
-          <button className="memory-palace-btn" onClick={() => { setShowMemoryPalace(true); setShowSidebar(false); }}>
-            🧠 记忆宫殿
-          </button>
+         <button className="memory-palace-btn" onClick={() => { setShowMemoryPalace(true); setShowSidebar(false); }}>
+  记忆宫殿
+</button>
         </div>
       </aside>
 
