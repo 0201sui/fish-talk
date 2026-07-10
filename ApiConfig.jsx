@@ -107,71 +107,85 @@ export default function ApiConfig({ onClose, onConfigChange }) {
     });
   };
 
+  // 关键：inline style 强制 fixed 全屏，防止父容器 transform 导致 fixed 失效
+  const overlayStyle = {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 9999,
+    display: 'flex',
+    flexDirection: 'column',
+    background: 'linear-gradient(180deg, #0a1628, #0f2035)',
+    color: '#e0e8f0',
+  };
+
   return (
-    <div className="ac">
-      <div className="ac-top">
+    <div style={overlayStyle}>
+      <div className="apicfg-top">
         <h2>API 配置</h2>
-        <button className="ac-x" onClick={onClose}>×</button>
+        <button className="apicfg-close" onClick={onClose}>✕</button>
       </div>
 
-      <div className="ac-scroll">
+      <div className="apicfg-scroll">
 
         {/* 已有提供商 */}
         {data.providers.length > 0 && (
-          <div className="ac-section">
-            <p className="ac-section-label">已添加的提供商</p>
+          <div className="apicfg-section">
+            <p className="apicfg-section-label">已添加的提供商</p>
             {data.providers.map(p => (
-              <div key={p.id} className={`ac-card ${data.activeId === p.id ? 'ac-card-active' : ''}`}>
+              <div key={p.id} className={`apicfg-card ${data.activeId === p.id ? 'apicfg-card-active' : ''}`}>
 
-                <div className="ac-card-top">
-                  <div className="ac-card-info">
-                    <span className="ac-card-name">{p.name}</span>
-                    <span className="ac-card-url">{p.baseUrl}</span>
+                <div className="apicfg-card-header">
+                  <div className="apicfg-card-info">
+                    <span className="apicfg-card-name">{p.name}</span>
+                    <span className="apicfg-card-url">{p.baseUrl}</span>
                   </div>
-                  <div className="ac-card-btns">
+                  <div className="apicfg-card-actions">
                     {data.activeId === p.id
-                      ? <span className="ac-badge">使用中</span>
-                      : <button className="ac-btn-ghost" onClick={() => setActive(p.id)}>切换</button>
+                      ? <span className="apicfg-badge">使用中</span>
+                      : <button className="apicfg-btn-outline" onClick={() => setActive(p.id)}>切换</button>
                     }
                     <button
-                      className="ac-btn-ghost"
+                      className="apicfg-btn-outline"
                       onClick={() => testConnection(p)}
                       disabled={testStatus[p.id] === 'loading'}
                     >
-                      {testStatus[p.id] === 'loading' ? '测试中' : '测试'}
+                      {testStatus[p.id] === 'loading' ? '测试中...' : '测试'}
                     </button>
-                    <button className="ac-btn-del" onClick={() => deleteProvider(p.id)}>删除</button>
+                    <button className="apicfg-btn-danger" onClick={() => deleteProvider(p.id)}>删除</button>
                   </div>
                 </div>
 
                 {testMsg[p.id] && (
-                  <p className={testStatus[p.id] === 'ok' ? 'ac-ok' : 'ac-fail'}>
+                  <p className={`apicfg-msg ${testStatus[p.id] === 'ok' ? 'apicfg-msg-ok' : 'apicfg-msg-fail'}`}>
                     {testMsg[p.id]}
                   </p>
                 )}
 
-                <div className="ac-models-area">
-                  <span className="ac-models-label">模型列表</span>
-                  <div className="ac-tags">
+                <div className="apicfg-models">
+                  <span className="apicfg-models-title">模型列表</span>
+                  <div className="apicfg-tags">
                     {(p.models || []).length === 0 && (
-                      <span className="ac-note">还没有模型，在下方添加</span>
+                      <span className="apicfg-empty">还没有模型，在下方添加</span>
                     )}
                     {(p.models || []).map(m => (
-                      <span key={m} className="ac-tag">
+                      <span key={m} className="apicfg-tag">
                         {m}
                         <button onClick={() => removeModel(p.id, m)}>×</button>
                       </span>
                     ))}
                   </div>
-                  <div className="ac-add-row">
+                  <div className="apicfg-model-add">
                     <input
-                      className="ac-input"
+                      className="apicfg-input"
                       placeholder="输入模型名，回车添加"
                       value={newModelInput[p.id] || ''}
                       onChange={e => setNewModelInput(s => ({ ...s, [p.id]: e.target.value }))}
                       onKeyDown={e => { if (e.key === 'Enter') addModelToProvider(p.id); }}
                     />
-                    <button className="ac-btn-add" onClick={() => addModelToProvider(p.id)}>添加</button>
+                    <button className="apicfg-btn-small" onClick={() => addModelToProvider(p.id)}>添加</button>
                   </div>
                 </div>
 
@@ -181,30 +195,30 @@ export default function ApiConfig({ onClose, onConfigChange }) {
         )}
 
         {/* 添加新提供商 */}
-        <div className="ac-section">
-          <p className="ac-section-label">添加新提供商</p>
-          <div className="ac-form">
-            <div className="ac-field">
+        <div className="apicfg-section">
+          <p className="apicfg-section-label">添加新提供商</p>
+          <div className="apicfg-form">
+            <div className="apicfg-field">
               <label>名称</label>
-              <input className="ac-input" placeholder="如：OpenAI、我的中转站"
+              <input className="apicfg-input" placeholder="如：OpenAI、我的中转站"
                 value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
             </div>
-            <div className="ac-field">
+            <div className="apicfg-field">
               <label>Base URL</label>
-              <input className="ac-input" placeholder="如：https://api.openai.com"
+              <input className="apicfg-input" placeholder="如：https://api.openai.com"
                 value={form.baseUrl} onChange={e => setForm(f => ({ ...f, baseUrl: e.target.value }))} />
             </div>
-            <div className="ac-field">
+            <div className="apicfg-field">
               <label>API Key</label>
-              <input className="ac-input" type="password" placeholder="sk-..."
+              <input className="apicfg-input" type="password" placeholder="sk-..."
                 value={form.apiKey} onChange={e => setForm(f => ({ ...f, apiKey: e.target.value }))} />
             </div>
-            <div className="ac-field">
+            <div className="apicfg-field">
               <label>模型（逗号分隔，可留空后续添加）</label>
-              <input className="ac-input" placeholder="如：gpt-4o, gpt-3.5-turbo"
+              <input className="apicfg-input" placeholder="如：gpt-4o, gpt-3.5-turbo"
                 value={form.modelsInput} onChange={e => setForm(f => ({ ...f, modelsInput: e.target.value }))} />
             </div>
-            <button className="ac-btn-submit" onClick={addProvider}>添加提供商</button>
+            <button className="apicfg-btn-primary" onClick={addProvider}>添加提供商</button>
           </div>
         </div>
 
