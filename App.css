@@ -641,3 +641,25 @@
   0%, 100% { transform: translateX(0); }
   50% { transform: translateX(25%); }
 }
+/* ===== 记忆宫殿入口按钮 ===== */
+.sidebar-bottom {
+  padding: 12px 16px;
+  border-top: 1px solid rgba(120, 180, 220, 0.15);
+  margin-top: auto;
+}
+
+.memory-palace-btn {
+  width: 100%;
+  padding: 10px 16px;
+  border-radius: 8px;
+  border: 1px solid rgba(120, 180, 220, 0.25);
+  background: rgba(26, 74, 106, 0.3);
+  color: #a8d4e8;
+  font-size: 14px;
+  cursor: pointer;
+  text-align: center;
+}
+
+.memory-palace-btn:active {
+  background: rgba(26, 74, 106, 0.5);
+}
