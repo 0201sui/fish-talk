@@ -23,6 +23,12 @@ export default function ApiConfig({ onClose, onConfigChange }) {
   const [testMsg, setTestMsg] = useState({});
   const [newModelInput, setNewModelInput] = useState({});
 
+  // 表单区域的测试/拉取状态
+  const [formTestStatus, setFormTestStatus] = useState('idle'); // idle | loading | ok | fail
+  const [formTestMsg, setFormTestMsg] = useState('');
+  const [formFetchStatus, setFormFetchStatus] = useState('idle');
+  const [formFetchMsg, setFormFetchMsg] = useState('');
+
   const persist = (next) => {
     setData(next);
     saveData(next);
@@ -45,7 +51,80 @@ export default function ApiConfig({ onClose, onConfigChange }) {
     };
     persist(next);
     setForm({ name: '', baseUrl: '', apiKey: '', modelsInput: '' });
+    setFormTestStatus('idle');
+    setFormTestMsg('');
+    setFormFetchStatus('idle');
+    setFormFetchMsg('');
     onClose && onClose();
+  };
+
+  // 测试表单里填的连接
+  const testFormConnection = async () => {
+    const baseUrl = form.baseUrl.trim();
+    const apiKey = form.apiKey.trim();
+    const modelName = form.modelsInput.split(',')[0]?.trim();
+    if (!baseUrl || !apiKey) {
+      setFormTestStatus('fail');
+      setFormTestMsg('请先填写 Base URL 和 API Key');
+      return;
+    }
+    if (!modelName) {
+      setFormTestStatus('fail');
+      setFormTestMsg('请先填写至少一个模型名');
+      return;
+    }
+    setFormTestStatus('loading');
+    setFormTestMsg('');
+    try {
+      const res = await fetch(`${API_URL}/test`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ base_url: baseUrl, api_key: apiKey, model: modelName }),
+      });
+      const result = await res.json();
+      if (result.success) {
+        setFormTestStatus('ok');
+        setFormTestMsg('连接成功 ✓');
+      } else {
+        setFormTestStatus('fail');
+        setFormTestMsg(result.error || '连接失败');
+      }
+    } catch (err) {
+      setFormTestStatus('fail');
+      setFormTestMsg('网络错误: ' + err.message);
+    }
+  };
+
+  // 拉取模型列表
+  const fetchModels = async () => {
+    const baseUrl = form.baseUrl.trim();
+    const apiKey = form.apiKey.trim();
+    if (!baseUrl || !apiKey) {
+      setFormFetchStatus('fail');
+      setFormFetchMsg('请先填写 Base URL 和 API Key');
+      return;
+    }
+    setFormFetchStatus('loading');
+    setFormFetchMsg('');
+    try {
+      const res = await fetch(`${API_URL}/fetch-models`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ base_url: baseUrl, api_key: apiKey }),
+      });
+      const result = await res.json();
+      if (result.success && result.models && result.models.length > 0) {
+        setForm(f => ({ ...f, modelsInput: result.models.join(', ') }));
+        setFormFetchStatus('ok');
+        setFormFetchMsg(`已拉取 ${result.models.length} 个模型 ✓`);
+      } else {
+        setFormFetchStatus('fail');
+        setFormFetchMsg(result.error || '未获取到模型列表');
+      }
+    } catch (err) {
+      setFormFetchStatus('fail');
+      setFormFetchMsg('网络错误: ' + err.message);
+    }
   };
 
   const deleteProvider = (id) => {
@@ -70,11 +149,7 @@ export default function ApiConfig({ onClose, onConfigChange }) {
       const res = await fetch(`${API_URL}/test`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          base_url: provider.baseUrl,
-          api_key: provider.apiKey,
-          model: firstModel,
-        }),
+        body: JSON.stringify({ base_url: provider.baseUrl, api_key: provider.apiKey, model: firstModel }),
       });
       const result = await res.json();
       if (result.success) {
@@ -142,208 +217,71 @@ export default function ApiConfig({ onClose, onConfigChange }) {
       borderBottom: '1px solid #e0eff8',
       flexShrink: 0,
     },
-    headerTitle: {
-      margin: 0,
-      fontSize: '17px',
-      fontWeight: 700,
-      color: '#1e5a78',
-    },
+    headerTitle: { margin: 0, fontSize: '17px', fontWeight: 700, color: '#1e5a78' },
     closeBtn: {
-      background: '#f0f8fc',
-      border: 'none',
-      width: '34px',
-      height: '34px',
-      borderRadius: '50%',
-      fontSize: '20px',
-      color: '#5ba3c4',
-      cursor: 'pointer',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      flexShrink: 0,
+      background: '#f0f8fc', border: 'none', width: '34px', height: '34px',
+      borderRadius: '50%', fontSize: '20px', color: '#5ba3c4', cursor: 'pointer',
+      display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
     },
     body: {
-      overflowY: 'auto',
-      padding: '20px 22px 28px',
-      flex: 1,
-      display: 'flex',
-      flexDirection: 'column',
-      gap: '24px',
+      overflowY: 'auto', padding: '20px 22px 28px', flex: 1,
+      display: 'flex', flexDirection: 'column', gap: '24px',
     },
     sectionLabel: {
-      margin: '0 0 10px 0',
-      fontSize: '11px',
-      fontWeight: 700,
-      letterSpacing: '1px',
-      textTransform: 'uppercase',
-      color: '#7ab0c4',
+      margin: '0 0 10px 0', fontSize: '11px', fontWeight: 700,
+      letterSpacing: '1px', textTransform: 'uppercase', color: '#7ab0c4',
     },
     card: (isActive) => ({
       border: isActive ? '1.5px solid #5ba3c4' : '1.5px solid #daeef8',
-      borderRadius: '12px',
-      padding: '14px 16px',
+      borderRadius: '12px', padding: '14px 16px',
       background: isActive ? '#edf6fb' : '#f7fbfe',
-      display: 'flex',
-      flexDirection: 'column',
-      gap: '10px',
+      display: 'flex', flexDirection: 'column', gap: '10px',
       boxShadow: isActive ? '0 0 0 3px rgba(91,163,196,0.13)' : 'none',
       marginBottom: '10px',
     }),
-    cardTop: {
-      display: 'flex',
-      alignItems: 'flex-start',
-      justifyContent: 'space-between',
-      gap: '10px',
-    },
-    cardName: {
-      fontSize: '14px',
-      fontWeight: 600,
-      color: '#1e5a78',
-      display: 'block',
-      marginBottom: '3px',
-    },
-    cardUrl: {
-      fontSize: '11px',
-      color: '#7ab0c4',
-      wordBreak: 'break-all',
-    },
-    cardBtns: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: '6px',
-      flexShrink: 0,
-    },
+    cardTop: { display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '10px' },
+    cardName: { fontSize: '14px', fontWeight: 600, color: '#1e5a78', display: 'block', marginBottom: '3px' },
+    cardUrl: { fontSize: '11px', color: '#7ab0c4', wordBreak: 'break-all' },
+    cardBtns: { display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 },
     badge: {
-      fontSize: '11px',
-      background: '#cce8f5',
-      color: '#1e6a8a',
-      borderRadius: '20px',
-      padding: '3px 10px',
-      fontWeight: 600,
-      whiteSpace: 'nowrap',
+      fontSize: '11px', background: '#cce8f5', color: '#1e6a8a',
+      borderRadius: '20px', padding: '3px 10px', fontWeight: 600, whiteSpace: 'nowrap',
     },
-    testOk: {
-      fontSize: '12px',
-      padding: '7px 10px',
-      borderRadius: '8px',
-      background: '#e8f8f0',
-      color: '#1e7a4a',
-      lineHeight: 1.5,
-    },
-    testFail: {
-      fontSize: '12px',
-      padding: '7px 10px',
-      borderRadius: '8px',
-      background: '#fdf0f0',
-      color: '#b84040',
-      lineHeight: 1.5,
-      wordBreak: 'break-all',
-    },
-    modelsArea: {
-      borderTop: '1px solid #e0eff8',
-      paddingTop: '10px',
-      display: 'flex',
-      flexDirection: 'column',
-      gap: '8px',
-    },
-    modelsTitle: {
-      fontSize: '11px',
-      color: '#7ab0c4',
-      fontWeight: 700,
-      textTransform: 'uppercase',
-      letterSpacing: '0.6px',
-    },
-    tags: {
-      display: 'flex',
-      flexWrap: 'wrap',
-      gap: '6px',
-      minHeight: '24px',
-    },
+    testOk: { fontSize: '12px', padding: '7px 10px', borderRadius: '8px', background: '#e8f8f0', color: '#1e7a4a', lineHeight: 1.5 },
+    testFail: { fontSize: '12px', padding: '7px 10px', borderRadius: '8px', background: '#fdf0f0', color: '#b84040', lineHeight: 1.5, wordBreak: 'break-all' },
+    modelsArea: { borderTop: '1px solid #e0eff8', paddingTop: '10px', display: 'flex', flexDirection: 'column', gap: '8px' },
+    modelsTitle: { fontSize: '11px', color: '#7ab0c4', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.6px' },
+    tags: { display: 'flex', flexWrap: 'wrap', gap: '6px', minHeight: '24px' },
     tag: {
-      display: 'inline-flex',
-      alignItems: 'center',
-      gap: '4px',
-      background: '#d4eaf7',
-      color: '#1e5a78',
-      borderRadius: '20px',
-      padding: '4px 10px 4px 12px',
-      fontSize: '12px',
-      fontWeight: 500,
+      display: 'inline-flex', alignItems: 'center', gap: '4px',
+      background: '#d4eaf7', color: '#1e5a78', borderRadius: '20px',
+      padding: '4px 10px 4px 12px', fontSize: '12px', fontWeight: 500,
     },
-    tagBtn: {
-      background: 'none',
-      border: 'none',
-      color: '#7ab0c4',
-      cursor: 'pointer',
-      fontSize: '16px',
-      lineHeight: 1,
-      padding: 0,
-      display: 'flex',
-      alignItems: 'center',
-    },
-    addModelRow: {
-      display: 'flex',
-      gap: '8px',
-      alignItems: 'center',
-    },
+    tagBtn: { background: 'none', border: 'none', color: '#7ab0c4', cursor: 'pointer', fontSize: '16px', lineHeight: 1, padding: 0, display: 'flex', alignItems: 'center' },
+    addModelRow: { display: 'flex', gap: '8px', alignItems: 'center' },
     input: {
-      width: '100%',
-      padding: '10px 13px',
-      border: '1.5px solid #c8e0ed',
-      borderRadius: '9px',
-      fontSize: '13px',
-      color: '#2a4a5a',
-      outline: 'none',
-      background: 'white',
-      fontFamily: 'inherit',
-      boxSizing: 'border-box',
+      width: '100%', padding: '10px 13px', border: '1.5px solid #c8e0ed',
+      borderRadius: '9px', fontSize: '13px', color: '#2a4a5a', outline: 'none',
+      background: 'white', fontFamily: 'inherit', boxSizing: 'border-box',
     },
-    form: {
-      display: 'flex',
-      flexDirection: 'column',
-      gap: '14px',
-    },
-    field: {
-      display: 'flex',
-      flexDirection: 'column',
-      gap: '5px',
-    },
-    fieldLabel: {
-      fontSize: '12px',
-      fontWeight: 600,
-      color: '#4a7a8a',
-    },
-    btnUse: {
-      border: 'none', borderRadius: '7px', padding: '5px 11px',
-      fontSize: '12px', cursor: 'pointer', fontFamily: 'inherit',
-      fontWeight: 500, whiteSpace: 'nowrap',
-      background: '#e4f2f9', color: '#1e5a78',
-    },
-    btnTest: (disabled) => ({
-      border: 'none', borderRadius: '7px', padding: '5px 11px',
-      fontSize: '12px', cursor: disabled ? 'not-allowed' : 'pointer',
-      fontFamily: 'inherit', fontWeight: 500, whiteSpace: 'nowrap',
-      background: '#d4eaf7', color: '#1e5a78',
+    form: { display: 'flex', flexDirection: 'column', gap: '14px' },
+    field: { display: 'flex', flexDirection: 'column', gap: '5px' },
+    fieldLabel: { fontSize: '12px', fontWeight: 600, color: '#4a7a8a' },
+    btnRow: { display: 'flex', gap: '8px' },
+    btnUse: { border: 'none', borderRadius: '7px', padding: '5px 11px', fontSize: '12px', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 500, whiteSpace: 'nowrap', background: '#e4f2f9', color: '#1e5a78' },
+    btnTest: (disabled) => ({ border: 'none', borderRadius: '7px', padding: '5px 11px', fontSize: '12px', cursor: disabled ? 'not-allowed' : 'pointer', fontFamily: 'inherit', fontWeight: 500, whiteSpace: 'nowrap', background: '#d4eaf7', color: '#1e5a78', opacity: disabled ? 0.5 : 1 }),
+    btnDel: { border: 'none', borderRadius: '7px', padding: '5px 11px', fontSize: '12px', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 500, whiteSpace: 'nowrap', background: '#fdeaea', color: '#b84040' },
+    btnAdd: { border: 'none', borderRadius: '9px', padding: '10px 14px', fontSize: '13px', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 500, whiteSpace: 'nowrap', flexShrink: 0, background: '#5ba3c4', color: 'white' },
+    btnOutline: (disabled) => ({
+      flex: 1, border: '1.5px solid #c8e0ed', borderRadius: '9px', padding: '10px 12px',
+      fontSize: '13px', cursor: disabled ? 'not-allowed' : 'pointer', fontFamily: 'inherit',
+      fontWeight: 500, background: 'white', color: '#1e5a78',
       opacity: disabled ? 0.5 : 1,
     }),
-    btnDel: {
-      border: 'none', borderRadius: '7px', padding: '5px 11px',
-      fontSize: '12px', cursor: 'pointer', fontFamily: 'inherit',
-      fontWeight: 500, whiteSpace: 'nowrap',
-      background: '#fdeaea', color: '#b84040',
-    },
-    btnAdd: {
-      border: 'none', borderRadius: '9px', padding: '10px 14px',
-      fontSize: '13px', cursor: 'pointer', fontFamily: 'inherit',
-      fontWeight: 500, whiteSpace: 'nowrap', flexShrink: 0,
-      background: '#5ba3c4', color: 'white',
-    },
     btnSubmit: {
-      border: 'none', borderRadius: '10px', padding: '13px 18px',
-      fontSize: '14px', cursor: 'pointer', fontFamily: 'inherit',
-      fontWeight: 600, marginTop: '4px', width: '100%',
-      background: 'linear-gradient(135deg, #5ba3c4 0%, #3d8aaa 100%)',
-      color: 'white',
+      border: 'none', borderRadius: '10px', padding: '13px 18px', fontSize: '14px',
+      cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600, marginTop: '4px', width: '100%',
+      background: 'linear-gradient(135deg, #5ba3c4 0%, #3d8aaa 100%)', color: 'white',
     },
   };
 
@@ -364,7 +302,6 @@ export default function ApiConfig({ onClose, onConfigChange }) {
               <p style={S.sectionLabel}>已添加的提供商</p>
               {data.providers.map(p => (
                 <div key={p.id} style={S.card(data.activeId === p.id)}>
-
                   <div style={S.cardTop}>
                     <div style={{ minWidth: 0 }}>
                       <span style={S.cardName}>{p.name}</span>
@@ -418,7 +355,6 @@ export default function ApiConfig({ onClose, onConfigChange }) {
                       <button style={S.btnAdd} onClick={() => addModelToProvider(p.id)}>添加</button>
                     </div>
                   </div>
-
                 </div>
               ))}
             </div>
@@ -443,11 +379,43 @@ export default function ApiConfig({ onClose, onConfigChange }) {
                 <input style={S.input} type="password" placeholder="sk-..."
                   value={form.apiKey} onChange={e => setForm(f => ({ ...f, apiKey: e.target.value }))} />
               </div>
+
+              {/* 测试连接 + 拉取模型 两个按钮 */}
+              <div style={S.btnRow}>
+                <button
+                  style={S.btnOutline(formTestStatus === 'loading')}
+                  onClick={testFormConnection}
+                  disabled={formTestStatus === 'loading'}
+                >
+                  {formTestStatus === 'loading' ? '测试中…' : '🔗 测试连接'}
+                </button>
+                <button
+                  style={S.btnOutline(formFetchStatus === 'loading')}
+                  onClick={fetchModels}
+                  disabled={formFetchStatus === 'loading'}
+                >
+                  {formFetchStatus === 'loading' ? '拉取中…' : '📋 拉取模型'}
+                </button>
+              </div>
+
+              {/* 测试结果提示 */}
+              {formTestMsg && (
+                <div style={formTestStatus === 'ok' ? S.testOk : S.testFail}>
+                  {formTestMsg}
+                </div>
+              )}
+              {formFetchMsg && (
+                <div style={formFetchStatus === 'ok' ? S.testOk : S.testFail}>
+                  {formFetchMsg}
+                </div>
+              )}
+
               <div style={S.field}>
-                <label style={S.fieldLabel}>模型（逗号分隔，可留空后续添加）</label>
+                <label style={S.fieldLabel}>模型（逗号分隔，可手动填写或点上方拉取）</label>
                 <input style={S.input} placeholder="如：gpt-4o, gpt-3.5-turbo"
                   value={form.modelsInput} onChange={e => setForm(f => ({ ...f, modelsInput: e.target.value }))} />
               </div>
+
               <button style={S.btnSubmit} onClick={addProvider}>💾 保存</button>
             </div>
           </div>
