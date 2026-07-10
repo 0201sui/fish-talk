@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import MemoryPalace from './MemoryPalace';
 import ApiConfig from './ApiConfig';
 import './App.css';
@@ -44,9 +44,19 @@ function App() {
   const [modelList, setModelList] = useState([]);
   const [model, setModel] = useState('');
 
+  // 回到底部按钮
+  const [showScrollBtn, setShowScrollBtn] = useState(false);
+
+  // 消息搜索
+  const [showSearch, setShowSearch] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [currentSearchIndex, setCurrentSearchIndex] = useState(-1);
+
   const messagesEndRef = useRef(null);
   const messagesAreaRef = useRef(null);
   const textareaRef = useRef(null);
+  const messageRefs = useRef([]);
 
   const refreshModelList = () => {
     const provider = getApiConfig();
@@ -76,13 +86,25 @@ function App() {
     return () => { clearTimeout(fadeTimer); clearTimeout(removeTimer); };
   }, []);
 
-  const scrollToBottom = () => {
+  const scrollToBottom = (smooth = false) => {
     setTimeout(() => {
       if (messagesAreaRef.current) {
-        messagesAreaRef.current.scrollTop = messagesAreaRef.current.scrollHeight;
+        messagesAreaRef.current.scrollTo({
+          top: messagesAreaRef.current.scrollHeight,
+          behavior: smooth ? 'smooth' : 'auto'
+        });
       }
     }, 50);
   };
+
+  // 检测是否在底部
+  const handleScroll = useCallback(() => {
+    if (messagesAreaRef.current) {
+      const { scrollTop, scrollHeight, clientHeight } = messagesAreaRef.current;
+      const isAtBottom = scrollHeight - scrollTop - clientHeight < 80;
+      setShowScrollBtn(!isAtBottom);
+    }
+  }, []);
 
   useEffect(() => { scrollToBottom(); }, [messages, loading]);
 
@@ -105,6 +127,62 @@ function App() {
   useEffect(() => {
     localStorage.setItem('selectedModel', model);
   }, [model]);
+
+  // 搜索逻辑
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      setSearchResults([]);
+      setCurrentSearchIndex(-1);
+      return;
+    }
+    const query = searchQuery.toLowerCase();
+    const results = [];
+    messages.forEach((msg, index) => {
+      if (msg.content && msg.content.toLowerCase().includes(query)) {
+        results.push(index);
+      }
+    });
+    setSearchResults(results);
+    setCurrentSearchIndex(results.length > 0 ? 0 : -1);
+  }, [searchQuery, messages]);
+
+  // 搜索结果切换时滚动到对应消息
+  useEffect(() => {
+    if (currentSearchIndex >= 0 && searchResults[currentSearchIndex] !== undefined) {
+      const msgIndex = searchResults[currentSearchIndex];
+      const msgEl = messageRefs.current[msgIndex];
+      if (msgEl) {
+        msgEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+  }, [currentSearchIndex, searchResults]);
+
+  const nextSearchResult = () => {
+    if (searchResults.length === 0) return;
+    setCurrentSearchIndex((prev) => (prev + 1) % searchResults.length);
+  };
+
+  const prevSearchResult = () => {
+    if (searchResults.length === 0) return;
+    setCurrentSearchIndex((prev) => (prev - 1 + searchResults.length) % searchResults.length);
+  };
+
+  const closeSearch = () => {
+    setShowSearch(false);
+    setSearchQuery('');
+    setSearchResults([]);
+    setCurrentSearchIndex(-1);
+  };
+
+  // 高亮消息文本
+  const highlightText = (text, query) => {
+    if (!query.trim()) return text;
+    const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+    const parts = text.split(regex);
+    return parts.map((part, i) =>
+      regex.test(part) ? <mark key={i} className="search-highlight">{part}</mark> : part
+    );
+  };
 
   const fetchSessions = async () => {
     try {
@@ -215,7 +293,6 @@ function App() {
     if (textareaRef.current) textareaRef.current.blur();
 
     try {
-      // 构建请求体，包含 API 配置
       const provider = getApiConfig();
       const chatBody = {
         message: currentInput,
@@ -286,23 +363,7 @@ function App() {
           <h1 className="splash-title">鱼说</h1>
           <p className="splash-subtitle">在深海里，听见你的声音</p>
           <div className="splash-wave-group">
-            <div className="splash-wave splash-wave-1"></div>
-            <div className="splash-wave splash-wave-2"></div>
-            <div className="splash-wave splash-wave-3"></div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="app">
-      {showSidebar && <div className="sidebar-overlay" onClick={() => setShowSidebar(false)} />}
-
-      <aside className={`sidebar ${showSidebar ? 'open' : ''}`}>
-        <div className="sidebar-header">
-          <h2>🐚 对话列表</h2>
-          <button className="new-chat-btn" onClick={createSession}>+ 新对话</button>
+            <div className="splash-wave splash-wave-1"></div>wave splash-wave-3"></divSididebar(false)}ebar ? 'open🐚话列-chat-btn" onClick={createSession}>+ 新对话</button>
         </div>
         <div className="session-list">
           {sessions.map(session => (
@@ -337,16 +398,36 @@ function App() {
             <h1>裴拟的海洋馆</h1>
           </div>
           <div className="chat-header-right">
+            <button className="search-toggle-btn" onClick={() => setShowSearch(!showSearch)}>🔍</button>
             <select className="model-select" value={model} onChange={(e) => setModel(e.target.value)}>
               {modelList.map(m => (
                 <option key={m} value={m}>{m}</option>
               ))}
             </select>
-            <button className="settings-btn" onClick={() => setShowSettings(true)}>⚙ 设置</button>
+            <button className="settings-btn" onClick={() => setShowSettings(true)}>⚙</button>
           </div>
         </header>
 
-        <div className="messages-area" ref={messagesAreaRef}>
+        {showSearch && (
+          <div className="search-bar">
+            <input
+              type="text"
+              className="search-input"
+              placeholder="搜索消息..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              autoFocus
+            />
+            {searchResults.length > 0 && (
+              <span className="search-count">{currentSearchIndex + 1}/{searchResults.length}</span>
+            )}
+            <button className="search-nav-btn" onClick={prevSearchResult} disabled={searchResults.length === 0}>↑</button>
+            <button className="search-nav-btn" onClick={nextSearchResult} disabled={searchResults.length === 0}>↓</button>
+            <button className="search-close-btn" onClick={closeSearch}>✕</button>
+          </div>
+        )}
+
+        <div className="messages-area" ref={messagesAreaRef} onScroll={handleScroll}>
           {messages.length === 0 && !loading && (
             <div className="welcome">
               <div className="welcome-icon">🌊</div>
@@ -356,8 +437,14 @@ function App() {
             </div>
           )}
           {messages.map((msg, index) => (
-            <div key={index} className={`message ${msg.role}`}>
-              <div className="bubble"><p>{msg.content}</p></div>
+            <div
+              key={index}
+              className={`message ${msg.role} ${searchResults.includes(index) ? 'search-match' : ''} ${searchResults[currentSearchIndex] === index ? 'search-active' : ''}`}
+              ref={(el) => { messageRefs.current[index] = el; }}
+            >
+              <div className="bubble">
+                <p>{showSearch && searchQuery ? highlightText(msg.content, searchQuery) : msg.content}</p>
+              </div>
             </div>
           ))}
           {loading && (
@@ -369,6 +456,10 @@ function App() {
           )}
           <div ref={messagesEndRef} />
         </div>
+
+        {showScrollBtn && (
+          <button className="scroll-to-bottom-btn" onClick={() => scrollToBottom(true)}>↓</button>
+        )}
 
         <div className="input-area">
           <div className="input-wrapper">
