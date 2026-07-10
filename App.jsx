@@ -199,6 +199,7 @@ function App() {
 
     const userMessage = { role: 'user', content: input, created_at: new Date().toISOString() };
     setMessages(prev => [...prev, userMessage]);
+    const currentInput = input;
     setInput('');
     setLoading(true);
 
@@ -211,7 +212,7 @@ function App() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          message: input,
+          message: currentInput,
           session_id: sessionId,
           model: model
         })
@@ -227,6 +228,30 @@ function App() {
     } catch (err) {
       const errorMessage = { role: 'assistant', content: '网络错误，请稍后再试', created_at: new Date().toISOString() };
       setMessages(prev => [...prev, errorMessage]);
+    }
+
+    // 检查是否需要自动总结
+    try {
+      const compressSettings = JSON.parse(localStorage.getItem('compressSettings') || '{}');
+      const autoRounds = compressSettings.autoCompressRounds || 0;
+      if (autoRounds > 0 && sessionId) {
+        const countResp = await fetch(`${API_URL}/sessions/${sessionId}/messages`);
+        const countData = await countResp.json();
+        const msgCount = countData.messages ? countData.messages.length : 0;
+        if (msgCount > 0 && msgCount % autoRounds === 0) {
+          await fetch(`${API_URL}/memories/compress/${sessionId}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              max_words: compressSettings.maxWords || 200,
+              delete_after: compressSettings.deleteAfterCompress || false
+            })
+          });
+          console.log('自动总结已触发');
+        }
+      }
+    } catch (e) {
+      console.log('自动总结检查失败:', e);
     }
 
     setLoading(false);
@@ -303,9 +328,9 @@ function App() {
           )}
         </div>
         <div className="sidebar-bottom">
-         <button className="memory-palace-btn" onClick={() => { setShowMemoryPalace(true); setShowSidebar(false); }}>
-  记忆宫殿
-</button>
+          <button className="memory-palace-btn" onClick={() => { setShowMemoryPalace(true); setShowSidebar(false); }}>
+            记忆宫殿
+          </button>
         </div>
       </aside>
 
