@@ -12,7 +12,7 @@ export default function MemoryPalace({ onClose, currentSessionId }) {
   const [compressing, setCompressing] = useState(false);
   const [merging, setMerging] = useState(false);
 
-  // 手风琴展开状态
+  // 手风琴主板块
   const [openSection, setOpenSection] = useState(null);
 
   // 记忆相关
@@ -24,6 +24,7 @@ export default function MemoryPalace({ onClose, currentSessionId }) {
   // 压缩设置
   const [maxWords, setMaxWords] = useState(200);
   const [deleteAfterCompress, setDeleteAfterCompress] = useState(false);
+  const [autoCompressRounds, setAutoCompressRounds] = useState(0);
 
   // 表单
   const [formTitle, setFormTitle] = useState('');
@@ -33,6 +34,7 @@ export default function MemoryPalace({ onClose, currentSessionId }) {
   useEffect(() => {
     loadMemories();
     loadKeywords();
+    loadCompressSettings();
   }, []);
 
   const loadMemories = async (keyword) => {
@@ -57,6 +59,26 @@ export default function MemoryPalace({ onClose, currentSessionId }) {
     } catch (err) {
       console.error('加载关键词失败:', err);
     }
+  };
+
+  const loadCompressSettings = () => {
+    const saved = localStorage.getItem('compressSettings');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (parsed.maxWords) setMaxWords(parsed.maxWords);
+        if (parsed.autoCompressRounds) setAutoCompressRounds(parsed.autoCompressRounds);
+        if (parsed.deleteAfterCompress) setDeleteAfterCompress(parsed.deleteAfterCompress);
+      } catch (e) {}
+    }
+  };
+
+  const saveCompressSettings = (words, rounds, deleteAfter) => {
+    localStorage.setItem('compressSettings', JSON.stringify({
+      maxWords: words,
+      autoCompressRounds: rounds,
+      deleteAfterCompress: deleteAfter
+    }));
   };
 
   const handleSearch = async () => {
@@ -281,6 +303,23 @@ export default function MemoryPalace({ onClose, currentSessionId }) {
     setOpenSection(openSection === section ? null : section);
   };
 
+  const handleMaxWordsChange = (val) => {
+    const v = parseInt(val);
+    setMaxWords(v);
+    saveCompressSettings(v, autoCompressRounds, deleteAfterCompress);
+  };
+
+  const handleAutoRoundsChange = (val) => {
+    const v = parseInt(val);
+    setAutoCompressRounds(v);
+    saveCompressSettings(maxWords, v, deleteAfterCompress);
+  };
+
+  const handleDeleteAfterChange = (checked) => {
+    setDeleteAfterCompress(checked);
+    saveCompressSettings(maxWords, autoCompressRounds, checked);
+  };
+
   return (
     <div className="memory-palace">
       <div className="mp-header">
@@ -299,26 +338,55 @@ export default function MemoryPalace({ onClose, currentSessionId }) {
 
           {openSection === 'compress' && (
             <div className="mp-section-content">
-              {/* 压缩控制 */}
               <div className="mp-compress-controls">
+                {/* 字数滑动条 */}
                 <div className="mp-field">
-                  <label>总结字数上限</label>
-                  <div className="mp-word-options">
-                    {[100, 150, 200, 300, 500].map(n => (
-                      <button key={n} className={`mp-word-btn ${maxWords === n ? 'active' : ''}`} onClick={() => setMaxWords(n)}>
-                        {n}字
-                      </button>
-                    ))}
+                  <label>总结字数上限：<b>{maxWords}</b> 字</label>
+                  <input
+                    type="range"
+                    min="50"
+                    max="800"
+                    step="1"
+                    value={maxWords}
+                    onChange={(e) => handleMaxWordsChange(e.target.value)}
+                    className="mp-slider"
+                  />
+                  <div className="mp-slider-labels">
+                    <span>50</span>
+                    <span>800</span>
                   </div>
                 </div>
 
+                {/* 自动总结轮数 */}
+                <div className="mp-field">
+                  <label>自动总结触发：<b>{autoCompressRounds === 0 ? '关闭' : `每 ${autoCompressRounds} 轮`}</b></label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    step="5"
+                    value={autoCompressRounds}
+                    onChange={(e) => handleAutoRoundsChange(e.target.value)}
+                    className="mp-slider"
+                  />
+                  <div className="mp-slider-labels">
+                    <span>关闭</span>
+                    <span>100轮</span>
+                  </div>
+                  <p className="mp-hint">
+                    {autoCompressRounds === 0
+                      ? '当前为手动总结模式，需要你自己点击按钮触发'
+                      : `聊天每积累 ${autoCompressRounds} 轮后将自动触发总结`}
+                  </p>
+                </div>
+
                 <label className="mp-checkbox-label">
-                  <input type="checkbox" checked={deleteAfterCompress} onChange={(e) => setDeleteAfterCompress(e.target.checked)} />
+                  <input type="checkbox" checked={deleteAfterCompress} onChange={(e) => handleDeleteAfterChange(e.target.checked)} />
                   总结后删除对应聊天记录
                 </label>
 
                 <button className="mp-btn-compress-main" onClick={handleCompress} disabled={compressing || !currentSessionId}>
-                  {compressing ? '总结中...' : '开始总结当前对话'}
+                  {compressing ? '总结中...' : '手动总结当前对话'}
                 </button>
                 {!currentSessionId && <p className="mp-hint">请先在聊天页面选择一个会话</p>}
               </div>
@@ -327,15 +395,18 @@ export default function MemoryPalace({ onClose, currentSessionId }) {
               {memories.length > 0 && (
                 <div className="mp-summary-list">
                   <div className="mp-summary-list-header">
-                    <span>已总结的内容 ({memories.length})</span>
+                    <span>已总结 ({memories.length})</span>
                     {selectedIds.length >= 2 && (
                       <button className="mp-btn-merge" onClick={handleMerge} disabled={merging}>
                         {merging ? '合并中...' : `合并(${selectedIds.length})`}
                       </button>
                     )}
+                    {selectedIds.length > 0 && (
+                      <button className="mp-btn-cancel-sel" onClick={() => setSelectedIds([])}>取消选择</button>
+                    )}
                   </div>
                   {memories.map(memory => (
-                    <div key={memory.id} className={`mp-memory-item ${expandedId === memory.id ? 'expanded' : ''} ${selectedIds.includes(memory.id) ? 'selected' : ''}`}>
+                    <div key={memory.id} className={`mp-memory-item ${selectedIds.includes(memory.id) ? 'selected' : ''}`}>
                       {editingId === memory.id ? (
                         <div className="mp-form-inline">
                           <input type="text" value={formTitle} onChange={(e) => setFormTitle(e.target.value)} placeholder="标题" />
@@ -357,12 +428,10 @@ export default function MemoryPalace({ onClose, currentSessionId }) {
                                 onChange={() => toggleSelect(memory.id)}
                                 onClick={(e) => e.stopPropagation()}
                               />
+                              <span className={`mp-arrow-sm ${expandedId === memory.id ? 'open' : ''}`}>›</span>
                               <span className="mp-memory-title">{memory.title || '无标题'}</span>
                             </div>
-                            <div className="mp-memory-right">
-                              <span className="mp-memory-date">{formatDate(memory.timestamp)}</span>
-                              <span className={`mp-arrow-sm ${expandedId === memory.id ? 'open' : ''}`}>›</span>
-                            </div>
+                            <span className="mp-memory-date">{formatDate(memory.timestamp)}</span>
                           </div>
 
                           {expandedId === memory.id && (
