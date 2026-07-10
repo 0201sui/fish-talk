@@ -670,7 +670,6 @@
   cursor: pointer;
   text-align: center;
 }
-
 .memory-palace-btn:active {
   background: rgba(26, 74, 106, 0.5);
 }
