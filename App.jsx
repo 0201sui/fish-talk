@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import MemoryPalace from './MemoryPalace';
 import './App.css';
 
 const API_URL = 'https://my-home-backend-9j56.onrender.com';
@@ -14,6 +15,7 @@ function App() {
   const [model, setModel] = useState(localStorage.getItem('selectedModel') || 'claude');
   const [showSettings, setShowSettings] = useState(false);
   const [showSidebar, setShowSidebar] = useState(false);
+  const [showMemoryPalace, setShowMemoryPalace] = useState(false);
   const [settings, setSettings] = useState({
     system_prompt: '',
     temperature: 0.7,
@@ -27,7 +29,6 @@ function App() {
   const messagesAreaRef = useRef(null);
   const textareaRef = useRef(null);
 
-  // 开屏动画：2.5秒后开始淡出，3.3秒后彻底移除
   useEffect(() => {
     const fadeTimer = setTimeout(() => setSplashFading(true), 2500);
     const removeTimer = setTimeout(() => setShowSplash(false), 3300);
@@ -246,40 +247,33 @@ function App() {
       textarea.style.height = Math.min(textarea.scrollHeight, 100) + 'px';
     }
   };
-// 开屏动画
-if (showSplash) {
-  return (
-    <div className={`splash ${splashFading ? 'splash-fading' : ''}`}>
-      {/* 背景气泡 */}
-      <div className="splash-bubbles">
-        <span></span><span></span><span></span><span></span><span></span>
-      </div>
 
-      {/* 上部留白 */}
-      <div className="splash-top"></div>
-
-      {/* 中部：鲸鱼 */}
-      <div className="splash-center">
-        <div className="splash-whale">🐋</div>
-      </div>
-
-      {/* 下部：标题 + 水泡 + 水波 */}
-      <div className="splash-bottom">
-        <div className="splash-bottom-bubbles">
-          <span></span><span></span><span></span><span></span><span></span><span></span>
+  if (showSplash) {
+    return (
+      <div className={`splash ${splashFading ? 'splash-fading' : ''}`}>
+        <div className="splash-bubbles">
+          <span></span><span></span><span></span><span></span><span></span>
         </div>
-        <h1 className="splash-title">鱼说</h1>
-        <p className="splash-subtitle">在深海里，听见你的声音</p>
-        <div className="splash-wave-group">
-          <div className="splash-wave splash-wave-1"></div>
-          <div className="splash-wave splash-wave-2"></div>
-          <div className="splash-wave splash-wave-3"></div>
+        <div className="splash-top"></div>
+        <div className="splash-center">
+          <div className="splash-whale">🐋</div>
+        </div>
+        <div className="splash-bottom">
+          <div className="splash-bottom-bubbles">
+            <span></span><span></span><span></span><span></span><span></span><span></span>
+          </div>
+          <h1 className="splash-title">鱼说</h1>
+          <p className="splash-subtitle">在深海里，听见你的声音</p>
+          <div className="splash-wave-group">
+            <div className="splash-wave splash-wave-1"></div>
+            <div className="splash-wave splash-wave-2"></div>
+            <div className="splash-wave splash-wave-3"></div>
+          </div>
         </div>
       </div>
-    </div>
-  );
-}
- 
+    );
+  }
+
   return (
     <div className="app">
       {showSidebar && <div className="sidebar-overlay" onClick={() => setShowSidebar(false)} />}
@@ -307,6 +301,11 @@ if (showSplash) {
               海洋里还没有故事，点击"+ 新对话"开始吧 🌊
             </p>
           )}
+        </div>
+        <div className="sidebar-bottom">
+          <button className="memory-palace-btn" onClick={() => { setShowMemoryPalace(true); setShowSidebar(false); }}>
+            🧠 记忆宫殿
+          </button>
         </div>
       </aside>
 
@@ -431,6 +430,13 @@ if (showSplash) {
             </div>
           </div>
         </div>
+      )}
+
+      {showMemoryPalace && (
+        <MemoryPalace
+          onClose={() => setShowMemoryPalace(false)}
+          currentSessionId={currentSessionId}
+        />
       )}
     </div>
   );
