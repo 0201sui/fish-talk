@@ -1,6 +1,9 @@
 .ac-overlay {
   position: fixed;
-  inset: 0;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   background: rgba(0, 30, 50, 0.5);
   display: flex;
   align-items: center;
@@ -90,7 +93,6 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
-  transition: border-color 0.2s, box-shadow 0.2s;
 }
 
 .ac-card-active {
@@ -196,7 +198,7 @@
   background: #d4eaf7;
   color: #1e5a78;
   border-radius: 20px;
-  padding: 4px 10px 4px 12px;
+  padding: 4px 12px;
   font-size: 12px;
   font-weight: 500;
 }
@@ -209,6 +211,7 @@
   font-size: 15px;
   line-height: 1;
   padding: 0;
+  margin-left: 2px;
   display: flex;
   align-items: center;
 }
@@ -230,7 +233,7 @@
 .ac-form {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 16px;
 }
 
 .ac-field {
@@ -280,8 +283,13 @@
   transition: opacity 0.15s;
 }
 
-.ac-btn:hover { opacity: 0.82; }
-.ac-btn:active { opacity: 0.65; }
+.ac-btn:hover {
+  opacity: 0.82;
+}
+
+.ac-btn:active {
+  opacity: 0.65;
+}
 
 .ac-btn-use {
   background: #e4f2f9;
@@ -324,7 +332,6 @@
   font-family: inherit;
   margin-top: 4px;
   transition: opacity 0.15s, transform 0.1s;
-  letter-spacing: 0.3px;
 }
 
 .ac-btn-submit:hover {
