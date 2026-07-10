@@ -12,21 +12,17 @@ export default function MemoryPalace({ onClose, currentSessionId }) {
   const [compressing, setCompressing] = useState(false);
   const [merging, setMerging] = useState(false);
 
-  // 手风琴主板块
   const [openSection, setOpenSection] = useState(null);
 
-  // 记忆相关
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [expandedId, setExpandedId] = useState(null);
   const [selectedIds, setSelectedIds] = useState([]);
 
-  // 压缩设置
   const [maxWords, setMaxWords] = useState(200);
   const [deleteAfterCompress, setDeleteAfterCompress] = useState(false);
   const [autoCompressRounds, setAutoCompressRounds] = useState(0);
 
-  // 表单
   const [formTitle, setFormTitle] = useState('');
   const [formSummary, setFormSummary] = useState('');
   const [formKeywords, setFormKeywords] = useState('');
@@ -329,137 +325,7 @@ export default function MemoryPalace({ onClose, currentSessionId }) {
 
       <div className="mp-body">
 
-        {/* ===== 板块一：总结 ===== */}
-        <div className="mp-section">
-          <div className="mp-section-btn" onClick={() => toggleSection('compress')}>
-            <span className="mp-section-title">总结</span>
-            <span className={`mp-arrow ${openSection === 'compress' ? 'open' : ''}`}>›</span>
-          </div>
-
-          {openSection === 'compress' && (
-            <div className="mp-section-content">
-              <div className="mp-compress-controls">
-                {/* 字数滑动条 */}
-                <div className="mp-field">
-                  <label>总结字数上限：<b>{maxWords}</b> 字</label>
-                  <input
-                    type="range"
-                    min="50"
-                    max="800"
-                    step="1"
-                    value={maxWords}
-                    onChange={(e) => handleMaxWordsChange(e.target.value)}
-                    className="mp-slider"
-                  />
-                  <div className="mp-slider-labels">
-                    <span>50</span>
-                    <span>800</span>
-                  </div>
-                </div>
-
-                {/* 自动总结轮数 */}
-                <div className="mp-field">
-                  <label>自动总结触发：<b>{autoCompressRounds === 0 ? '关闭' : `每 ${autoCompressRounds} 轮`}</b></label>
-                  <input
-                    type="range"
-                    min="0"
-                    max="100"
-                    step="5"
-                    value={autoCompressRounds}
-                    onChange={(e) => handleAutoRoundsChange(e.target.value)}
-                    className="mp-slider"
-                  />
-                  <div className="mp-slider-labels">
-                    <span>关闭</span>
-                    <span>100轮</span>
-                  </div>
-                  <p className="mp-hint">
-                    {autoCompressRounds === 0
-                      ? '当前为手动总结模式，需要你自己点击按钮触发'
-                      : `聊天每积累 ${autoCompressRounds} 轮后将自动触发总结`}
-                  </p>
-                </div>
-
-                <label className="mp-checkbox-label">
-                  <input type="checkbox" checked={deleteAfterCompress} onChange={(e) => handleDeleteAfterChange(e.target.checked)} />
-                  总结后删除对应聊天记录
-                </label>
-
-                <button className="mp-btn-compress-main" onClick={handleCompress} disabled={compressing || !currentSessionId}>
-                  {compressing ? '总结中...' : '手动总结当前对话'}
-                </button>
-                {!currentSessionId && <p className="mp-hint">请先在聊天页面选择一个会话</p>}
-              </div>
-
-              {/* 已总结的记忆列表 */}
-              {memories.length > 0 && (
-                <div className="mp-summary-list">
-                  <div className="mp-summary-list-header">
-                    <span>已总结 ({memories.length})</span>
-                    {selectedIds.length >= 2 && (
-                      <button className="mp-btn-merge" onClick={handleMerge} disabled={merging}>
-                        {merging ? '合并中...' : `合并(${selectedIds.length})`}
-                      </button>
-                    )}
-                    {selectedIds.length > 0 && (
-                      <button className="mp-btn-cancel-sel" onClick={() => setSelectedIds([])}>取消选择</button>
-                    )}
-                  </div>
-                  {memories.map(memory => (
-                    <div key={memory.id} className={`mp-memory-item ${selectedIds.includes(memory.id) ? 'selected' : ''}`}>
-                      {editingId === memory.id ? (
-                        <div className="mp-form-inline">
-                          <input type="text" value={formTitle} onChange={(e) => setFormTitle(e.target.value)} placeholder="标题" />
-                          <textarea value={formSummary} onChange={(e) => setFormSummary(e.target.value)} rows={3} />
-                          <input type="text" value={formKeywords} onChange={(e) => setFormKeywords(e.target.value)} placeholder="关键词（逗号分隔）" />
-                          <div className="mp-form-btns">
-                            <button className="mp-form-save" onClick={() => handleUpdate(memory.id)}>保存</button>
-                            <button className="mp-form-cancel" onClick={cancelEdit}>取消</button>
-                          </div>
-                        </div>
-                      ) : (
-                        <>
-                          <div className="mp-memory-header" onClick={() => setExpandedId(expandedId === memory.id ? null : memory.id)}>
-                            <div className="mp-memory-left">
-                              <input
-                                type="checkbox"
-                                className="mp-checkbox"
-                                checked={selectedIds.includes(memory.id)}
-                                onChange={() => toggleSelect(memory.id)}
-                                onClick={(e) => e.stopPropagation()}
-                              />
-                              <span className={`mp-arrow-sm ${expandedId === memory.id ? 'open' : ''}`}>›</span>
-                              <span className="mp-memory-title">{memory.title || '无标题'}</span>
-                            </div>
-                            <span className="mp-memory-date">{formatDate(memory.timestamp)}</span>
-                          </div>
-
-                          {expandedId === memory.id && (
-                            <div className="mp-memory-body">
-                              <p className="mp-memory-summary">{memory.summary}</p>
-                              {memory.keywords && memory.keywords.length > 0 && (
-                                <div className="mp-memory-tags">
-                                  {memory.keywords.map(kw => <span key={kw} className="mp-tag">{kw}</span>)}
-                                </div>
-                              )}
-                              <div className="mp-memory-actions">
-                                <button onClick={() => startEdit(memory)}>编辑</button>
-                                <button onClick={() => handleDeleteSource(memory.id)}>删原始记录</button>
-                                <button className="mp-btn-del" onClick={() => handleDelete(memory.id)}>删除</button>
-                              </div>
-                            </div>
-                          )}
-                        </>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* ===== 板块二：记忆 ===== */}
+        {/* ===== 板块一：记忆（查看总结出来的内容） ===== */}
         <div className="mp-section">
           <div className="mp-section-btn" onClick={() => toggleSection('memories')}>
             <span className="mp-section-title">记忆</span>
@@ -468,6 +334,7 @@ export default function MemoryPalace({ onClose, currentSessionId }) {
 
           {openSection === 'memories' && (
             <div className="mp-section-content">
+              {/* 搜索 */}
               <div className="mp-search">
                 <input
                   type="text"
@@ -479,6 +346,7 @@ export default function MemoryPalace({ onClose, currentSessionId }) {
                 <button onClick={handleSearch}>搜索</button>
               </div>
 
+              {/* 关键词标签 */}
               {keywords.length > 0 && (
                 <div className="mp-keywords">
                   {keywords.slice(0, 20).map(({ keyword, count }) => (
@@ -489,10 +357,22 @@ export default function MemoryPalace({ onClose, currentSessionId }) {
                 </div>
               )}
 
-              <button className="mp-btn-add" onClick={() => { setShowCreateForm(!showCreateForm); cancelEdit(); }}>
-                手动添加记忆
-              </button>
+              {/* 操作栏 */}
+              <div className="mp-memory-toolbar">
+                <button className="mp-btn-add" onClick={() => { setShowCreateForm(!showCreateForm); cancelEdit(); }}>
+                  手动添加
+                </button>
+                {selectedIds.length >= 2 && (
+                  <button className="mp-btn-merge" onClick={handleMerge} disabled={merging}>
+                    {merging ? '合并中...' : `合并(${selectedIds.length})`}
+                  </button>
+                )}
+                {selectedIds.length > 0 && (
+                  <button className="mp-btn-cancel-sel" onClick={() => setSelectedIds([])}>取消选择</button>
+                )}
+              </div>
 
+              {/* 手动添加表单 */}
               {showCreateForm && (
                 <div className="mp-form-inline">
                   <input type="text" placeholder="标题（可选）" value={formTitle} onChange={(e) => setFormTitle(e.target.value)} />
@@ -505,8 +385,124 @@ export default function MemoryPalace({ onClose, currentSessionId }) {
                 </div>
               )}
 
-              {loading && <p className="mp-hint">加载中...</p>}
-              {!loading && memories.length === 0 && <p className="mp-hint">还没有记忆，先去总结一些对话吧</p>}
+              {/* 记忆列表（可滚动） */}
+              <div className="mp-memory-scroll">
+                {loading && <p className="mp-hint">加载中...</p>}
+                {!loading && memories.length === 0 && <p className="mp-hint">还没有记忆，去总结板块生成一些吧</p>}
+                {memories.map(memory => (
+                  <div key={memory.id} className={`mp-memory-item ${selectedIds.includes(memory.id) ? 'selected' : ''}`}>
+                    {editingId === memory.id ? (
+                      <div className="mp-form-inline">
+                        <input type="text" value={formTitle} onChange={(e) => setFormTitle(e.target.value)} placeholder="标题" />
+                        <textarea value={formSummary} onChange={(e) => setFormSummary(e.target.value)} rows={3} />
+                        <input type="text" value={formKeywords} onChange={(e) => setFormKeywords(e.target.value)} placeholder="关键词（逗号分隔）" />
+                        <div className="mp-form-btns">
+                          <button className="mp-form-save" onClick={() => handleUpdate(memory.id)}>保存</button>
+                          <button className="mp-form-cancel" onClick={cancelEdit}>取消</button>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="mp-memory-header" onClick={() => setExpandedId(expandedId === memory.id ? null : memory.id)}>
+                          <div className="mp-memory-left">
+                            <input
+                              type="checkbox"
+                              className="mp-checkbox"
+                              checked={selectedIds.includes(memory.id)}
+                              onChange={() => toggleSelect(memory.id)}
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                            <span className={`mp-arrow-sm ${expandedId === memory.id ? 'open' : ''}`}>›</span>
+                            <span className="mp-memory-title">{memory.title || '无标题'}</span>
+                          </div>
+                          <span className="mp-memory-date">{formatDate(memory.timestamp)}</span>
+                        </div>
+
+                        {expandedId === memory.id && (
+                          <div className="mp-memory-body">
+                            <p className="mp-memory-summary">{memory.summary}</p>
+                            {memory.keywords && memory.keywords.length > 0 && (
+                              <div className="mp-memory-tags">
+                                {memory.keywords.map(kw => <span key={kw} className="mp-tag">{kw}</span>)}
+                              </div>
+                            )}
+                            <div className="mp-memory-actions">
+                              <button onClick={() => startEdit(memory)}>编辑</button>
+                              <button onClick={() => handleDeleteSource(memory.id)}>删原始记录</button>
+                              <button className="mp-btn-del" onClick={() => handleDelete(memory.id)}>删除</button>
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* ===== 板块二：总结（操作面板） ===== */}
+        <div className="mp-section">
+          <div className="mp-section-btn" onClick={() => toggleSection('compress')}>
+            <span className="mp-section-title">总结</span>
+            <span className={`mp-arrow ${openSection === 'compress' ? 'open' : ''}`}>›</span>
+          </div>
+
+          {openSection === 'compress' && (
+            <div className="mp-section-content">
+              {/* 字数滑块 */}
+              <div className="mp-field">
+                <label>总结字数上限：<b>{maxWords}</b> 字</label>
+                <input
+                  type="range"
+                  min="50"
+                  max="800"
+                  step="1"
+                  value={maxWords}
+                  onChange={(e) => handleMaxWordsChange(e.target.value)}
+                  className="mp-slider"
+                />
+                <div className="mp-slider-labels">
+                  <span>50 字</span>
+                  <span>800 字</span>
+                </div>
+              </div>
+
+              {/* 自动总结轮数 */}
+              <div className="mp-field">
+                <label>自动总结：<b>{autoCompressRounds === 0 ? '关闭（手动模式）' : `每 ${autoCompressRounds} 轮触发`}</b></label>
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  step="5"
+                  value={autoCompressRounds}
+                  onChange={(e) => handleAutoRoundsChange(e.target.value)}
+                  className="mp-slider"
+                />
+                <div className="mp-slider-labels">
+                  <span>关闭</span>
+                  <span>100 轮</span>
+                </div>
+                <p className="mp-hint">
+                  {autoCompressRounds === 0
+                    ? '手动模式：需要你自己点击下方按钮触发总结'
+                    : `每聊 ${autoCompressRounds} 轮会自动总结一次，不会重复总结已处理的内容`}
+                </p>
+              </div>
+
+              {/* 删除选项 */}
+              <label className="mp-checkbox-label">
+                <input type="checkbox" checked={deleteAfterCompress} onChange={(e) => handleDeleteAfterChange(e.target.checked)} />
+                总结后删除对应聊天记录
+              </label>
+
+              {/* 手动总结按钮 */}
+              <button className="mp-btn-compress-main" onClick={handleCompress} disabled={compressing || !currentSessionId}>
+                {compressing ? '总结中，请等待...' : '手动总结当前对话'}
+              </button>
+              {!currentSessionId && <p className="mp-hint">请先在聊天页面选择一个会话</p>}
             </div>
           )}
         </div>
@@ -537,7 +533,7 @@ export default function MemoryPalace({ onClose, currentSessionId }) {
                 </div>
               </div>
 
-              <p className="mp-hint">导出为 JSON 文件，可用于备份或迁移。</p>
+              <p className="mp-hint">导出为 JSON 文件，可用于备份或迁移到其他设备。</p>
             </div>
           )}
         </div>
