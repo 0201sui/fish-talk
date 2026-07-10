@@ -40,7 +40,6 @@
   line-height: 1;
 }
 
-/* 主体滚动区 */
 .mp-body {
   flex: 1;
   overflow-y: auto;
@@ -80,7 +79,7 @@
 .mp-arrow {
   font-size: 20px;
   color: rgba(168, 212, 232, 0.6);
-  transition: transform 0.2s;
+  transition: transform 0.25s;
   display: inline-block;
 }
 
@@ -96,6 +95,45 @@
   gap: 12px;
 }
 
+/* ===== 滑动条 ===== */
+.mp-slider {
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: rgba(120, 180, 220, 0.15);
+  outline: none;
+  margin: 6px 0;
+}
+
+.mp-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #3a8aba;
+  cursor: pointer;
+  border: 2px solid #a8d4e8;
+}
+
+.mp-slider::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #3a8aba;
+  cursor: pointer;
+  border: 2px solid #a8d4e8;
+}
+
+.mp-slider-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: rgba(168, 212, 232, 0.4);
+}
+
 /* ===== 总结板块 ===== */
 .mp-compress-controls {
   display: flex;
@@ -103,32 +141,18 @@
   gap: 14px;
 }
 
-.mp-field label {
-  display: block;
-  font-size: 13px;
-  color: #a8d4e8;
-  margin-bottom: 8px;
-}
-
-.mp-word-options {
+.mp-field {
   display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
+  flex-direction: column;
+  gap: 4px;
 }
 
-.mp-word-btn {
-  padding: 6px 14px;
-  border-radius: 16px;
-  border: 1px solid rgba(120, 180, 220, 0.25);
-  background: rgba(255, 255, 255, 0.05);
-  color: #a8d4e8;
+.mp-field label {
   font-size: 13px;
-  cursor: pointer;
+  color: #a8d4e8;
 }
 
-.mp-word-btn.active {
-  background: #1a5a8a;
-  border-color: #a8d4e8;
+.mp-field label b {
   color: #fff;
 }
 
@@ -184,6 +208,7 @@
   font-size: 13px;
   color: rgba(168, 212, 232, 0.6);
   margin-bottom: 4px;
+  gap: 8px;
 }
 
 .mp-btn-merge {
@@ -198,6 +223,16 @@
 
 .mp-btn-merge:disabled { opacity: 0.5; }
 
+.mp-btn-cancel-sel {
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: none;
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(168, 212, 232, 0.5);
+  font-size: 11px;
+  cursor: pointer;
+}
+
 /* 单条记忆项 */
 .mp-memory-item {
   background: rgba(20, 38, 60, 0.7);
@@ -211,10 +246,6 @@
   background: rgba(20, 50, 40, 0.6);
 }
 
-.mp-memory-item.expanded {
-  border-color: rgba(120, 180, 220, 0.25);
-}
-
 .mp-memory-header {
   display: flex;
   justify-content: space-between;
@@ -225,7 +256,7 @@
 .mp-memory-left {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 
 .mp-checkbox {
@@ -233,6 +264,21 @@
   height: 15px;
   accent-color: #4a9a6a;
   cursor: pointer;
+  flex-shrink: 0;
+}
+
+.mp-arrow-sm {
+  font-size: 14px;
+  font-weight: bold;
+  color: rgba(168, 212, 232, 0.5);
+  transition: transform 0.2s;
+  display: inline-block;
+  flex-shrink: 0;
+  width: 14px;
+}
+
+.mp-arrow-sm.open {
+  transform: rotate(90deg);
 }
 
 .mp-memory-title {
@@ -241,30 +287,15 @@
   font-weight: 500;
 }
 
-.mp-memory-right {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
 .mp-memory-date {
   font-size: 11px;
   color: rgba(168, 212, 232, 0.4);
-}
-
-.mp-arrow-sm {
-  font-size: 14px;
-  color: rgba(168, 212, 232, 0.5);
-  transition: transform 0.2s;
-  display: inline-block;
-}
-
-.mp-arrow-sm.open {
-  transform: rotate(90deg);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .mp-memory-body {
-  padding: 10px 0 4px 23px;
+  padding: 10px 0 4px 35px;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -395,7 +426,7 @@
   background: rgba(255, 255, 255, 0.12);
 }
 
-/* ===== 内联表单 ===== */
+/* ===== 表单 ===== */
 .mp-form-inline {
   display: flex;
   flex-direction: column;
@@ -446,7 +477,7 @@
 .mp-form-save { background: #1a5a8a; color: #e0f0ff; }
 .mp-form-cancel { background: rgba(255, 255, 255, 0.08); color: #a8d4e8; }
 
-/* ===== 导入导出板块 ===== */
+/* ===== 导入导出 ===== */
 .mp-data-group {
   display: flex;
   flex-direction: column;
@@ -485,10 +516,9 @@
   cursor: not-allowed;
 }
 
-/* 通用 */
+/* 通用提示 */
 .mp-hint {
   font-size: 12px;
   color: rgba(168, 212, 232, 0.4);
   margin: 4px 0 0 0;
-  text-align: center;
 }
