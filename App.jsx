@@ -75,6 +75,8 @@ function App() {
   const [searchQuery, setSearchQuery] = useState('');
 const [searchResults, setSearchResults] = useState([]);
 const [currentSearchIndex, setCurrentSearchIndex] = useState(-1);
+  const [menuMsg, setMenuMsg] = useState(null);
+const [editingMsg, setEditingMsg] = useState(null);
   const messagesRef use(null const messagesAreaRef = useRef(null);
   const textareaRef = useRef(null);
   const messageRefs = useRef([]);
