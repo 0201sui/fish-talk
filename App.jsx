@@ -116,13 +116,16 @@ const [currentSearchIndex, setCurrentSearchIndex] = useState(-1);
     };
   }, []);
 
-  const scrollToBottom = useCallback((smooth = false) => {
-    setTimeout(() => {
-      if (messagesAreaRef.current) {
-        messagesAreaRef.current.scrollTo({
-          top: messagesAreaRef.current.scrollHeight,
- []);
-
+const scrollToBottom = useCallback((smooth = false) => {
+  setTimeout(() => {
+    if (messagesAreaRef.current) {
+      messagesAreaRef.current.scrollTo({
+        top: messagesAreaRef.current.scrollHeight,
+        behavior: smooth ? 'smooth' : 'instant'
+      });
+    }
+  }, 50);
+}, []);
   {
     const area = messagesAreaRef.current;
     if (!area) return true;
@@ -785,9 +788,25 @@ const chatBody = {
             <div className="message assistant">
               <div className="bubble">
                 <div className="typing-indicator">
-                  <span></span                 span>
-                 span>
-Name="input-area">
+                                  <span></span>
+                  <span></span>
+                  <span></span>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {showScrollBtn && (
+          <button
+            className="scroll-to-bottom-btn"
+            onClick={() => scrollToBottom(true)}
+          >
+            ↓
+          </button>
+        )}
+
+        <div className="input-area">  
           <div className="input-wrapper">
             <textarea
               ref={textareaRef}
