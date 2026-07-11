@@ -379,15 +379,17 @@ function App() {
 
     try {
       const provider = getApiConfig();
+      const now = new Date();
+const pad = (n) => String(n).padStart(2, '0');
+const currentTime = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
 
-      const chatBody = {
-        message: currentInput,
-        session_id: sessionId,
-        model,
-        current_time: currentTime,
-        timezone: 'Asia/Shanghai'
-      };
-
+const chatBody = {
+  message: currentInput,
+  session_id: sessionId,
+  model: model,
+  current_time: currentTime,
+  timezone: 'Asia/Shanghai'
+};
       if (provider) {
         chatBody.api_key = provider.apiKey;
         chatBody.base_url = provider.baseUrl;
