@@ -762,27 +762,29 @@ const chatBody = {
             </div>
           )}
 
-          {messages.map((msg, index) => (
-            <div
-              key={`${msg.role}-${msg.created_at || index}-${index}`}
-              className={`message ${msg.role} ${
-                searchResults.includes(index) ? 'search-match' : ''
-              } ${
-                searchResults[currentSearchIndex] === index ? 'search-active' : ''
-              }`}
-              ref={(el) => {
-                messageRefs.current[index] = el;
-              }}
-            >
-              <div className="bubble">
-                <p>
-                  {showSearch && searchQuery
-                    ? highlightText(msg.content, searchQuery)
-                    : msg.content}
-                </p>
-              </div>
-            </div>
-          ))}
+        {messages.map((msg, index) => (
+  <div
+    key={`${msg.role}-${msg.created_at || index}-${index}`}
+    className={`message ${msg.role} ${
+      searchResults.includes(index) ? 'search-match' : ''
+    } ${
+      searchResults[currentSearchIndex] === index ? 'search-active' : ''
+    }`}
+    ref={(el) => { messageRefs.current[index] = el; }}
+    onContextMenu={(e) => handleMsgLongPress(e, index)}
+    onTouchStart={() => handleMsgTouchStart(index)}
+    onTouchEnd={() => handleMsgTouchEnd(index)}
+    onTouchMove={() => handleMsgTouchEnd(index)}
+  >
+    <div className="bubble">
+      <p>
+        {showSearch && searchQuery
+          ? highlightText(msg.content, searchQuery)
+          : msg.content}
+      </p>
+    </div>
+  </div>
+))}
 
           {loading && (
             <div className="message assistant">
@@ -953,7 +955,41 @@ Change={(e) =>
           onConfigChange={() => refreshModelList()}
         />
       )}
+    </div>{menuMsg !== null && (
+  <>
+    <div className="msg-menu-overlay" onClick={() => setMenuMsg(null)} />
+    <div
+      className="msg-menu"
+      style={{ position: 'fixed', left: menuMsg.x, top: menuMsg.y }}
+    >
+      <button className="msg-menu-item" onClick={() => copyMessage(menuMsg.index)}>
+        📋 复制
+      </button>
+      <button className="msg-menu-item" onClick={() => startEditMsg(menuMsg.index)}>
+        ✏️ 编辑
+      </button>
+      <button className="msg-menu-item danger" onClick={() => deleteMessage(menuMsg.index)}>
+        🗑 删除
+      </button>
     </div>
+  </>
+)}
+
+{editingMsg && (
+  <div className="edit-msg-modal" onClick={() => setEditingMsg(null)}>
+    <div className="edit-msg-box" onClick={e => e.stopPropagation()}>
+      <textarea
+        value={editingMsg.content}
+        onChange={(e) => setEditingMsg({ ...editingMsg, content: e.target.value })}
+        autoFocus
+      />
+      <div className="edit-msg-btns">
+        <button className="btn-cancel" onClick={() => setEditingMsg(null)}>取消</button>
+        <button className="btn-save" onClick={saveEditMsg}>保存</button>
+      </div>
+    </div>
+  </div>
+)}
   );
 }
 
