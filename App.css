@@ -789,3 +789,112 @@
 .memory-palace-btn:active {
   background: rgba(26, 74, 106, 0.5);
 }
+/* ===== 消息操作菜单 ===== */
+.message-wrapper {
+  display: flex;
+  flex-direction: column;
+  max-width: 80%;
+}
+
+.message-wrapper.user {
+  align-self: flex-end;
+}
+
+.message-wrapper.assistant {
+  align-self: flex-start;
+}
+
+.msg-menu {
+  position: absolute;
+  background: white;
+  border-radius: 10px;
+  box-shadow: 0 4px 20px rgba(0, 40, 60, 0.18);
+  padding: 6px 0;
+  z-index: 50;
+  min-width: 100px;
+  animation: menuFadeIn 0.15s ease;
+}
+
+@keyframes menuFadeIn {
+  from { opacity: 0; transform: scale(0.92); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.msg-menu-item {
+  display: block;
+  width: 100%;
+  padding: 10px 16px;
+  border: none;
+  background: none;
+  text-align: left;
+  font-size: 14px;
+  color: #2a6b8a;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.msg-menu-item:hover {
+  background: #edf6fb;
+}
+
+.msg-menu-item.danger {
+  color: #c44a4a;
+}
+
+.msg-menu-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 49;
+}
+
+/* 编辑消息弹窗 */
+.edit-msg-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 30, 50, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 16px;
+}
+
+.edit-msg-box {
+  background: white;
+  border-radius: 14px;
+  padding: 20px;
+  width: 90%;
+  max-width: 400px;
+  box-shadow: 0 16px 48px rgba(0, 40, 60, 0.2);
+}
+
+.edit-msg-box textarea {
+  width: 100%;
+  min-height: 100px;
+  padding: 12px;
+  border: 1.5px solid #b8d8e8;
+  border-radius: 10px;
+  font-size: 14px;
+  font-family: inherit;
+  color: #3a5a6a;
+  outline: none;
+  resize: vertical;
+  box-sizing: border-box;
+}
+
+.edit-msg-box textarea:focus {
+  border-color: #5ba3c4;
+}
+
+.edit-msg-btns {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 14px;
+}
