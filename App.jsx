@@ -4,6 +4,8 @@ import './App.css';
 const API_URL = 'https://my-home-backend-9j56.onrender.com';
 
 function App() {
+  const [showSplash, setShowSplash] = useState(true);
+  const [splashFading, setSplashFading] = useState(false);
   const [sessions, setSessions] = useState([]);
   const [currentSessionId, setCurrentSessionId] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -22,10 +24,25 @@ function App() {
   });
 
   const messagesEndRef = useRef(null);
+  const messagesAreaRef = useRef(null);
   const textareaRef = useRef(null);
 
+  // 开屏动画：2.5秒后开始淡出，3.3秒后彻底移除
+  useEffect(() => {
+    const fadeTimer = setTimeout(() => setSplashFading(true), 2500);
+    const removeTimer = setTimeout(() => setShowSplash(false), 3300);
+    return () => {
+      clearTimeout(fadeTimer);
+      clearTimeout(removeTimer);
+    };
+  }, []);
+
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    setTimeout(() => {
+      if (messagesAreaRef.current) {
+        messagesAreaRef.current.scrollTop = messagesAreaRef.current.scrollHeight;
+      }
+    }, 50);
   };
 
   useEffect(() => {
@@ -35,6 +52,13 @@ function App() {
   useEffect(() => {
     fetchSessions();
     fetchSettings();
+    const setVH = () => {
+      const vh = window.innerHeight * 0.01;
+      document.documentElement.style.setProperty('--vh', `${vh}px`);
+    };
+    setVH();
+    window.addEventListener('resize', setVH);
+    return () => window.removeEventListener('resize', setVH);
   }, []);
 
   useEffect(() => {
@@ -85,8 +109,7 @@ function App() {
       console.error('加载设置失败:', err);
     }
   };
-
-  const createSession = async () => {
+ const createSession = async () => {
     try {
       const res = await fetch(`${API_URL}/sessions`, {
         method: 'POST',
@@ -98,6 +121,7 @@ function App() {
         setSessions(prev => [data.session, ...prev]);
         setCurrentSessionId(data.session.id);
         setMessages([]);
+        setShowSidebar(false);
       }
     } catch (err) {
       console.error('创建会话失败:', err);
@@ -133,9 +157,7 @@ function App() {
     } catch (err) {
       console.error('重命名失败:', err);
     }
-  };
-
-  const saveSettings = async () => {
+  }; const saveSettings = async () => {
     try {
       await fetch(`${API_URL}/settings`, {
         method: 'PUT',
@@ -176,6 +198,10 @@ function App() {
     setInput('');
     setLoading(true);
 
+    if (textareaRef.current) {
+      textareaRef.current.blur();
+    }
+
     try {
       const res = await fetch(`${API_URL}/chat`, {
         method: 'POST',
@@ -194,14 +220,7 @@ function App() {
         const errorMessage = { role: 'assistant', content: '抱歉，出了点问题: ' + (data.error || '未知错误'), created_at: new Date().toISOString() };
         setMessages(prev => [...prev, errorMessage]);
       }
-    } catch (err) {
-      const errorMessage = { role: 'assistant', content: '网络错误，请稍后再试', created_at: new Date().toISOString() };
-      setMessages(prev => [...prev, errorMessage]);
-    }
-
-    setLoading(false);
-  };
-
+    
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -214,10 +233,43 @@ function App() {
     const textarea = textareaRef.current;
     if (textarea) {
       textarea.style.height = 'auto';
-      textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
+      textarea.style.height = Math.min(textarea.scrollHeight, 100) + 'px';
     }
   };
 
+ // 开屏动画
+if (showSplash) {
+  return (
+    <div className={`splash ${splashFading ? 'splash-fading' : ''}`}>
+      {/* 背景气泡 */}
+      <div className="splash-bubbles">
+        <span></span><span></span><span></span><span></span><span></span>
+      </div>
+
+      {/* 上部留白 */}
+      <div className="splash-top"></div>
+
+      {/* 中部：鲸鱼 */}
+      <div className="splash-center">
+        <div className="splash-whale">🐋</div>
+      </div>
+
+      {/* 下部：标题 + 水泡 + 水波 */}
+      <div className="splash-bottom">
+        <div className="splash-bottom-bubbles">
+          <span></span><span></span><span></span><span></span><span></span><span></span>
+        </div>
+        <h1 className="splash-title">鱼说</h1>
+        <p className="splash-subtitle">在深海里，听见你的声音</p>
+        <div className="splash-wave-group">
+          <div className="splash-wave splash-wave-1"></div>
+          <div className="splash-wave splash-wave-2"></div>
+          <div className="splash-wave splash-wave-3"></div>
+        </div>
+      </div>
+    </div>
+  );
+}
   return (
     <div className="app">
       {showSidebar && <div className="sidebar-overlay" onClick={() => setShowSidebar(false)} />}
@@ -252,7 +304,7 @@ function App() {
         <header className="chat-header">
           <div className="chat-header-left">
             <button className="menu-btn" onClick={() => setShowSidebar(true)}>☰</button>
-            <h1> 裴拟的海洋馆🐟</h1>
+            <h1>裴拟的海洋馆🐟</h1>
           </div>
           <div className="chat-header-right">
             <select className="model-select" value={model} onChange={(e) => setModel(e.target.value)}>
@@ -263,11 +315,11 @@ function App() {
           </div>
         </header>
 
-        <div className="messages-area">
+        <div className="messages-area" ref={messagesAreaRef}>
           {messages.length === 0 && !loading && (
             <div className="welcome">
               <div className="welcome-icon">🌊</div>
-              <h2>欢迎来到海洋馆</h2>
+              <h2>欢迎来到海洋馆🐋</h2>
               <p>在这片属于我们的海域，留下你的故事吧</p>
               <div className="welcome-decoration">🐠 🐙 🦈 🐚 🪸</div>
             </div>
@@ -289,9 +341,7 @@ function App() {
             </div>
           )}
           <div ref={messagesEndRef} />
-        </div>
-
-        <div className="input-area">
+        </div>     <div className="input-area">
           <div className="input-wrapper">
             <textarea
               ref={textareaRef}
@@ -337,8 +387,7 @@ function App() {
                 type="number"
                 value={settings.max_context_rounds}
                 onChange={(e) => setSettings({ ...settings, max_context_rounds: parseInt(e.target.value) })}
-              />
-            </div>
+              />  </div>
             <div className="modal-field">
               <label>压缩触发阈值 (token 数)</label>
               <input
