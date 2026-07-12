@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import MemoryPalace from './MemoryPalace';
 import './App.css';
 
 const API_URL = 'https://my-home-backend-9j56.onrender.com';
@@ -14,6 +15,7 @@ function App() {
   const [model, setModel] = useState(localStorage.getItem('selectedModel') || 'claude');
   const [showSettings, setShowSettings] = useState(false);
   const [showSidebar, setShowSidebar] = useState(false);
+  const [showMemoryPalace, setShowMemoryPalace] = useState(false);
   const [settings, setSettings] = useState({
     system_prompt: '',
     temperature: 0.7,
@@ -27,7 +29,6 @@ function App() {
   const messagesAreaRef = useRef(null);
   const textareaRef = useRef(null);
 
-  // 开屏动画：2.5秒后开始淡出，3.3秒后彻底移除
   useEffect(() => {
     const fadeTimer = setTimeout(() => setSplashFading(true), 2500);
     const removeTimer = setTimeout(() => setShowSplash(false), 3300);
@@ -36,7 +37,8 @@ function App() {
       clearTimeout(removeTimer);
     };
   }, []);
- const scrollToBottom = () => {
+
+  const scrollToBottom = () => {
     setTimeout(() => {
       if (messagesAreaRef.current) {
         messagesAreaRef.current.scrollTop = messagesAreaRef.current.scrollHeight;
@@ -69,7 +71,8 @@ function App() {
   useEffect(() => {
     localStorage.setItem('selectedModel', model);
   }, [model]);
- const fetchSessions = async () => {
+
+  const fetchSessions = async () => {
     try {
       const res = await fetch(`${API_URL}/sessions`);
       const data = await res.json();
@@ -107,7 +110,8 @@ function App() {
       console.error('加载设置失败:', err);
     }
   };
- const createSession = async () => {
+
+  const createSession = async () => {
     try {
       const res = await fetch(`${API_URL}/sessions`, {
         method: 'POST',
@@ -140,6 +144,7 @@ function App() {
       console.error('删除会话失败:', err);
     }
   };
+
   const renameSession = async (id, e) => {
     e.stopPropagation();
     const newName = prompt('输入新名称:');
@@ -168,7 +173,8 @@ function App() {
       console.error('保存设置失败:', err);
     }
   };
-const sendMessage = async () => {
+
+  const sendMessage = async () => {
     if (!input.trim() || loading) return;
 
     let sessionId = currentSessionId;
@@ -199,7 +205,8 @@ const sendMessage = async () => {
     if (textareaRef.current) {
       textareaRef.current.blur();
     }
- try {
+
+    try {
       const res = await fetch(`${API_URL}/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -231,7 +238,8 @@ const sendMessage = async () => {
       sendMessage();
     }
   };
-const handleInputChange = (e) => {
+
+  const handleInputChange = (e) => {
     setInput(e.target.value);
     const textarea = textareaRef.current;
     if (textarea) {
@@ -239,40 +247,34 @@ const handleInputChange = (e) => {
       textarea.style.height = Math.min(textarea.scrollHeight, 100) + 'px';
     }
   };
-// 开屏动画
-if (showSplash) {
+
+  if (showSplash) {
+    return (
+      <div className={`splash ${splashFading ? 'splash-fading' : ''}`}>
+        <div className="splash-bubbles">
+          <span></span><span></span><span></span><span></span><span></span>
+        </div>
+        <div className="splash-top"></div>
+        <div className="splash-center">
+          <div className="splash-whale">🐋</div>
+        </div>
+        <div className="splash-bottom">
+          <div className="splash-bottom-bubbles">
+            <span></span><span></span><span></span><span></span><span></span><span></span>
+          </div>
+          <h1 className="splash-title">鱼说</h1>
+          <p className="splash-subtitle">在深海里，听见你的声音</p>
+          <div className="splash-wave-group">
+            <div className="splash-wave splash-wave-1"></div>
+            <div className="splash-wave splash-wave-2"></div>
+            <div className="splash-wave splash-wave-3"></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className={`splash ${splashFading ? 'splash-fading' : ''}`}>
-      {/* 背景气泡 */}
-      <div className="splash-bubbles">
-        <span></span><span></span><span></span><span></span><span></span>
-      </div>
-
-      {/* 上部留白 */}
-      <div className="splash-top"></div>
-
-      {/* 中部：鲸鱼 */}
-      <div className="splash-center">
-        <div className="splash-whale">🐋</div>
-      </div>
-
-      {/* 下部：标题 + 水泡 + 水波 */}
-      <div className="splash-bottom">
-        <div className="splash-bottom-bubbles">
-          <span></span><span></span><span></span><span></span><span></span><span></span>
-        </div>
-        <h1 className="splash-title">鱼说</h1>
-        <p className="splash-subtitle">在深海里，听见你的声音</p>
-        <div className="splash-wave-group">
-          <div className="splash-wave splash-wave-1"></div>
-          <div className="splash-wave splash-wave-2"></div>
-          <div className="splash-wave splash-wave-3"></div>
-        </div>
-      </div>
-    </div>
-  );
-}
-   return (
     <div className="app">
       {showSidebar && <div className="sidebar-overlay" onClick={() => setShowSidebar(false)} />}
 
@@ -300,6 +302,11 @@ if (showSplash) {
             </p>
           )}
         </div>
+        <div className="sidebar-bottom">
+          <button className="memory-palace-btn" onClick={() => { setShowMemoryPalace(true); setShowSidebar(false); }}>
+            🧠 记忆宫殿
+          </button>
+        </div>
       </aside>
 
       <div className="main-area">
@@ -315,7 +322,9 @@ if (showSplash) {
             </select>
             <button className="settings-btn" onClick={() => setShowSettings(true)}>⚙ 设置</button>
           </div>
-        </header>  <div className="messages-area" ref={messagesAreaRef}>
+        </header>
+
+        <div className="messages-area" ref={messagesAreaRef}>
           {messages.length === 0 && !loading && (
             <div className="welcome">
               <div className="welcome-icon">🌊</div>
@@ -359,7 +368,8 @@ if (showSplash) {
           </div>
         </div>
       </div>
-  {showSettings && (
+
+      {showSettings && (
         <div className="modal-overlay" onClick={() => setShowSettings(false)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <h2>⚙ 设置</h2>
@@ -404,7 +414,8 @@ if (showSplash) {
                 type="number"
                 value={settings.compress_keep_rounds}
                 onChange={(e) => setSettings({ ...settings, compress_keep_rounds: parseInt(e.target.value) })}
-              />    </div>
+              />
+            </div>
             <div className="modal-field">
               <label>最大回复 token 数</label>
               <input
@@ -419,6 +430,13 @@ if (showSplash) {
             </div>
           </div>
         </div>
+      )}
+
+      {showMemoryPalace && (
+        <MemoryPalace
+          onClose={() => setShowMemoryPalace(false)}
+          currentSessionId={currentSessionId}
+        />
       )}
     </div>
   );
