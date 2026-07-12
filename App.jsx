@@ -1,12 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
-import MemoryPalace from './MemoryPalace';
 import './App.css';
 
 const API_URL = 'https://my-home-backend-9j56.onrender.com';
 
 function App() {
-  const [showSplash, setShowSplash] = useState(true);
-  const [splashFading, setSplashFading] = useState(false);
+  // 状态管理
   const [sessions, setSessions] = useState([]);
   const [currentSessionId, setCurrentSessionId] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -15,7 +13,6 @@ function App() {
   const [model, setModel] = useState(localStorage.getItem('selectedModel') || 'claude');
   const [showSettings, setShowSettings] = useState(false);
   const [showSidebar, setShowSidebar] = useState(false);
-  const [showMemoryPalace, setShowMemoryPalace] = useState(false);
   const [settings, setSettings] = useState({
     system_prompt: '',
     temperature: 0.7,
@@ -26,51 +23,36 @@ function App() {
   });
 
   const messagesEndRef = useRef(null);
-  const messagesAreaRef = useRef(null);
   const textareaRef = useRef(null);
 
-  useEffect(() => {
-    const fadeTimer = setTimeout(() => setSplashFading(true), 2500);
-    const removeTimer = setTimeout(() => setShowSplash(false), 3300);
-    return () => {
-      clearTimeout(fadeTimer);
-      clearTimeout(removeTimer);
-    };
-  }, []);
-
+  // 自动滚动到底部
   const scrollToBottom = () => {
-    setTimeout(() => {
-      if (messagesAreaRef.current) {
-        messagesAreaRef.current.scrollTop = messagesAreaRef.current.scrollHeight;
-      }
-    }, 50);
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
   useEffect(() => {
     scrollToBottom();
   }, [messages, loading]);
 
+  // 加载会话列表
   useEffect(() => {
     fetchSessions();
     fetchSettings();
-    const setVH = () => {
-      const vh = window.innerHeight * 0.01;
-      document.documentElement.style.setProperty('--vh', `${vh}px`);
-    };
-    setVH();
-    window.addEventListener('resize', setVH);
-    return () => window.removeEventListener('resize', setVH);
   }, []);
 
+  // 切换会话时加载消息
   useEffect(() => {
     if (currentSessionId) {
       fetchMessages(currentSessionId);
     }
   }, [currentSessionId]);
 
+  // 保存模型选择
   useEffect(() => {
     localStorage.setItem('selectedModel', model);
   }, [model]);
+
+  // ===== API 调用函数 =====
 
   const fetchSessions = async () => {
     try {
@@ -123,7 +105,6 @@ function App() {
         setSessions(prev => [data.session, ...prev]);
         setCurrentSessionId(data.session.id);
         setMessages([]);
-        setShowSidebar(false);
       }
     } catch (err) {
       console.error('创建会话失败:', err);
@@ -174,9 +155,11 @@ function App() {
     }
   };
 
+  // 发送消息
   const sendMessage = async () => {
     if (!input.trim() || loading) return;
 
+    // 如果没有会话，先创建一个
     let sessionId = currentSessionId;
     if (!sessionId) {
       try {
@@ -199,20 +182,15 @@ function App() {
 
     const userMessage = { role: 'user', content: input, created_at: new Date().toISOString() };
     setMessages(prev => [...prev, userMessage]);
-    const currentInput = input;
     setInput('');
     setLoading(true);
-
-    if (textareaRef.current) {
-      textareaRef.current.blur();
-    }
 
     try {
       const res = await fetch(`${API_URL}/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          message: currentInput,
+          message: input,
           session_id: sessionId,
           model: model
         })
@@ -230,33 +208,10 @@ function App() {
       setMessages(prev => [...prev, errorMessage]);
     }
 
-    // 检查是否需要自动总结
-    try {
-      const compressSettings = JSON.parse(localStorage.getItem('compressSettings') || '{}');
-      const autoRounds = compressSettings.autoCompressRounds || 0;
-      if (autoRounds > 0 && sessionId) {
-        const countResp = await fetch(`${API_URL}/sessions/${sessionId}/messages`);
-        const countData = await countResp.json();
-        const msgCount = countData.messages ? countData.messages.length : 0;
-        if (msgCount > 0 && msgCount % autoRounds === 0) {
-          await fetch(`${API_URL}/memories/compress/${sessionId}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              max_words: compressSettings.maxWords || 200,
-              delete_after: compressSettings.deleteAfterCompress || false
-            })
-          });
-          console.log('自动总结已触发');
-        }
-      }
-    } catch (e) {
-      console.log('自动总结检查失败:', e);
-    }
-
     setLoading(false);
   };
 
+  // 按 Enter 发送，Shift+Enter 换行
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -264,48 +219,25 @@ function App() {
     }
   };
 
+  // 自动调整输入框高度
   const handleInputChange = (e) => {
     setInput(e.target.value);
     const textarea = textareaRef.current;
     if (textarea) {
       textarea.style.height = 'auto';
-      textarea.style.height = Math.min(textarea.scrollHeight, 100) + 'px';
+      textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
     }
   };
 
-  if (showSplash) {
-    return (
-      <div className={`splash ${splashFading ? 'splash-fading' : ''}`}>
-        <div className="splash-bubbles">
-          <span></span><span></span><span></span><span></span><span></span>
-        </div>
-        <div className="splash-top"></div>
-        <div className="splash-center">
-          <div className="splash-whale">🐋</div>
-        </div>
-        <div className="splash-bottom">
-          <div className="splash-bottom-bubbles">
-            <span></span><span></span><span></span><span></span><span></span><span></span>
-          </div>
-          <h1 className="splash-title">鱼说</h1>
-          <p className="splash-subtitle">在深海里，听见你的声音</p>
-          <div className="splash-wave-group">
-            <div className="splash-wave splash-wave-1"></div>
-            <div className="splash-wave splash-wave-2"></div>
-            <div className="splash-wave splash-wave-3"></div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="app">
+      {/* 手机端侧边栏遮罩 */}
       {showSidebar && <div className="sidebar-overlay" onClick={() => setShowSidebar(false)} />}
 
+      {/* 侧边栏 */}
       <aside className={`sidebar ${showSidebar ? 'open' : ''}`}>
         <div className="sidebar-header">
-          <h2>🐚 对话列表</h2>
+          <h2>对话列表</h2>
           <button className="new-chat-btn" onClick={createSession}>+ 新对话</button>
         </div>
         <div className="session-list">
@@ -316,29 +248,26 @@ function App() {
               onClick={() => { setCurrentSessionId(session.id); setShowSidebar(false); }}
             >
               <span className="session-name" onDoubleClick={(e) => renameSession(session.id, e)}>
-                🫧 {session.name || '未命名对话'}
+                {session.name || '未命名对话'}
               </span>
               <button className="delete-btn" onClick={(e) => deleteSession(session.id, e)}>×</button>
             </div>
           ))}
           {sessions.length === 0 && (
-            <p style={{ padding: '20px', color: '#7ab0c4', fontSize: '13px', textAlign: 'center' }}>
-              海洋里还没有故事，点击"+ 新对话"开始吧 🌊
+            <p style={{ padding: '20px', color: '#b0a090', fontSize: '13px', textAlign: 'center' }}>
+              还没有对话，点击上方"+ 新对话"开始
             </p>
           )}
         </div>
-        <div className="sidebar-bottom">
-          <button className="memory-palace-btn" onClick={() => { setShowMemoryPalace(true); setShowSidebar(false); }}>
-            记忆宫殿
-          </button>
-        </div>
       </aside>
 
+      {/* 主区域 */}
       <div className="main-area">
+        {/* 顶栏 */}
         <header className="chat-header">
           <div className="chat-header-left">
             <button className="menu-btn" onClick={() => setShowSidebar(true)}>☰</button>
-            <h1>裴拟的海洋馆</h1>
+            <h1>Bunny's Home 🏠</h1>
           </div>
           <div className="chat-header-right">
             <select className="model-select" value={model} onChange={(e) => setModel(e.target.value)}>
@@ -349,13 +278,12 @@ function App() {
           </div>
         </header>
 
-        <div className="messages-area" ref={messagesAreaRef}>
+        {/* 消息列表 */}
+        <div className="messages-area">
           {messages.length === 0 && !loading && (
             <div className="welcome">
-              <div className="welcome-icon">🌊</div>
-              <h2>欢迎来到海洋馆🐋</h2>
-              <p>在这片属于我们的海域，留下你的故事吧</p>
-              <div className="welcome-decoration">🐠 🐙 🦈 🐚 🪸</div>
+              <h2>欢迎回家 💕</h2>
+              <p>输入消息开始对话吧</p>
             </div>
           )}
           {messages.map((msg, index) => (
@@ -377,6 +305,7 @@ function App() {
           <div ref={messagesEndRef} />
         </div>
 
+        {/* 输入区域 */}
         <div className="input-area">
           <div className="input-wrapper">
             <textarea
@@ -384,16 +313,17 @@ function App() {
               value={input}
               onChange={handleInputChange}
               onKeyDown={handleKeyDown}
-              placeholder="在这片海域留下你的声音..."
+              placeholder="输入消息... (Enter 发送, Shift+Enter 换行)"
               rows={1}
             />
             <button className="send-btn" onClick={sendMessage} disabled={loading || !input.trim()}>
-              🐋
+              发送
             </button>
           </div>
         </div>
       </div>
 
+      {/* 设置弹窗 */}
       {showSettings && (
         <div className="modal-overlay" onClick={() => setShowSettings(false)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
@@ -455,13 +385,6 @@ function App() {
             </div>
           </div>
         </div>
-      )}
-
-      {showMemoryPalace && (
-        <MemoryPalace
-          onClose={() => setShowMemoryPalace(false)}
-          currentSessionId={currentSessionId}
-        />
       )}
     </div>
   );
