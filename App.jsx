@@ -36,8 +36,7 @@ function App() {
       clearTimeout(removeTimer);
     };
   }, []);
-
-  const scrollToBottom = () => {
+ const scrollToBottom = () => {
     setTimeout(() => {
       if (messagesAreaRef.current) {
         messagesAreaRef.current.scrollTop = messagesAreaRef.current.scrollHeight;
@@ -70,8 +69,7 @@ function App() {
   useEffect(() => {
     localStorage.setItem('selectedModel', model);
   }, [model]);
-
-  const fetchSessions = async () => {
+ const fetchSessions = async () => {
     try {
       const res = await fetch(`${API_URL}/sessions`);
       const data = await res.json();
@@ -142,7 +140,6 @@ function App() {
       console.error('删除会话失败:', err);
     }
   };
-
   const renameSession = async (id, e) => {
     e.stopPropagation();
     const newName = prompt('输入新名称:');
@@ -157,7 +154,9 @@ function App() {
     } catch (err) {
       console.error('重命名失败:', err);
     }
-  }; const saveSettings = async () => {
+  };
+
+  const saveSettings = async () => {
     try {
       await fetch(`${API_URL}/settings`, {
         method: 'PUT',
@@ -169,8 +168,7 @@ function App() {
       console.error('保存设置失败:', err);
     }
   };
-
-  const sendMessage = async () => {
+const sendMessage = async () => {
     if (!input.trim() || loading) return;
 
     let sessionId = currentSessionId;
@@ -201,8 +199,7 @@ function App() {
     if (textareaRef.current) {
       textareaRef.current.blur();
     }
-
-    try {
+ try {
       const res = await fetch(`${API_URL}/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -220,15 +217,21 @@ function App() {
         const errorMessage = { role: 'assistant', content: '抱歉，出了点问题: ' + (data.error || '未知错误'), created_at: new Date().toISOString() };
         setMessages(prev => [...prev, errorMessage]);
       }
-    
+    } catch (err) {
+      const errorMessage = { role: 'assistant', content: '网络错误，请稍后再试', created_at: new Date().toISOString() };
+      setMessages(prev => [...prev, errorMessage]);
+    }
+
+    setLoading(false);
+  };
+
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       sendMessage();
     }
   };
-
-  const handleInputChange = (e) => {
+const handleInputChange = (e) => {
     setInput(e.target.value);
     const textarea = textareaRef.current;
     if (textarea) {
@@ -236,8 +239,7 @@ function App() {
       textarea.style.height = Math.min(textarea.scrollHeight, 100) + 'px';
     }
   };
-
- // 开屏动画
+// 开屏动画
 if (showSplash) {
   return (
     <div className={`splash ${splashFading ? 'splash-fading' : ''}`}>
@@ -270,7 +272,7 @@ if (showSplash) {
     </div>
   );
 }
-  return (
+   return (
     <div className="app">
       {showSidebar && <div className="sidebar-overlay" onClick={() => setShowSidebar(false)} />}
 
@@ -304,7 +306,7 @@ if (showSplash) {
         <header className="chat-header">
           <div className="chat-header-left">
             <button className="menu-btn" onClick={() => setShowSidebar(true)}>☰</button>
-            <h1>裴拟的海洋馆🐟</h1>
+            <h1>裴拟的海洋馆</h1>
           </div>
           <div className="chat-header-right">
             <select className="model-select" value={model} onChange={(e) => setModel(e.target.value)}>
@@ -313,9 +315,7 @@ if (showSplash) {
             </select>
             <button className="settings-btn" onClick={() => setShowSettings(true)}>⚙ 设置</button>
           </div>
-        </header>
-
-        <div className="messages-area" ref={messagesAreaRef}>
+        </header>  <div className="messages-area" ref={messagesAreaRef}>
           {messages.length === 0 && !loading && (
             <div className="welcome">
               <div className="welcome-icon">🌊</div>
@@ -341,7 +341,9 @@ if (showSplash) {
             </div>
           )}
           <div ref={messagesEndRef} />
-        </div>     <div className="input-area">
+        </div>
+
+        <div className="input-area">
           <div className="input-wrapper">
             <textarea
               ref={textareaRef}
@@ -357,8 +359,7 @@ if (showSplash) {
           </div>
         </div>
       </div>
-
-      {showSettings && (
+  {showSettings && (
         <div className="modal-overlay" onClick={() => setShowSettings(false)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <h2>⚙ 设置</h2>
@@ -387,7 +388,8 @@ if (showSplash) {
                 type="number"
                 value={settings.max_context_rounds}
                 onChange={(e) => setSettings({ ...settings, max_context_rounds: parseInt(e.target.value) })}
-              />  </div>
+              />
+            </div>
             <div className="modal-field">
               <label>压缩触发阈值 (token 数)</label>
               <input
@@ -402,8 +404,7 @@ if (showSplash) {
                 type="number"
                 value={settings.compress_keep_rounds}
                 onChange={(e) => setSettings({ ...settings, compress_keep_rounds: parseInt(e.target.value) })}
-              />
-            </div>
+              />    </div>
             <div className="modal-field">
               <label>最大回复 token 数</label>
               <input
