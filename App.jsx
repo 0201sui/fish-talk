@@ -22,10 +22,15 @@ function App() {
   });
 
   const messagesEndRef = useRef(null);
+  const messagesAreaRef = useRef(null);
   const textareaRef = useRef(null);
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    setTimeout(() => {
+      if (messagesAreaRef.current) {
+        messagesAreaRef.current.scrollTop = messagesAreaRef.current.scrollHeight;
+      }
+    }, 50);
   };
 
   useEffect(() => {
@@ -35,6 +40,14 @@ function App() {
   useEffect(() => {
     fetchSessions();
     fetchSettings();
+    // 修复移动端视口高度
+    const setVH = () => {
+      const vh = window.innerHeight * 0.01;
+      document.documentElement.style.setProperty('--vh', `${vh}px`);
+    };
+    setVH();
+    window.addEventListener('resize', setVH);
+    return () => window.removeEventListener('resize', setVH);
   }, []);
 
   useEffect(() => {
@@ -176,6 +189,11 @@ function App() {
     setInput('');
     setLoading(true);
 
+    // 收起手机键盘
+    if (textareaRef.current) {
+      textareaRef.current.blur();
+    }
+
     try {
       const res = await fetch(`${API_URL}/chat`, {
         method: 'POST',
@@ -214,7 +232,7 @@ function App() {
     const textarea = textareaRef.current;
     if (textarea) {
       textarea.style.height = 'auto';
-      textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
+      textarea.style.height = Math.min(textarea.scrollHeight, 100) + 'px';
     }
   };
 
@@ -263,7 +281,7 @@ function App() {
           </div>
         </header>
 
-        <div className="messages-area">
+        <div className="messages-area" ref={messagesAreaRef}>
           {messages.length === 0 && !loading && (
             <div className="welcome">
               <div className="welcome-icon">🌊</div>
