@@ -644,20 +644,20 @@ body {
   color: var(--ocean-text);
 }
 
-/* 已读 / 未读 / 已送达 状态 */
+/* 已读 / 未读 / 已送达 状态（与时间戳同字号、紧挨时间戳的纯文字） */
 .read-status {
   font-size: 10px;
   flex-shrink: 0;
-  padding: 1px 6px;
-  border-radius: 8px;
   line-height: 1.4;
+  opacity: 0.5;
+  color: var(--ocean-text);
 }
-.read-status.read { color: var(--ocean-accent); opacity: 0.7; }
-.read-status.delivered { color: var(--ocean-accent); opacity: 0.55; }
+.read-status.read { color: var(--ocean-accent); opacity: 0.6; }
+.read-status.delivered { color: var(--ocean-accent); opacity: 0.5; }
 .read-status.unread {
-  color: #fff;
-  background: var(--ocean-deep);
-  opacity: 0.9;
+  color: var(--ocean-accent);
+  opacity: 0.75;
+  font-style: italic;
 }
 
 /* 撤回提示（居中灰色小字） */
