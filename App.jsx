@@ -318,7 +318,7 @@ function DesktopPet() {
 }
 
 // ===== 长按上下文菜单（微信风格）=====
-function ContextMenu({ x, y, msg, isUser, onQuote, onCopy, onEdit, onDelete, onClose }) {
+function ContextMenu({ x, y, msg, isUser, onQuote, onCopy, onEdit, onDelete, onRecall, onClose }) {
   const menuRef = useRef(null);
   const [adjustedPos, setAdjustedPos] = useState({ x, y });
 
@@ -335,8 +335,9 @@ function ContextMenu({ x, y, msg, isUser, onQuote, onCopy, onEdit, onDelete, onC
   const items = [
     { label: '复制', onClick: () => { onCopy(msg); onClose(); } },
     { label: '引用', onClick: () => { onQuote(msg); onClose(); } },
+    { label: '编辑', onClick: () => { onEdit(msg); onClose(); } },
+    { label: '撤回', onClick: () => { onRecall(msg); onClose(); } },
   ];
-  if (isUser) items.push({ label: '编辑', onClick: () => { onEdit(msg); onClose(); } });
   items.push({ label: '删除', danger: true, onClick: () => { onDelete(msg); onClose(); } });
 
   return (
@@ -365,7 +366,18 @@ function VoiceMessage({ voice, isUser, isPlaying, onPlay }) {
         style={{ width }}
         onClick={() => { if (hasAudio) onPlay(); setShowText(s => !s); }}
       >
-        <span className="voice-icon">{isPlaying ? '⏸' : '▶'}</span>
+        <span className="voice-icon">
+          {isPlaying ? (
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor" aria-hidden="true">
+              <rect x="6" y="5" width="4" height="14" rx="1.2" />
+              <rect x="14" y="5" width="4" height="14" rx="1.2" />
+            </svg>
+          ) : (
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor" aria-hidden="true">
+              <path d="M8 5.5v13a1 1 0 0 0 1.5.87l11-6.5a1 1 0 0 0 0-1.74l-11-6.5A1 1 0 0 0 8 5.5z" />
+            </svg>
+          )}
+        </span>
         <div className="voice-bars">
           {[0, 1, 2, 3, 4].map(i => (
             <span key={i} className="voice-bar" style={{ animationDelay: `${i * 0.1}s` }} />
@@ -383,11 +395,25 @@ function VoiceMessage({ voice, isUser, isPlaying, onPlay }) {
 }
 
 // ===== 消息气泡组件 =====
-function MessageBubble({ msg, index, profile, onQuote, onCopy, onEdit, onDelete, playingVoiceId, onPlayVoice, editingId, setEditingId, editContent, setEditContent, saveEdit }) {
+function MessageBubble({ msg, index, profile, onQuote, onCopy, onEdit, onDelete, onRecall, playingVoiceId, onPlayVoice, editingId, setEditingId, editContent, setEditContent, saveEdit, isQuoted, onRead, userRead, read }) {
   const longPressTimer = useRef(null);
   const touchStart = useRef(null);
+  const bubbleRef = useRef(null);
   const [swipeX, setSwipeX] = useState(0);
   const isUser = msg.role === 'user';
+
+  // AI 消息进入视口即标记为已读
+  useEffect(() => {
+    if (msg.role !== 'assistant' || !onRead) return;
+    if (read) return;
+    const el = bubbleRef.current;
+    if (!el) return;
+    const obs = new IntersectionObserver((entries) => {
+      entries.forEach(e => { if (e.isIntersecting) { onRead(msg.id); obs.disconnect(); } });
+    }, { threshold: 0.4 });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [msg.id, msg.role, read, onRead]);
 
   const handleTouchStart = (e) => {
     touchStart.current = e.touches[0].clientX;
@@ -443,6 +469,7 @@ function MessageBubble({ msg, index, profile, onQuote, onCopy, onEdit, onDelete,
 
   return (
     <div
+      ref={bubbleRef}
       className={`message ${msg.role}`}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
@@ -489,7 +516,15 @@ function MessageBubble({ msg, index, profile, onQuote, onCopy, onEdit, onDelete,
           </>
         )}
         <div className="msg-meta">
-          <span className="msg-time">{formatTime(msg.created_at)}{msg.edited && ' (已编辑)'}</span>
+          {msg.role === 'user' && (
+            userRead
+              ? <span className="read-status read">已读</span>
+              : <span className="read-status delivered">已送达</span>
+          )}
+          {msg.role === 'assistant' && !read && <span className="read-status unread">未读</span>}
+          {!isQuoted && (
+            <span className="msg-time">{formatTime(msg.created_at)}{msg.edited && ' (已编辑)'}</span>
+          )}
         </div>
       </div>
     </div>
@@ -519,6 +554,10 @@ function App() {
   const [pendingImages, setPendingImages] = useState([]);
   const [contextMenu, setContextMenu] = useState(null);
   const [playingVoiceId, setPlayingVoiceId] = useState(null);
+  const [readSet, setReadSet] = useState(() => {
+    const sid = localStorage.getItem(SESSION_KEY);
+    try { return new Set(JSON.parse(localStorage.getItem('fishtalk_read_' + sid) || '[]')); } catch { return new Set(); }
+  });
   const [stickers, setStickers] = useState(() => {
     try { return JSON.parse(localStorage.getItem('stickers') || '[]'); } catch { return []; }
   });
@@ -582,6 +621,17 @@ function App() {
     }
     fetchMessages(currentSessionId);
   }, [currentSessionId]);
+
+  // 切换会话时重新载入该会话的已读状态
+  useEffect(() => {
+    if (!currentSessionId) return;
+    try { setReadSet(new Set(JSON.parse(localStorage.getItem('fishtalk_read_' + currentSessionId) || '[]'))); } catch { setReadSet(new Set()); }
+  }, [currentSessionId]);
+
+  // 已读状态按会话持久化
+  useEffect(() => {
+    if (currentSessionId) localStorage.setItem('fishtalk_read_' + currentSessionId, JSON.stringify([...readSet]));
+  }, [readSet, currentSessionId]);
 
   // 持久化当前会话 id 与消息，刷新 / 重进不会丢
   useEffect(() => {
@@ -853,6 +903,10 @@ function App() {
     navigator.clipboard.writeText(msg.content || '');
   };
 
+  const onRead = useCallback((id) => {
+    setReadSet(prev => { if (prev.has(id)) return prev; const n = new Set(prev); n.add(id); return n; });
+  }, []);
+
   const onEdit = (msg) => {
     setEditingId(msg.id);
     setEditContent(msg.content);
@@ -875,6 +929,17 @@ function App() {
       setMessages(prev => prev.map(m => m.id === msgId ? { ...m, content: editContent, edited: true } : m));
       setEditingId(null);
     } catch (err) { console.error('编辑失败:', err); }
+  };
+
+  // 撤回消息（AI 也可撤回）：删除后端记录，前端以"撤回提示"占位
+  const onRecall = async (msg) => {
+    if (!confirm('撤回这条消息？')) return;
+    try {
+      await fetch(`${API_URL}/messages/${msg.id}`, { method: 'DELETE' });
+      setMessages(prev => prev.map(m => m.id === msg.id
+        ? { id: m.id, role: 'system', recall: true, recallText: m.role === 'user' ? '你撤回了一条消息' : (profile.aiName || '裴拟') + ' 撤回了一条消息' }
+        : m));
+    } catch (err) { console.error('撤回失败:', err); }
   };
 
   // ===== 图片选择 =====
@@ -954,6 +1019,13 @@ function App() {
     { id: 'female-tianmei', name: '甜美女声' },
   ];
 
+  // 被引用的消息 id 集合（用于隐藏其时间戳，解决"两个时间戳"）
+  const quotedIds = useMemo(() => {
+    const s = new Set();
+    messages.forEach(m => { if (m.reply_to) s.add(m.reply_to); });
+    return s;
+  }, [messages]);
+
   if (showSplash) {
     return <SplashScreen onDone={() => setShowSplash(false)} />;
   }
@@ -967,7 +1039,7 @@ function App() {
         <ContextMenu
           x={contextMenu.x} y={contextMenu.y} msg={contextMenu.msg}
           isUser={contextMenu.msg.role === 'user'}
-          onQuote={onQuote} onCopy={onCopy} onEdit={onEdit} onDelete={onDelete}
+          onQuote={onQuote} onCopy={onCopy} onEdit={onEdit} onDelete={onDelete} onRecall={onRecall}
           onClose={() => setContextMenu(null)}
         />
       )}
@@ -1031,17 +1103,23 @@ function App() {
               {activeApi && <p className="welcome-model">当前模型: {activeApi.name}</p>}
             </div>
           )}
-          {messages.map((msg, index) => (
+          {messages.map((msg, index) => msg.recall ? (
+            <div key={msg.id || index} className="recall-note">{msg.recallText}</div>
+          ) : (
             <MessageBubble
               key={msg.id || index}
               msg={msg} index={index}
               profile={profile}
-              onQuote={onQuote} onCopy={onCopy} onEdit={onEdit} onDelete={onDelete}
+              onQuote={onQuote} onCopy={onCopy} onEdit={onEdit} onDelete={onDelete} onRecall={onRecall}
               playingVoiceId={playingVoiceId}
               onPlayVoice={playVoice}
               editingId={editingId} setEditingId={setEditingId}
               editContent={editContent} setEditContent={setEditContent}
               saveEdit={saveEdit}
+              isQuoted={quotedIds.has(msg.id)}
+              onRead={onRead}
+              userRead={msg.role === 'user' && messages.slice(index + 1).some(m => m.role === 'assistant')}
+              read={msg.role === 'assistant' ? readSet.has(msg.id) : true}
             />
           ))}
           {loading && (
