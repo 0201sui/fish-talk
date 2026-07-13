@@ -1,4 +1,4 @@
-/* ===== 鱼说 Fish Talk - 浅蓝灰海洋主题 ===== */
+/* ===== 裴拟的海洋馆 - 浅蓝灰海洋主题 ===== */
 
 :root {
   --ocean-1: #e8f4f8;
@@ -28,115 +28,286 @@ body {
   color: var(--ocean-text);
 }
 
-/* ===== 开屏动画 ===== */
+/* ===== 开屏动画（鲸鱼 + 气泡 + 水波）===== */
 .splash {
   position: fixed;
   inset: 0;
   z-index: 99999;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: linear-gradient(180deg, #a8d8ea 0%, #c8e6f0 40%, #e8f4f8 100%);
+  overflow: hidden;
+  background: linear-gradient(180deg, #1a4a6a 0%, #2a6b8a 22%, #4a8fb0 50%, #7ab0c4 78%, #a8d4e8 100%);
   transition: opacity 0.8s ease;
 }
 
 .splash.fade-out { opacity: 0; pointer-events: none; }
 
-.splash-ocean {
+/* 水面光线 */
+.splash-rays {
   position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 40%;
-  background: linear-gradient(180deg, transparent, rgba(91, 163, 196, 0.2));
+  top: 0; left: 0; right: 0;
+  height: 70%;
+  background:
+    linear-gradient(168deg, rgba(255,255,255,0.1) 0%, transparent 40%),
+    linear-gradient(172deg, rgba(255,255,255,0.07) 10%, transparent 35%),
+    linear-gradient(175deg, rgba(255,255,255,0.05) 5%, transparent 50%);
+  pointer-events: none;
 }
 
-.splash-ocean::before {
+/* 鲸鱼游过 */
+.splash-whale-container {
+  position: absolute;
+  top: 20%;
+  left: -180px;
+  width: 180px;
+  height: 100px;
+  animation: whale-swim 3.5s ease-in-out forwards;
+}
+
+@keyframes whale-swim {
+  0% { transform: translateX(0); opacity: 0; }
+  8% { opacity: 1; }
+  85% { opacity: 1; }
+  100% { transform: translateX(calc(100vw + 180px)); opacity: 0.5; }
+}
+
+.splash-whale-svg {
+  width: 100%;
+  height: 100%;
+  animation: whale-bob 2.5s ease-in-out infinite;
+  filter: drop-shadow(0 8px 20px rgba(0, 30, 50, 0.25));
+}
+
+@keyframes whale-bob {
+  0%, 100% { transform: translateY(0) rotate(-1.5deg); }
+  50% { transform: translateY(-10px) rotate(1.5deg); }
+}
+
+/* 鲸鱼喷水 */
+.whale-spray-group {
+  animation: spray-pulse 1.8s ease-in-out infinite;
+  transform-origin: 150px 30px;
+}
+
+@keyframes spray-pulse {
+  0%, 100% { opacity: 0.35; transform: scaleY(0.7) translateY(4px); }
+  50% { opacity: 0.8; transform: scaleY(1.2) translateY(-2px); }
+}
+
+/* 上升气泡 */
+.splash-bubbles {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.splash-bubble {
+  position: absolute;
+  bottom: -20px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.5), rgba(168,212,232,0.12));
+  border: 1px solid rgba(255,255,255,0.22);
+  animation: bubble-rise linear infinite;
+}
+
+@keyframes bubble-rise {
+  0% { transform: translateY(0) translateX(0) scale(1); opacity: 0; }
+  8% { opacity: 0.6; }
+  50% { transform: translateY(-50vh) translateX(15px) scale(1.05); }
+  85% { opacity: 0.3; }
+  100% { transform: translateY(-105vh) translateX(-8px) scale(0.9); opacity: 0; }
+}
+
+/* 底部水面 */
+.splash-water-surface {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 22%;
+  background: linear-gradient(180deg, transparent, rgba(26,74,106,0.35) 60%, rgba(20,60,85,0.5));
+}
+
+.splash-water-surface::before {
+  content: '';
+  position: absolute;
+  top: -10px; left: -50%;
+  width: 200%; height: 40px;
+  background: radial-gradient(ellipse at center top, rgba(255,255,255,0.18), transparent 60%);
+  animation: surface-wave 5s ease-in-out infinite;
+}
+
+.splash-water-surface::after {
+  content: '';
+  position: absolute;
+  top: -5px; left: -30%;
+  width: 160%; height: 25px;
+  background: radial-gradient(ellipse at center top, rgba(168,212,232,0.12), transparent 50%);
+  animation: surface-wave 3.5s ease-in-out infinite reverse;
+}
+
+@keyframes surface-wave {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(-50px); }
+}
+
+/* 底部品牌字 */
+.splash-bottom {
+  position: absolute;
+  bottom: 9%;
+  left: 0; right: 0;
+  text-align: center;
+  z-index: 2;
+}
+
+.splash-brand {
+  font-size: 52px;
+  font-weight: 800;
+  color: #f0f8ff;
+  letter-spacing: 14px;
+  padding-left: 14px;
+  text-shadow: 0 0 30px rgba(168,212,232,0.7), 0 0 60px rgba(123,176,196,0.35), 0 4px 15px rgba(0,0,0,0.25);
+  transition: opacity 0.8s ease, transform 0.8s ease;
+  position: relative;
+  display: inline-block;
+}
+
+.splash-brand::after {
+  content: '';
+  position: absolute;
+  bottom: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 70%;
+  height: 1.5px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.55), transparent);
+}
+
+/* 水波纹效果 */
+.splash-ripple {
+  width: 140px;
+  height: 16px;
+  margin: 14px auto 0;
+  position: relative;
+}
+
+.splash-ripple::before,
+.splash-ripple::after {
   content: '';
   position: absolute;
   bottom: 0;
-  left: -50%;
-  width: 200%;
-  height: 100px;
-  background: radial-gradient(ellipse at center top, rgba(91, 163, 196, 0.3), transparent);
-  animation: wave-spread 3s ease-in-out infinite;
-}
-
-@keyframes wave-spread {
-  0%, 100% { transform: translateX(0); }
-  50% { transform: translateX(-30px); }
-}
-
-.splash-content {
-  text-align: center;
-  z-index: 1;
-}
-
-.splash-fish {
-  font-size: 60px;
-  animation: swim-in 1.2s ease-out, float-pet 2s ease-in-out infinite 1.2s;
-}
-
-@keyframes swim-in {
-  0% { transform: translateX(-200px) scale(0.5); opacity: 0; }
-  100% { transform: translateX(0) scale(1); opacity: 1; }
-}
-
-@keyframes float-pet {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-12px); }
-}
-
-.splash-title {
-  font-size: 42px;
-  font-weight: 800;
-  color: var(--ocean-deeper);
-  letter-spacing: 8px;
-  transition: opacity 0.6s ease;
-  text-shadow: 0 2px 20px rgba(255, 255, 255, 0.6);
-}
-
-.splash-sub {
-  font-size: 14px;
-  color: var(--ocean-accent);
-  letter-spacing: 4px;
-  margin-top: 4px;
-  transition: opacity 0.6s ease 0.2s;
-}
-
-.splash-wave {
-  position: absolute;
-  bottom: 20%;
   left: 50%;
-  transform: translateX(-50%);
-  width: 200px;
-  height: 4px;
-  background: var(--ocean-deep);
-  border-radius: 2px;
-  animation: wave-expand 1.5s ease-out 0.5s forwards;
-  transform-origin: center;
-  opacity: 0;
+  width: 100%;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.1);
+  animation: ripple-pulse 2.5s ease-in-out infinite;
 }
 
-@keyframes wave-expand {
-  0% { width: 0; opacity: 0; }
-  50% { opacity: 1; }
-  100% { width: 280px; opacity: 0.3; }
+.splash-ripple::after {
+  animation-delay: 1.2s;
+  opacity: 0.5;
+}
+
+@keyframes ripple-pulse {
+  0%, 100% { transform: translateX(-50%) scaleX(0.7); opacity: 0.15; }
+  50% { transform: translateX(-50%) scaleX(1.15); opacity: 0.5; }
+}
+
+.splash-tagline {
+  font-size: 13px;
+  color: rgba(240,248,255,0.65);
+  letter-spacing: 4px;
+  margin-top: 18px;
+  transition: opacity 0.8s ease 0.3s;
+  font-weight: 300;
 }
 
 /* ===== 桌宠 ===== */
 .desktop-pet {
   position: fixed;
-  font-size: 36px;
   z-index: 9000;
   cursor: grab;
   user-select: none;
   filter: drop-shadow(0 4px 8px rgba(91, 163, 196, 0.3));
   transition: transform 0.1s ease;
   pointer-events: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .desktop-pet:active { cursor: grabbing; transform: scale(1.15); }
+
+.desktop-pet img {
+  pointer-events: none;
+  -webkit-user-drag: none;
+}
+
+/* 桌宠设置弹窗 */
+.pet-settings-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 40, 60, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9500;
+}
+
+.pet-settings {
+  background: white;
+  border-radius: 16px;
+  padding: 20px;
+  width: 90%;
+  max-width: 340px;
+  box-shadow: 0 20px 60px rgba(0, 40, 60, 0.2);
+}
+
+.pet-settings h3 {
+  font-size: 16px;
+  color: var(--ocean-deeper);
+  margin-bottom: 16px;
+}
+
+.pet-preview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 80px;
+  margin-bottom: 16px;
+  background: var(--ocean-1);
+  border-radius: 12px;
+}
+
+.pet-setting-field { margin-bottom: 12px; }
+.pet-setting-field label {
+  display: block;
+  font-size: 12px;
+  color: var(--ocean-text);
+  margin-bottom: 4px;
+  font-weight: 500;
+}
+.pet-setting-field input[type="text"],
+.pet-setting-field input[type="file"] {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid var(--ocean-3);
+  border-radius: 6px;
+  font-size: 13px;
+}
+.pet-setting-field input[type="range"] { width: 100%; }
+
+.pet-settings-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+.pet-settings-actions button {
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  cursor: pointer;
+  border: none;
+}
 
 /* ===== 主布局 ===== */
 .app {
@@ -245,6 +416,7 @@ body {
   height: 100%;
   min-width: 0;
   overflow: hidden;
+  position: relative;
 }
 
 .chat-header {
@@ -294,27 +466,46 @@ body {
   color: var(--ocean-deeper);
 }
 
-/* ===== 引用预览 ===== */
-.reply-preview {
-  padding: 8px 16px;
-  background: var(--ocean-2);
-  border-left: 3px solid var(--ocean-deep);
-  font-size: 12px;
-  color: var(--ocean-text);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  flex-shrink: 0;
+/* ===== 上下文菜单（微信风格）===== */
+.context-menu-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 5000;
+  background: transparent;
 }
 
-.reply-preview button {
+.context-menu {
+  position: fixed;
+  background: rgba(40, 50, 60, 0.92);
+  backdrop-filter: blur(20px);
+  border-radius: 10px;
+  padding: 4px 0;
+  min-width: 120px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25);
+  z-index: 5001;
+  animation: ctx-appear 0.15s ease-out;
+}
+
+@keyframes ctx-appear {
+  0% { opacity: 0; transform: scale(0.9); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+.ctx-item {
+  display: block;
+  width: 100%;
   background: none;
   border: none;
-  font-size: 18px;
-  color: var(--ocean-warn);
+  padding: 10px 16px;
+  font-size: 14px;
+  color: #fff;
   cursor: pointer;
+  text-align: left;
+  transition: background 0.15s;
 }
+
+.ctx-item:hover { background: rgba(255, 255, 255, 0.12); }
+.ctx-item.danger { color: #ff8a8a; }
 
 /* ===== 消息区 ===== */
 .messages-area {
@@ -347,13 +538,28 @@ body {
   position: relative;
 }
 
-.reply-indicator {
+/* 引用指示器（在气泡上方）*/
+.reply-indicator-bubble {
   font-size: 11px;
   color: var(--ocean-accent);
-  padding: 2px 8px;
+  padding: 2px 10px;
   margin-bottom: 2px;
+  background: rgba(91, 163, 196, 0.08);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 220px;
+  overflow: hidden;
 }
 
+.reply-indicator-bubble .reply-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 气泡 */
 .bubble {
   padding: 10px 14px;
   border-radius: 16px;
@@ -362,7 +568,6 @@ body {
   word-wrap: break-word;
   white-space: pre-wrap;
   position: relative;
-  cursor: pointer;
 }
 
 .message.user .bubble {
@@ -380,40 +585,90 @@ body {
   border: 1px solid var(--ocean-2);
 }
 
-.msg-time {
-  display: block;
-  font-size: 10px;
-  opacity: 0.6;
-  margin-top: 4px;
-}
-
-.msg-stickers img {
-  max-width: 120px;
-  max-height: 120px;
-  border-radius: 8px;
-  margin-bottom: 4px;
-}
-
-/* 消息操作菜单 */
-.msg-actions {
+/* 气泡下方 meta 行（时间 + TTS按钮）*/
+.msg-meta {
   display: flex;
-  gap: 4px;
-  margin-top: 4px;
-  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 3px;
+  padding: 0 4px;
 }
 
-.msg-actions button {
-  background: var(--ocean-foam);
-  border: 1px solid var(--ocean-3);
-  border-radius: 6px;
-  padding: 4px 8px;
-  font-size: 11px;
+.message.user .msg-meta { justify-content: flex-end; }
+
+.msg-time {
+  font-size: 10px;
+  opacity: 0.5;
+  color: var(--ocean-text);
+}
+
+/* 语音消息气泡（微信风格）*/
+.voice-bubble {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 16px;
   cursor: pointer;
-  color: var(--ocean-deeper);
+  min-width: 80px;
+  user-select: none;
+  transition: transform 0.1s;
 }
 
-.msg-actions .msg-del { color: var(--ocean-warn); border-color: var(--ocean-warn); }
+.voice-bubble:active { transform: scale(0.97); }
 
+.voice-bubble.ai {
+  background: var(--ocean-foam);
+  color: var(--ocean-text);
+  border: 1px solid var(--ocean-2);
+  border-bottom-left-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.voice-bubble.user {
+  background: linear-gradient(135deg, var(--ocean-deep), var(--ocean-ok));
+  color: white;
+  border-bottom-right-radius: 4px;
+  box-shadow: 0 2px 8px rgba(91, 163, 196, 0.3);
+  flex-direction: row-reverse;
+}
+
+.voice-icon { font-size: 16px; flex-shrink: 0; }
+
+.voice-duration { font-size: 12px; flex-shrink: 0; }
+
+.voice-bars { display: flex; gap: 2px; align-items: center; flex: 1; }
+.voice-bar { width: 3px; height: 10px; background: currentColor; border-radius: 1px; opacity: 0.25; }
+.voice-bubble.playing .voice-bar { animation: voice-bar-anim 0.5s ease-in-out infinite; opacity: 0.6; }
+.voice-bubble.playing .voice-bar:nth-child(2) { animation-delay: 0.1s; }
+.voice-bubble.playing .voice-bar:nth-child(3) { animation-delay: 0.2s; }
+.voice-bubble.playing .voice-bar:nth-child(4) { animation-delay: 0.15s; }
+.voice-bubble.playing .voice-bar:nth-child(5) { animation-delay: 0.25s; }
+
+@keyframes voice-bar-anim {
+  0%, 100% { height: 4px; opacity: 0.3; }
+  50% { height: 14px; opacity: 0.8; }
+}
+
+/* 图片消息 */
+.msg-images {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 4px;
+  max-width: 250px;
+}
+
+.msg-images img {
+  max-width: 200px;
+  max-height: 200px;
+  border-radius: 10px;
+  object-fit: cover;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* 编辑模式 */
 .edit-mode { display: flex; flex-direction: column; gap: 6px; }
 .edit-mode textarea {
   width: 100%;
@@ -457,9 +712,8 @@ body {
 .scroll-bottom-btn {
   position: absolute;
   right: 20px;
-  bottom: 80px;
-  width: 40px;
-  height: 40px;
+  bottom: 140px;
+  width: 40px; height: 40px;
   border-radius: 50%;
   background: var(--ocean-deep);
   color: white;
@@ -559,6 +813,132 @@ body {
   font-size: 12px;
 }
 
+/* ===== 工具栏面板（微信风格 +）===== */
+.toolbar-panel {
+  padding: 16px;
+  background: var(--ocean-1);
+  border-top: 1px solid var(--ocean-3);
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+  animation: toolbar-slide 0.2s ease-out;
+}
+
+@keyframes toolbar-slide {
+  0% { opacity: 0; transform: translateY(10px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+.toolbar-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  width: 64px;
+}
+
+.toolbar-item-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 12px;
+  background: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 26px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  transition: transform 0.15s;
+}
+
+.toolbar-item:hover .toolbar-item-icon { transform: scale(1.08); }
+
+.toolbar-item-label {
+  font-size: 11px;
+  color: var(--ocean-text);
+}
+
+/* ===== 待发送图片预览 ===== */
+.pending-images {
+  display: flex;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--ocean-1);
+  border-top: 1px solid var(--ocean-3);
+  overflow-x: auto;
+  flex-shrink: 0;
+}
+
+.pending-image-item {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.pending-image-item img {
+  width: 60px;
+  height: 60px;
+  object-fit: cover;
+  border-radius: 8px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+.pending-image-item button {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--ocean-warn);
+  color: white;
+  border: none;
+  font-size: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* ===== 引用消息栏（微信风格，输入框上方）===== */
+.reply-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: var(--ocean-1);
+  border-left: 3px solid var(--ocean-deep);
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.reply-bar-content {
+  flex: 1;
+  overflow: hidden;
+  font-size: 12px;
+  color: var(--ocean-text);
+}
+
+.reply-bar-name {
+  font-weight: 600;
+  color: var(--ocean-deeper);
+}
+
+.reply-bar-text {
+  color: var(--ocean-accent);
+}
+
+.reply-bar-close {
+  background: none;
+  border: none;
+  font-size: 18px;
+  color: var(--ocean-warn);
+  cursor: pointer;
+  padding: 0 4px;
+  flex-shrink: 0;
+}
+
 /* ===== 输入区 ===== */
 .input-area {
   padding: 10px 16px;
@@ -572,7 +952,7 @@ body {
 
 .input-wrapper {
   display: flex;
-  gap: 8px;
+  gap: 6px;
   max-width: 800px;
   margin: 0 auto;
   align-items: flex-end;
@@ -606,6 +986,22 @@ body {
   flex-shrink: 0;
 }
 
+.plus-btn {
+  background: var(--ocean-2);
+  border: none;
+  border-radius: 12px;
+  padding: 10px 14px;
+  cursor: pointer;
+  font-size: 22px;
+  font-weight: 300;
+  color: var(--ocean-deeper);
+  flex-shrink: 0;
+  transition: background 0.2s;
+  line-height: 1;
+}
+
+.plus-btn:hover { background: var(--ocean-3); }
+
 .send-btn {
   background: linear-gradient(135deg, var(--ocean-deep), var(--ocean-ok));
   color: white;
@@ -638,18 +1034,31 @@ body {
   padding: 24px;
   width: 90%;
   max-width: 500px;
-  max-height: 80vh;
+  max-height: 85vh;
   overflow-y: auto;
   box-shadow: 0 20px 60px rgba(0, 40, 60, 0.2);
 }
 
 .modal h2 { font-size: 18px; color: var(--ocean-deeper); margin-bottom: 20px; }
 
-.modal-field { margin-bottom: 16px; }
+/* 设置分区 */
+.settings-section { margin-bottom: 20px; }
+
+.settings-section-title {
+  font-size: 14px;
+  color: var(--ocean-deep);
+  font-weight: 600;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--ocean-2);
+  margin-bottom: 14px;
+}
+
+.modal-field { margin-bottom: 14px; }
 .modal-field label { display: block; font-size: 13px; color: var(--ocean-text); margin-bottom: 6px; font-weight: 500; }
 
 .modal-field input,
-.modal-field textarea {
+.modal-field textarea,
+.modal-field select {
   width: 100%;
   padding: 10px 14px;
   border: 1px solid var(--ocean-3);
@@ -658,10 +1067,11 @@ body {
   font-family: inherit;
   color: var(--ocean-text);
   outline: none;
+  background: white;
 }
 
-.modal-field textarea { min-height: 100px; resize: vertical; }
-.modal-field input:focus, .modal-field textarea:focus { border-color: var(--ocean-deep); }
+.modal-field textarea { min-height: 80px; resize: vertical; }
+.modal-field input:focus, .modal-field textarea:focus, .modal-field select:focus { border-color: var(--ocean-deep); }
 
 .modal-check {
   display: flex;
@@ -729,5 +1139,7 @@ body {
     background: rgba(0, 40, 60, 0.3);
     z-index: 99;
   }
-  .desktop-pet { font-size: 28px; }
+  .splash-brand { font-size: 38px; letter-spacing: 10px; padding-left: 10px; }
+  .toolbar-item { width: 56px; }
+  .toolbar-item-icon { width: 46px; height: 46px; font-size: 22px; }
 }

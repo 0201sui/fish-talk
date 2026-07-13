@@ -7,7 +7,7 @@ const API_URL = (typeof window !== 'undefined' && window.location.hostname === '
   ? 'http://localhost:3000'
   : 'https://my-home-backend-9j56.onrender.com';
 
-// ===== 从 localStorage 读取 API 配置 =====
+// ===== API 配置 =====
 function getApiProviders() {
   try {
     const saved = localStorage.getItem('apiProviders');
@@ -25,35 +25,132 @@ function getActiveModel() {
   return null;
 }
 
-// ===== 开屏动画组件 =====
+// ===== 开屏动画 =====
 function SplashScreen({ onDone }) {
   const [phase, setPhase] = useState(0);
+
+  // 生成气泡（只生成一次）
+  const bubbles = useState(() =>
+    Array.from({ length: 20 }, (_, i) => ({
+      id: i,
+      left: Math.random() * 100,
+      size: 4 + Math.random() * 14,
+      delay: Math.random() * 4,
+      duration: 3.5 + Math.random() * 4
+    }))
+  )[0];
+
   useEffect(() => {
-    const t1 = setTimeout(() => setPhase(1), 400);
-    const t2 = setTimeout(() => setPhase(2), 1800);
-    const t3 = setTimeout(() => onDone(), 2600);
+    const t1 = setTimeout(() => setPhase(1), 800);
+    const t2 = setTimeout(() => setPhase(2), 3600);
+    const t3 = setTimeout(() => onDone(), 4400);
     return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
   }, [onDone]);
+
   return (
     <div className={`splash ${phase >= 2 ? 'fade-out' : ''}`}>
-      <div className="splash-ocean" />
-      <div className="splash-content">
-        <div className="splash-fish">🐟</div>
-        <h1 className="splash-title" style={{ opacity: phase >= 1 ? 1 : 0 }}>鱼说</h1>
-        <p className="splash-sub" style={{ opacity: phase >= 1 ? 1 : 0 }}>Fish Talk</p>
-        <div className="splash-wave" />
+      {/* 水面光线 */}
+      <div className="splash-rays" />
+
+      {/* 游动的鲸鱼 */}
+      <div className="splash-whale-container">
+        <svg className="splash-whale-svg" viewBox="0 0 300 160">
+          <defs>
+            <linearGradient id="whaleBody" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#7bc5de" />
+              <stop offset="45%" stopColor="#4a90b8" />
+              <stop offset="100%" stopColor="#2a5a75" />
+            </linearGradient>
+            <linearGradient id="whaleBelly" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#e0f0f8" />
+              <stop offset="100%" stopColor="#a8d4e8" />
+            </linearGradient>
+          </defs>
+
+          {/* 喷水 */}
+          <g className="whale-spray-group">
+            <ellipse cx="150" cy="22" rx="2" ry="5" fill="#d8eef5" opacity="0.7" />
+            <ellipse cx="143" cy="14" rx="1.5" ry="3.5" fill="#a8d4e8" opacity="0.5" />
+            <ellipse cx="158" cy="17" rx="1.5" ry="3.5" fill="#c8e6f0" opacity="0.4" />
+            <ellipse cx="146" cy="6" rx="1" ry="2.5" fill="#a8d4e8" opacity="0.35" />
+            <ellipse cx="155" cy="9" rx="1" ry="2" fill="#c8e6f0" opacity="0.3" />
+          </g>
+
+          {/* 尾鳍 */}
+          <path className="whale-tail" d="M 50 78 C 28 68, 12 48, 5 42 C 22 58, 35 68, 45 72 C 35 78, 22 90, 8 102 C 22 88, 38 82, 50 82 Z" fill="url(#whaleBody)" />
+
+          {/* 身体 */}
+          <ellipse cx="135" cy="75" rx="92" ry="40" fill="url(#whaleBody)" />
+
+          {/* 腹部高光 */}
+          <path d="M 62 82 C 105 108, 175 108, 208 82 C 208 96, 175 108, 135 110 C 95 108, 68 96, 62 82 Z" fill="url(#whaleBelly)" opacity="0.75" />
+
+          {/* 胸鳍 */}
+          <path d="M 110 102 C 100 116, 88 122, 82 118 C 92 113, 102 107, 115 102 Z" fill="#2a5a75" opacity="0.55" />
+
+          {/* 眼睛 */}
+          <circle cx="190" cy="62" r="5" fill="#1a3a4a" />
+          <circle cx="192" cy="61" r="2" fill="white" />
+
+          {/* 嘴巴 */}
+          <path d="M 205 76 Q 213 83 205 89" stroke="#1a3a4a" strokeWidth="2.5" fill="none" strokeLinecap="round" />
+
+          {/* 背部高光线 */}
+          <path d="M 80 55 Q 135 48 190 55" stroke="#9bd5e8" strokeWidth="1.5" fill="none" opacity="0.3" />
+        </svg>
+      </div>
+
+      {/* 上升的气泡 */}
+      <div className="splash-bubbles">
+        {bubbles.map(b => (
+          <div
+            key={b.id}
+            className="splash-bubble"
+            style={{
+              left: `${b.left}%`,
+              width: `${b.size}px`,
+              height: `${b.size}px`,
+              animationDelay: `${b.delay}s`,
+              animationDuration: `${b.duration}s`
+            }}
+          />
+        ))}
+      </div>
+
+      {/* 底部水面 */}
+      <div className="splash-water-surface" />
+
+      {/* 鱼说 品牌字 */}
+      <div className="splash-bottom">
+        <h1
+          className="splash-brand"
+          style={{ opacity: phase >= 1 ? 1 : 0, transform: phase >= 1 ? 'translateY(0)' : 'translateY(24px)' }}
+        >
+          鱼说
+        </h1>
+        <div className="splash-ripple" />
+        <p className="splash-tagline" style={{ opacity: phase >= 1 ? 1 : 0 }}>
+          在深蓝中对话，遇见另一个声音
+        </p>
       </div>
     </div>
   );
 }
 
-// ===== 桌宠组件 =====
+// ===== 桌宠组件（支持自定义图片+大小调节）=====
 function DesktopPet() {
   const [pos, setPos] = useState({ x: 50, y: 80 });
   const [dir, setDir] = useState(1);
+  const [petImage, setPetImage] = useState(() => localStorage.getItem('petImage') || '');
+  const [petSize, setPetSize] = useState(() => parseInt(localStorage.getItem('petSize') || '40'));
+  const [showSettings, setShowSettings] = useState(false);
+  const [imgInput, setImgInput] = useState(petImage);
+  const [sizeInput, setSizeInput] = useState(petSize);
   const petRef = useRef(null);
   const dragging = useRef(false);
   const offset = useRef({ x: 0, y: 0 });
+  const longPressTimer = useRef(null);
+  const startPos = useRef({ x: 0, y: 0 });
 
   useEffect(() => {
     let raf;
@@ -62,122 +159,290 @@ function DesktopPet() {
       t += 0.02;
       if (!dragging.current) {
         setPos(p => ({
-          x: Math.max(10, Math.min(window.innerWidth - 60, p.x + dir * 0.3)),
+          x: Math.max(10, Math.min(window.innerWidth - petSize - 10, p.x + dir * 0.3)),
           y: p.y + Math.sin(t) * 0.5
         }));
-        if (pos.x > window.innerWidth - 80) setDir(-1);
-        if (pos.x < 20) setDir(1);
       }
       raf = requestAnimationFrame(animate);
     };
     raf = requestAnimationFrame(animate);
     return () => cancelAnimationFrame(raf);
-  }, [dir, pos.x]);
+  }, [dir, petSize]);
 
-  const startDrag = (e) => {
-    dragging.current = true;
+  const startInteract = (e) => {
     const touch = e.touches ? e.touches[0] : e;
+    startPos.current = { x: touch.clientX, y: touch.clientY };
+    dragging.current = true;
     offset.current = { x: touch.clientX - pos.x, y: touch.clientY - pos.y };
+    longPressTimer.current = setTimeout(() => {
+      dragging.current = false;
+      setShowSettings(true);
+      setImgInput(petImage);
+      setSizeInput(petSize);
+    }, 600);
   };
-  const onDrag = (e) => {
+
+  const onMove = (e) => {
+    if (longPressTimer.current) {
+      const touch = e.touches ? e.touches[0] : e;
+      const dx = Math.abs(touch.clientX - startPos.current.x);
+      const dy = Math.abs(touch.clientY - startPos.current.y);
+      if (dx > 8 || dy > 8) {
+        clearTimeout(longPressTimer.current);
+        longPressTimer.current = null;
+      }
+    }
     if (!dragging.current) return;
     e.preventDefault();
     const touch = e.touches ? e.touches[0] : e;
     setPos({ x: touch.clientX - offset.current.x, y: touch.clientY - offset.current.y });
   };
-  const endDrag = () => { dragging.current = false; };
+
+  const endInteract = () => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+    dragging.current = false;
+  };
+
+  const savePetSettings = () => {
+    localStorage.setItem('petImage', imgInput);
+    localStorage.setItem('petSize', String(sizeInput));
+    setPetImage(imgInput);
+    setPetSize(sizeInput);
+    setShowSettings(false);
+  };
+
+  const resetPet = () => {
+    setImgInput('');
+    setSizeInput(40);
+  };
+
+  const onPetFileChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 3 * 1024 * 1024) { alert('图片不能超过3MB'); return; }
+    const reader = new FileReader();
+    reader.onload = () => { setImgInput(reader.result); };
+    reader.readAsDataURL(file);
+  };
 
   return (
+    <>
+      <div
+        ref={petRef}
+        className="desktop-pet"
+        style={{ left: pos.x, top: pos.y, width: petSize, height: petSize, transform: dir < 0 ? 'scaleX(-1)' : '' }}
+        onMouseDown={startInteract}
+        onMouseMove={onMove}
+        onMouseUp={endInteract}
+        onMouseLeave={endInteract}
+        onTouchStart={startInteract}
+        onTouchMove={onMove}
+        onTouchEnd={endInteract}
+        onContextMenu={(e) => { e.preventDefault(); setShowSettings(true); setImgInput(petImage); setSizeInput(petSize); }}
+      >
+        {petImage ? (
+          <img src={petImage} alt="桌宠" style={{ width: '100%', height: '100%', objectFit: 'contain', pointerEvents: 'none' }} draggable={false} />
+        ) : (
+          <span style={{ fontSize: petSize, lineHeight: 1 }}>🐠</span>
+        )}
+      </div>
+      {showSettings && (
+        <div className="pet-settings-overlay" onClick={() => setShowSettings(false)}>
+          <div className="pet-settings" onClick={e => e.stopPropagation()}>
+            <h3>桌宠设置</h3>
+            <div className="pet-preview">
+              {imgInput ? <img src={imgInput} alt="预览" style={{ width: sizeInput, height: sizeInput, objectFit: 'contain' }} /> : <span style={{ fontSize: sizeInput }}>🐠</span>}
+            </div>
+            <div className="pet-setting-field">
+              <label>图片URL</label>
+              <input type="text" value={imgInput} onChange={e => setImgInput(e.target.value)} placeholder="粘贴图片URL或上传文件" />
+            </div>
+            <div className="pet-setting-field">
+              <label>上传图片</label>
+              <input type="file" accept="image/*" onChange={onPetFileChange} />
+            </div>
+            <div className="pet-setting-field">
+              <label>大小: {sizeInput}px</label>
+              <input type="range" min="20" max="100" value={sizeInput} onChange={e => setSizeInput(parseInt(e.target.value))} />
+            </div>
+            <div className="pet-settings-actions">
+              <button className="btn-cancel" onClick={resetPet}>重置</button>
+              <button className="btn-save" onClick={savePetSettings}>保存</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+// ===== 长按上下文菜单（微信风格）=====
+function ContextMenu({ x, y, msg, isUser, onQuote, onCopy, onEdit, onDelete, onClose }) {
+  const menuRef = useRef(null);
+  const [adjustedPos, setAdjustedPos] = useState({ x, y });
+
+  useEffect(() => {
+    if (menuRef.current) {
+      const rect = menuRef.current.getBoundingClientRect();
+      let adjX = x, adjY = y;
+      if (x + rect.width > window.innerWidth - 10) adjX = window.innerWidth - rect.width - 10;
+      if (y + rect.height > window.innerHeight - 10) adjY = y - rect.height;
+      setAdjustedPos({ x: Math.max(10, adjX), y: Math.max(10, adjY) });
+    }
+  }, [x, y]);
+
+  const items = [
+    { label: '复制', onClick: () => { onCopy(msg); onClose(); } },
+    { label: '引用', onClick: () => { onQuote(msg); onClose(); } },
+  ];
+  if (isUser) items.push({ label: '编辑', onClick: () => { onEdit(msg); onClose(); } });
+  items.push({ label: '删除', danger: true, onClick: () => { onDelete(msg); onClose(); } });
+
+  return (
+    <div className="context-menu-overlay" onClick={onClose} onContextMenu={e => { e.preventDefault(); onClose(); }}>
+      <div ref={menuRef} className="context-menu" style={{ left: adjustedPos.x, top: adjustedPos.y }} onClick={e => e.stopPropagation()}>
+        {items.map((item, i) => (
+          <button key={i} className={item.danger ? 'ctx-item danger' : 'ctx-item'} onClick={item.onClick}>
+            {item.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ===== 语音消息组件（微信风格）=====
+function VoiceMessage({ voice, isUser, isPlaying, onPlay }) {
+  const duration = voice.duration || 3;
+  const width = Math.min(200, 70 + duration * 8);
+  return (
     <div
-      ref={petRef}
-      className="desktop-pet"
-      style={{ left: pos.x, top: pos.y, transform: dir < 0 ? 'scaleX(-1)' : '' }}
-      onMouseDown={startDrag}
-      onMouseMove={onDrag}
-      onMouseUp={endDrag}
-      onMouseLeave={endDrag}
-      onTouchStart={startDrag}
-      onTouchMove={onDrag}
-      onTouchEnd={endDrag}
+      className={`voice-bubble ${isUser ? 'user' : 'ai'} ${isPlaying ? 'playing' : ''}`}
+      style={{ width }}
+      onClick={onPlay}
     >
-      🐠
+      <span className="voice-icon">{isPlaying ? '⏸' : '▶'}</span>
+      <div className="voice-bars">
+        {[0, 1, 2, 3, 4].map(i => (
+          <span key={i} className="voice-bar" style={{ animationDelay: `${i * 0.1}s` }} />
+        ))}
+      </div>
+      <span className="voice-duration">{duration}''</span>
     </div>
   );
 }
 
 // ===== 消息气泡组件 =====
-function MessageBubble({ msg, index, onQuote, onEdit, onDelete, onCopy, editingId, setEditingId, editContent, setEditContent, saveEdit }) {
-  const [showActions, setShowActions] = useState(false);
-  const [touchStart, setTouchStart] = useState(null);
+function MessageBubble({ msg, index, onQuote, onCopy, onEdit, onDelete, playingVoiceId, onPlayVoice, editingId, setEditingId, editContent, setEditContent, saveEdit }) {
+  const longPressTimer = useRef(null);
+  const touchStart = useRef(null);
   const [swipeX, setSwipeX] = useState(0);
   const isUser = msg.role === 'user';
 
-  const onTouchStart = (e) => {
-    setTouchStart(e.touches[0].clientX);
+  const handleTouchStart = (e) => {
+    touchStart.current = e.touches[0].clientX;
+    longPressTimer.current = setTimeout(() => {
+      const touch = e.touches[0];
+      const x = touch.clientX;
+      const y = touch.clientY;
+      // Trigger context menu via callback - we'll use a custom event
+      const rect = e.currentTarget.getBoundingClientRect();
+      window.__showContextMenu && window.__showContextMenu(x, y, msg);
+    }, 500);
   };
-  const onTouchMove = (e) => {
-    if (touchStart === null) return;
-    const delta = e.touches[0].clientX - touchStart;
-    if (delta > 0 && delta < 80) setSwipeX(delta);
-    else setSwipeX(0);
-  };
-  const onTouchEnd = () => {
-    if (swipeX > 40) {
-      onQuote(msg);
+  const handleTouchMove = (e) => {
+    if (touchStart.current !== null) {
+      const delta = e.touches[0].clientX - touchStart.current;
+      if (Math.abs(delta) > 10 && longPressTimer.current) {
+        clearTimeout(longPressTimer.current);
+        longPressTimer.current = null;
+      }
+      if (delta > 0 && delta < 80 && !longPressTimer.current) setSwipeX(delta);
     }
+  };
+  const handleTouchEnd = () => {
+    if (longPressTimer.current) clearTimeout(longPressTimer.current);
+    if (swipeX > 40) onQuote(msg);
     setSwipeX(0);
-    setTouchStart(null);
+    touchStart.current = null;
+  };
+
+  const handleContextMenu = (e) => {
+    e.preventDefault();
+    window.__showContextMenu && window.__showContextMenu(e.clientX, e.clientY, msg);
+  };
+
+  const handleDoubleClick = () => {
+    if (isUser) {
+      setEditingId(msg.id);
+      setEditContent(msg.content);
+    }
   };
 
   const formatTime = (ts) => {
     if (!ts) return '';
     const d = new Date(ts);
-    return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+    const now = new Date();
+    const isToday = d.toDateString() === now.toDateString();
+    const time = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+    if (isToday) return time;
+    return `${d.getMonth() + 1}/${d.getDate()} ${time}`;
   };
+
+  const isVoicePlaying = playingVoiceId === msg.id;
 
   return (
     <div
       className={`message ${msg.role}`}
-      onTouchStart={onTouchStart}
-      onTouchMove={onTouchMove}
-      onTouchEnd={onTouchEnd}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+      onContextMenu={handleContextMenu}
+      onDoubleClick={handleDoubleClick}
       style={{ transform: swipeX > 0 ? `translateX(${swipeX}px)` : '' }}
     >
       <div className="message-inner">
         {msg.reply_to && (
-          <div className="reply-indicator">↩ 引用消息</div>
+          <div className="reply-indicator-bubble">
+            <span className="reply-icon">↩</span>
+            <span className="reply-text">{msg.reply_preview || '引用消息'}</span>
+          </div>
         )}
         {editingId === msg.id ? (
           <div className="edit-mode">
-            <textarea
-              value={editContent}
-              onChange={(e) => setEditContent(e.target.value)}
-              autoFocus
-            />
+            <textarea value={editContent} onChange={(e) => setEditContent(e.target.value)} autoFocus />
             <div className="edit-actions">
               <button onClick={() => saveEdit(msg.id)}>保存</button>
               <button onClick={() => setEditingId(null)}>取消</button>
             </div>
           </div>
         ) : (
-          <div className="bubble" onClick={() => setShowActions(!showActions)}>
-            {msg.stickers && (
-              <div className="msg-stickers">
-                {msg.stickers.map((s, i) => <img key={i} src={s} alt="贴纸" />)}
+          <>
+            {msg.images && msg.images.length > 0 && (
+              <div className="msg-images">
+                {msg.images.map((img, i) => (
+                  <img key={i} src={img} alt="图片" onClick={() => window.open(img, '_blank')} />
+                ))}
               </div>
             )}
-            <p>{msg.content}</p>
-            <span className="msg-time">{formatTime(msg.created_at)}{msg.edited && ' ✏️'}</span>
-          </div>
+            {msg.voice ? (
+              <VoiceMessage
+                voice={msg.voice}
+                isUser={isUser}
+                isPlaying={isVoicePlaying}
+                onPlay={() => onPlayVoice(msg)}
+              />
+            ) : msg.content ? (
+              <div className="bubble">{msg.content}</div>
+            ) : null}
+          </>
         )}
-        {showActions && editingId !== msg.id && (
-          <div className="msg-actions">
-            <button onClick={() => onQuote(msg)}>引用</button>
-            <button onClick={() => onCopy(msg)}>复制</button>
-            {isUser && <button onClick={() => { setEditingId(msg.id); setEditContent(msg.content); }}>编辑</button>}
-            <button className="msg-del" onClick={() => onDelete(msg)}>删除</button>
-          </div>
-        )}
+        <div className="msg-meta">
+          <span className="msg-time">{formatTime(msg.created_at)}{msg.edited && ' (已编辑)'}</span>
+        </div>
       </div>
     </div>
   );
@@ -199,23 +464,36 @@ function App() {
   const [showStickerPicker, setShowStickerPicker] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [showScrollBtn, setShowScrollBtn] = useState(false);
+  const [showToolbar, setShowToolbar] = useState(false);
   const [replyTo, setReplyTo] = useState(null);
   const [editingId, setEditingId] = useState(null);
   const [editContent, setEditContent] = useState('');
+  const [pendingImages, setPendingImages] = useState([]);
+  const [contextMenu, setContextMenu] = useState(null);
+  const [playingVoiceId, setPlayingVoiceId] = useState(null);
   const [stickers, setStickers] = useState(() => {
     try { return JSON.parse(localStorage.getItem('stickers') || '[]'); } catch { return []; }
   });
   const [stickerInput, setStickerInput] = useState('');
-  const [profile, setProfile] = useState({ userBio: '', aiBio: '', userName: '我', aiName: '鱼说' });
+  const [profile, setProfile] = useState({ userBio: '', aiBio: '', userName: '我', aiName: '裴拟' });
   const [settings, setSettings] = useState({
     system_prompt: '', temperature: 0.7, max_context_rounds: 20,
     compress_threshold: 4000, compress_keep_rounds: 6, max_reply_tokens: 1024,
     auto_summarize: true, auto_summarize_after: 10, delete_after_summarize: false
   });
+  const [ttsConfig, setTtsConfig] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('ttsConfig') || '{}'); } catch { return {}; }
+  });
+  const [petSettings, setPetSettings] = useState({
+    image: localStorage.getItem('petImage') || '',
+    size: parseInt(localStorage.getItem('petSize') || '40')
+  });
 
   const messagesEndRef = useRef(null);
   const messagesAreaRef = useRef(null);
   const textareaRef = useRef(null);
+  const fileInputRef = useRef(null);
+  const audioRef = useRef(null);
 
   const scrollToBottom = useCallback(() => {
     setTimeout(() => {
@@ -232,7 +510,7 @@ function App() {
   useEffect(() => {
     if (showSplash) {
       sessionStorage.setItem('splashed', '1');
-      const timer = setTimeout(() => setShowSplash(false), 2600);
+      const timer = setTimeout(() => setShowSplash(false), 4400);
       return () => clearTimeout(timer);
     }
   }, [showSplash]);
@@ -258,6 +536,18 @@ function App() {
   useEffect(() => {
     localStorage.setItem('stickers', JSON.stringify(stickers));
   }, [stickers]);
+
+  useEffect(() => {
+    localStorage.setItem('ttsConfig', JSON.stringify(ttsConfig));
+  }, [ttsConfig]);
+
+  // 全局长按菜单回调
+  useEffect(() => {
+    window.__showContextMenu = (x, y, msg) => {
+      setContextMenu({ x, y, msg });
+    };
+    return () => { delete window.__showContextMenu; };
+  }, []);
 
   const fetchSessions = async () => {
     try {
@@ -343,6 +633,8 @@ function App() {
         method: 'PUT', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(settings)
       });
+      localStorage.setItem('petImage', petSettings.image);
+      localStorage.setItem('petSize', String(petSettings.size));
       setShowSettings(false);
     } catch (err) { console.error('保存设置失败:', err); }
   };
@@ -357,8 +649,9 @@ function App() {
     } catch (err) { console.error('保存简介失败:', err); }
   };
 
+  // ===== 发送消息（支持图片+分条回复）=====
   const sendMessage = async () => {
-    if (!input.trim() || loading) return;
+    if ((!input.trim() && pendingImages.length === 0) || loading) return;
 
     let sessionId = currentSessionId;
     if (!sessionId) {
@@ -376,21 +669,37 @@ function App() {
       } catch (err) { console.error('创建会话失败:', err); return; }
     }
 
-    const userMsg = { role: 'user', content: input, created_at: new Date().toISOString(), reply_to: replyTo?.id || null };
+    const userMsg = {
+      role: 'user', content: input,
+      images: pendingImages.length > 0 ? pendingImages : undefined,
+      created_at: new Date().toISOString(), reply_to: replyTo?.id || null,
+      reply_preview: replyTo ? `${replyTo.role === 'user' ? '我' : (profile.aiName || '裴拟')}: ${replyTo.content.slice(0, 40)}` : null
+    };
     setMessages(prev => [...prev, userMsg]);
     const sentInput = input;
+    const sentImages = [...pendingImages];
     setInput('');
+    setPendingImages([]);
     setLoading(true);
     setReplyTo(null);
-    if (textareaRef.current) textareaRef.current.blur();
+    setShowToolbar(false);
+    if (textareaRef.current) { textareaRef.current.style.height = 'auto'; textareaRef.current.blur(); }
 
-    // 获取当前激活的 API 配置
     const activeApi = getActiveModel();
     const chatBody = { message: sentInput, session_id: sessionId, model };
+    if (sentImages.length > 0) chatBody.images = sentImages;
     if (activeApi) {
       chatBody.api_url = activeApi.baseUrl;
       chatBody.api_key = activeApi.apiKey;
       chatBody.api_model = activeApi.name;
+    }
+    if (ttsConfig.apiKey) {
+      chatBody.tts_config = {
+        apiKey: ttsConfig.apiKey,
+        voiceId: ttsConfig.voiceId || 'male-qn-qingse',
+        speed: ttsConfig.speed || 1.0,
+        model: ttsConfig.model || 'speech-02-hd'
+      };
     }
 
     try {
@@ -399,13 +708,37 @@ function App() {
         body: JSON.stringify(chatBody)
       });
       const data = await res.json();
-      if (data.reply) {
-        setMessages(prev => [...prev, { role: 'assistant', content: data.reply, created_at: new Date().toISOString() }]);
+
+      if (data.replies && data.replies.length > 0) {
+        // 分条逐条添加
+        for (let i = 0; i < data.replies.length; i++) {
+          setLoading(true);
+          if (i > 0) {
+            await new Promise(r => setTimeout(r, 700 + Math.random() * 500));
+          }
+          setMessages(prev => [...prev, {
+            role: 'assistant',
+            content: data.replies[i].content,
+            voice: data.replies[i].voice || null,
+            created_at: data.replies[i].created_at
+          }]);
+          setLoading(false);
+          if (i < data.replies.length - 1) {
+            await new Promise(r => setTimeout(r, 200));
+          }
+        }
       } else {
-        setMessages(prev => [...prev, { role: 'assistant', content: '抱歉，出了点问题: ' + (data.error || '未知错误'), created_at: new Date().toISOString() }]);
+        setMessages(prev => [...prev, {
+          role: 'assistant',
+          content: '抱歉，出了点问题: ' + (data.error || '未知错误'),
+          created_at: new Date().toISOString()
+        }]);
       }
     } catch (err) {
-      setMessages(prev => [...prev, { role: 'assistant', content: '网络错误，请稍后再试', created_at: new Date().toISOString() }]);
+      setMessages(prev => [...prev, {
+        role: 'assistant', content: '网络错误，请稍后再试',
+        created_at: new Date().toISOString()
+      }]);
     }
     setLoading(false);
   };
@@ -433,7 +766,12 @@ function App() {
   };
 
   const onCopy = (msg) => {
-    navigator.clipboard.writeText(msg.content);
+    navigator.clipboard.writeText(msg.content || '');
+  };
+
+  const onEdit = (msg) => {
+    setEditingId(msg.id);
+    setEditContent(msg.content);
   };
 
   const onDelete = async (msg) => {
@@ -455,25 +793,82 @@ function App() {
     } catch (err) { console.error('编辑失败:', err); }
   };
 
+  // ===== 图片选择 =====
+  const onImageSelect = (e) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+    for (const file of files) {
+      if (file.size > 5 * 1024 * 1024) { alert(`${file.name} 超过5MB，已跳过`); continue; }
+      const reader = new FileReader();
+      reader.onload = () => {
+        setPendingImages(prev => [...prev, reader.result]);
+      };
+      reader.readAsDataURL(file);
+    }
+    e.target.value = '';
+  };
+
+  const removePendingImage = (idx) => {
+    setPendingImages(prev => prev.filter((_, i) => i !== idx));
+  };
+
+  // ===== 语音消息播放（微信风格，点击播放/暂停）=====
+  const playVoice = (msg) => {
+    if (!msg.voice || !msg.voice.audio) return;
+    // 正在播放这条 → 暂停
+    if (playingVoiceId === msg.id && audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
+      setPlayingVoiceId(null);
+      return;
+    }
+    // 停止之前的
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
+    }
+    // 解码 base64 → 播放
+    try {
+      const byteChars = atob(msg.voice.audio);
+      const byteNumbers = new Array(byteChars.length);
+      for (let i = 0; i < byteChars.length; i++) byteNumbers[i] = byteChars.charCodeAt(i);
+      const blob = new Blob([new Uint8Array(byteNumbers)], { type: 'audio/mp3' });
+      const url = URL.createObjectURL(blob);
+      const audio = new Audio(url);
+      audioRef.current = audio;
+      setPlayingVoiceId(msg.id);
+      audio.play();
+      audio.onended = () => { audioRef.current = null; URL.revokeObjectURL(url); setPlayingVoiceId(null); };
+      audio.onerror = () => { audioRef.current = null; URL.revokeObjectURL(url); setPlayingVoiceId(null); };
+    } catch (err) { console.error('播放失败:', err); }
+  };
+
+  // ===== 表情包 =====
   const addStickers = () => {
     const urls = stickerInput.split('\n').map(s => s.trim()).filter(Boolean);
     if (urls.length === 0) return;
     setStickers(prev => [...prev, ...urls.map(url => ({ id: Date.now() + Math.random(), url }))]);
     setStickerInput('');
   };
-
-  const removeSticker = (id) => {
-    setStickers(prev => prev.filter(s => s.id !== id));
-  };
-
+  const removeSticker = (id) => setStickers(prev => prev.filter(s => s.id !== id));
   const insertSticker = (url) => {
     setInput(prev => prev + ` [贴纸]${url}[/贴纸] `);
     setShowStickerPicker(false);
   };
 
-  // 获取可用模型列表
   const activeApi = getActiveModel();
   const availableModels = activeApi?.allModels || ['claude', 'deepseek'];
+
+  const miniMaxVoices = [
+    { id: 'male-qn-qingse', name: '青涩青年男声' },
+    { id: 'male-qn-jingying', name: '精英青年男声' },
+    { id: 'male-qn-badao', name: '霸道青年男声' },
+    { id: 'male-qn-daxuesheng', name: '大学生男声' },
+    { id: 'female-shaonv', name: '少女女声' },
+    { id: 'female-yujie', name: '御姐女声' },
+    { id: 'female-chengshu', name: '成熟女声' },
+    { id: 'female-tianmei', name: '甜美女声' },
+  ];
 
   if (showSplash) {
     return <SplashScreen onDone={() => setShowSplash(false)} />;
@@ -482,6 +877,16 @@ function App() {
   return (
     <div className="app">
       <DesktopPet />
+
+      {/* 上下文菜单 */}
+      {contextMenu && (
+        <ContextMenu
+          x={contextMenu.x} y={contextMenu.y} msg={contextMenu.msg}
+          isUser={contextMenu.msg.role === 'user'}
+          onQuote={onQuote} onCopy={onCopy} onEdit={onEdit} onDelete={onDelete}
+          onClose={() => setContextMenu(null)}
+        />
+      )}
 
       {showSidebar && <div className="sidebar-overlay" onClick={() => setShowSidebar(false)} />}
 
@@ -503,7 +908,7 @@ function App() {
           ))}
           {sessions.length === 0 && (
             <p style={{ padding: '20px', color: '#7ab0c4', fontSize: '13px', textAlign: 'center' }}>
-              海洋里还没有故事，点击"+ 新对话"开始吧 🌊
+              海洋馆里还没有故事，点击"+ 新对话"开始吧 🌊
             </p>
           )}
         </div>
@@ -519,7 +924,7 @@ function App() {
         <header className="chat-header">
           <div className="chat-header-left">
             <button className="menu-btn" onClick={() => setShowSidebar(true)}>☰</button>
-            <h1>🐟 鱼说</h1>
+            <h1>裴拟的海洋馆 🐠</h1>
           </div>
           <div className="chat-header-right">
             <select className="model-select" value={model} onChange={(e) => setModel(e.target.value)}>
@@ -531,21 +936,13 @@ function App() {
           </div>
         </header>
 
-        {/* 引用消息预览 */}
-        {replyTo && (
-          <div className="reply-preview">
-            <span>↩ 回复: {replyTo.content.slice(0, 50)}...</span>
-            <button onClick={() => setReplyTo(null)}>×</button>
-          </div>
-        )}
-
         {/* 消息区 */}
         <div className="messages-area" ref={messagesAreaRef} onScroll={onScroll}>
           {messages.length === 0 && !loading && (
             <div className="welcome">
               <div className="welcome-icon">🌊</div>
-              <h2>欢迎来到鱼说</h2>
-              <p>在这片属于我们的海域，留下你的故事吧</p>
+              <h2>欢迎来到裴拟的海洋馆</h2>
+              <p>在这片海域，裴拟陪你聊天、思考和生活</p>
               <div className="welcome-decoration">🐠 🐙 🦈 🐚 🪸</div>
               {activeApi && <p className="welcome-model">当前模型: {activeApi.name}</p>}
             </div>
@@ -553,24 +950,22 @@ function App() {
           {messages.map((msg, index) => (
             <MessageBubble
               key={msg.id || index}
-              msg={msg}
-              index={index}
-              onQuote={onQuote}
-              onEdit={() => {}}
-              onDelete={onDelete}
-              onCopy={onCopy}
-              editingId={editingId}
-              setEditingId={setEditingId}
-              editContent={editContent}
-              setEditContent={setEditContent}
+              msg={msg} index={index}
+              onQuote={onQuote} onCopy={onCopy} onEdit={onEdit} onDelete={onDelete}
+              playingVoiceId={playingVoiceId}
+              onPlayVoice={playVoice}
+              editingId={editingId} setEditingId={setEditingId}
+              editContent={editContent} setEditContent={setEditContent}
               saveEdit={saveEdit}
             />
           ))}
           {loading && (
             <div className="message assistant">
-              <div className="bubble">
-                <div className="typing-indicator">
-                  <span></span><span></span><span></span>
+              <div className="message-inner">
+                <div className="bubble">
+                  <div className="typing-indicator">
+                    <span></span><span></span><span></span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -614,10 +1009,44 @@ function App() {
           </div>
         )}
 
+        {/* 工具栏面板（微信风格 +）*/}
+        {showToolbar && (
+          <div className="toolbar-panel">
+            <div className="toolbar-item" onClick={() => fileInputRef.current?.click()}>
+              <div className="toolbar-item-icon">📷</div>
+              <span className="toolbar-item-label">相册</span>
+            </div>
+          </div>
+        )}
+        <input ref={fileInputRef} type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={onImageSelect} />
+
+        {/* 待发送图片预览 */}
+        {pendingImages.length > 0 && (
+          <div className="pending-images">
+            {pendingImages.map((img, i) => (
+              <div key={i} className="pending-image-item">
+                <img src={img} alt="待发送" />
+                <button onClick={() => removePendingImage(i)}>×</button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* 引用消息预览（微信风格，在输入框上方）*/}
+        {replyTo && (
+          <div className="reply-bar">
+            <div className="reply-bar-content">
+              <span className="reply-bar-name">{replyTo.role === 'user' ? '我' : (profile.aiName || '裴拟')}</span>
+              <span className="reply-bar-text">: {replyTo.content?.slice(0, 60) || (replyTo.images?.length ? `[图片]` : '')}</span>
+            </div>
+            <button className="reply-bar-close" onClick={() => setReplyTo(null)}>×</button>
+          </div>
+        )}
+
         {/* 输入区 */}
         <div className="input-area">
           <div className="input-wrapper">
-            <button className="sticker-btn" onClick={() => setShowStickerPicker(!showStickerPicker)}>😊</button>
+            <button className="sticker-btn" onClick={() => { setShowStickerPicker(!showStickerPicker); setShowToolbar(false); }}>😊</button>
             <textarea
               ref={textareaRef}
               value={input}
@@ -626,7 +1055,8 @@ function App() {
               placeholder="在这片海域留下你的声音..."
               rows={1}
             />
-            <button className="send-btn" onClick={sendMessage} disabled={loading || !input.trim()}>
+            <button className="plus-btn" onClick={() => { setShowToolbar(!showToolbar); setShowStickerPicker(false); }}>+</button>
+            <button className="send-btn" onClick={sendMessage} disabled={loading || (!input.trim() && pendingImages.length === 0)}>
               🐋
             </button>
           </div>
@@ -638,34 +1068,69 @@ function App() {
         <div className="modal-overlay" onClick={() => setShowSettings(false)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <h2>⚙ 设置</h2>
-            <div className="modal-field">
-              <label>系统提示词</label>
-              <textarea value={settings.system_prompt || ''} onChange={(e) => setSettings({ ...settings, system_prompt: e.target.value })} placeholder="定义 AI 的人格和行为方式..." />
+
+            <div className="settings-section">
+              <h3 className="settings-section-title">AI 设置</h3>
+              <div className="modal-field">
+                <label>系统提示词</label>
+                <textarea value={settings.system_prompt || ''} onChange={(e) => setSettings({ ...settings, system_prompt: e.target.value })} placeholder="定义 AI 的人格和行为方式..." />
+              </div>
+              <div className="modal-field">
+                <label>温度 (0-1)</label>
+                <input type="number" step="0.1" min="0" max="1" value={settings.temperature} onChange={(e) => setSettings({ ...settings, temperature: parseFloat(e.target.value) })} />
+              </div>
+              <div className="modal-field">
+                <label>上下文保留轮数</label>
+                <input type="number" value={settings.max_context_rounds} onChange={(e) => setSettings({ ...settings, max_context_rounds: parseInt(e.target.value) })} />
+              </div>
+              <div className="modal-field">
+                <label>自动总结消息条数 (0=关闭)</label>
+                <input type="number" value={settings.auto_summarize_after} onChange={(e) => setSettings({ ...settings, auto_summarize_after: parseInt(e.target.value) })} />
+              </div>
+              <div className="modal-field">
+                <label>总结后保留轮数</label>
+                <input type="number" value={settings.compress_keep_rounds} onChange={(e) => setSettings({ ...settings, compress_keep_rounds: parseInt(e.target.value) })} />
+              </div>
+              <div className="modal-field">
+                <label>最大回复 token 数</label>
+                <input type="number" value={settings.max_reply_tokens} onChange={(e) => setSettings({ ...settings, max_reply_tokens: parseInt(e.target.value) })} />
+              </div>
+              <label className="modal-check">
+                <input type="checkbox" checked={settings.delete_after_summarize || false} onChange={(e) => setSettings({ ...settings, delete_after_summarize: e.target.checked })} />
+                总结后删除原始聊天记录
+              </label>
             </div>
-            <div className="modal-field">
-              <label>温度 (0-1)</label>
-              <input type="number" step="0.1" min="0" max="1" value={settings.temperature} onChange={(e) => setSettings({ ...settings, temperature: parseFloat(e.target.value) })} />
+
+            <div className="settings-section">
+              <h3 className="settings-section-title">桌宠设置</h3>
+              <div className="modal-field">
+                <label>桌宠图片URL（留空用默认🐠）</label>
+                <input type="text" value={petSettings.image} onChange={(e) => setPetSettings({ ...petSettings, image: e.target.value })} placeholder="粘贴图片URL" />
+              </div>
+              <div className="modal-field">
+                <label>桌宠大小: {petSettings.size}px</label>
+                <input type="range" min="20" max="100" value={petSettings.size} onChange={(e) => setPetSettings({ ...petSettings, size: parseInt(e.target.value) })} />
+              </div>
             </div>
-            <div className="modal-field">
-              <label>上下文保留轮数</label>
-              <input type="number" value={settings.max_context_rounds} onChange={(e) => setSettings({ ...settings, max_context_rounds: parseInt(e.target.value) })} />
+
+            <div className="settings-section">
+              <h3 className="settings-section-title">语音设置 (MiniMax TTS)</h3>
+              <div className="modal-field">
+                <label>MiniMax API Key</label>
+                <input type="password" value={ttsConfig.apiKey || ''} onChange={(e) => setTtsConfig({ ...ttsConfig, apiKey: e.target.value })} placeholder="在 minimax.io 注册获取" />
+              </div>
+              <div className="modal-field">
+                <label>音色</label>
+                <select value={ttsConfig.voiceId || 'male-qn-qingse'} onChange={(e) => setTtsConfig({ ...ttsConfig, voiceId: e.target.value })}>
+                  {miniMaxVoices.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
+                </select>
+              </div>
+              <div className="modal-field">
+                <label>语速: {ttsConfig.speed || 1.0}</label>
+                <input type="range" min="0.5" max="2" step="0.1" value={ttsConfig.speed || 1.0} onChange={(e) => setTtsConfig({ ...ttsConfig, speed: parseFloat(e.target.value) })} />
+              </div>
             </div>
-            <div className="modal-field">
-              <label>自动总结消息条数 (0=关闭)</label>
-              <input type="number" value={settings.auto_summarize_after} onChange={(e) => setSettings({ ...settings, auto_summarize_after: parseInt(e.target.value) })} />
-            </div>
-            <div className="modal-field">
-              <label>总结后保留轮数</label>
-              <input type="number" value={settings.compress_keep_rounds} onChange={(e) => setSettings({ ...settings, compress_keep_rounds: parseInt(e.target.value) })} />
-            </div>
-            <div className="modal-field">
-              <label>最大回复 token 数</label>
-              <input type="number" value={settings.max_reply_tokens} onChange={(e) => setSettings({ ...settings, max_reply_tokens: parseInt(e.target.value) })} />
-            </div>
-            <label className="modal-check">
-              <input type="checkbox" checked={settings.delete_after_summarize || false} onChange={(e) => setSettings({ ...settings, delete_after_summarize: e.target.checked })} />
-              总结后删除原始聊天记录
-            </label>
+
             <div className="modal-actions">
               <button className="btn-cancel" onClick={() => setShowSettings(false)}>取消</button>
               <button className="btn-save" onClick={saveSettings}>保存</button>
