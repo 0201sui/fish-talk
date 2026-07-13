@@ -83,58 +83,10 @@ function SplashScreen({ onDone }) {
 
       {/* 可爱的鲸鱼（居中，轻轻浮动） */}
       <div className="splash-whale-wrap" style={{ opacity: phase >= 1 ? 1 : 0, transform: phase >= 1 ? 'translate(-50%, -50%) scale(1)' : 'translate(-50%, -45%) scale(0.85)' }}>
-        <svg className="splash-whale-svg" viewBox="0 0 220 180">
-          <defs>
-            <linearGradient id="whaleSkin" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#7EC8D3" />
-              <stop offset="100%" stopColor="#58A8B8" />
-            </linearGradient>
-            <linearGradient id="whaleBelly" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#EAF7FA" />
-              <stop offset="100%" stopColor="#C8ECF2" />
-            </linearGradient>
-            <filter id="whaleGlow" x="-20%" y="-20%" width="140%" height="140%">
-              <feGaussianBlur stdDeviation="4" result="blur" />
-              <feComposite in="SourceGraphic" in2="blur" operator="over" />
-            </filter>
-          </defs>
-
-          {/* 喷水 */}
-          <g className="whale-spray">
-            <circle cx="110" cy="22" r="3.5" fill="#EAF7FA" opacity="0.7" />
-            <circle cx="102" cy="14" r="2.5" fill="#C8ECF2" opacity="0.55" />
-            <circle cx="118" cy="16" r="2.2" fill="#EAF7FA" opacity="0.45" />
-            <circle cx="96" cy="6" r="1.6" fill="#C8ECF2" opacity="0.35" />
-            <circle cx="124" cy="8" r="1.4" fill="#EAF7FA" opacity="0.3" />
-          </g>
-
-          {/* 尾鳍 */}
-          <path className="whale-tail" d="M 32 88 C 18 76, 8 64, 4 58 C 16 70, 26 80, 36 86 C 28 92, 18 102, 8 112 C 18 104, 28 96, 40 92 Z" fill="#58A8B8" />
-
-          {/* 身体 */}
-          <path className="whale-body" d="M 48 90 C 48 52, 85 38, 125 42 C 158 46, 180 68, 178 96 C 176 126, 148 144, 110 144 C 72 144, 48 124, 48 90 Z" fill="url(#whaleSkin)" filter="url(#whaleGlow)" />
-
-          {/* 肚皮 */}
-          <path d="M 62 98 C 78 130, 142 130, 164 98 C 158 122, 130 134, 110 134 C 86 134, 66 120, 62 98 Z" fill="url(#whaleBelly)" opacity="0.95" />
-
-          {/* 肚皮纹理线 */}
-          <path d="M 72 108 Q 110 120, 152 106" stroke="#9BD3DD" strokeWidth="2" fill="none" strokeLinecap="round" opacity="0.6" />
-          <path d="M 80 118 Q 110 128, 144 116" stroke="#9BD3DD" strokeWidth="1.8" fill="none" strokeLinecap="round" opacity="0.5" />
-          <path d="M 92 126 Q 110 132, 134 124" stroke="#9BD3DD" strokeWidth="1.5" fill="none" strokeLinecap="round" opacity="0.4" />
-
-          {/* 胸鳍 */}
-          <path d="M 95 120 C 88 136, 78 142, 72 138 C 82 132, 90 124, 100 118 Z" fill="#4A98A8" opacity="0.55" />
-
-          {/* 眼睛 */}
-          <circle cx="146" cy="74" r="4.5" fill="#2A4A54" />
-          <circle cx="147.5" cy="72.8" r="1.6" fill="white" />
-
-          {/* 微笑 */}
-          <path d="M 150 86 Q 156 90, 150 94" stroke="#2A4A54" strokeWidth="2" fill="none" strokeLinecap="round" />
-
-          {/* 腮红 */}
-          <ellipse cx="138" cy="88" rx="5" ry="3" fill="#FFB7B2" opacity="0.35" />
-        </svg>
+        <div className="splash-whale">🐋</div>
+        <div className="splash-whale-spray">
+          <span></span><span></span><span></span><span></span><span></span>
+        </div>
       </div>
 
       {/* 上升的气泡 */}
@@ -157,7 +109,7 @@ function SplashScreen({ onDone }) {
       {/* 底部水面 */}
       <div className="splash-water-surface" />
 
-      {/* 鱼说 品牌字 */}
+      {/* 鱼说 品牌字 + 欢迎语 */}
       <div className="splash-bottom">
         <h1
           className="splash-brand"
@@ -165,10 +117,11 @@ function SplashScreen({ onDone }) {
         >
           鱼说
         </h1>
+        <div className="splash-welcome" style={{ opacity: phase >= 1 ? 1 : 0 }}>
+          <p className="splash-welcome-1">欢迎来到海洋馆🐋</p>
+          <p className="splash-welcome-2">在这片属于我们的海域，留下你的故事吧</p>
+        </div>
         <div className="splash-ripple" />
-        <p className="splash-tagline" style={{ opacity: phase >= 1 ? 1 : 0 }}>
-          在深海里，听见你的声音
-        </p>
       </div>
     </div>
   );
@@ -361,23 +314,33 @@ function ContextMenu({ x, y, msg, isUser, onQuote, onCopy, onEdit, onDelete, onC
   );
 }
 
-// ===== 语音消息组件（微信风格）=====
+// ===== 语音消息组件（微信风格，点"字"才显示文字）=====
 function VoiceMessage({ voice, isUser, isPlaying, onPlay }) {
+  const [showText, setShowText] = useState(false);
   const duration = voice.duration || 3;
-  const width = Math.min(200, 70 + duration * 8);
+  const width = Math.min(220, 80 + duration * 7);
+  const hasAudio = !!voice.audio;
   return (
-    <div
-      className={`voice-bubble ${isUser ? 'user' : 'ai'} ${isPlaying ? 'playing' : ''}`}
-      style={{ width }}
-      onClick={onPlay}
-    >
-      <span className="voice-icon">{isPlaying ? '⏸' : '▶'}</span>
-      <div className="voice-bars">
-        {[0, 1, 2, 3, 4].map(i => (
-          <span key={i} className="voice-bar" style={{ animationDelay: `${i * 0.1}s` }} />
-        ))}
+    <div className={`voice-wrap ${isUser ? 'user' : 'ai'}`} style={{ width }}>
+      <div
+        className={`voice-bubble ${isUser ? 'user' : 'ai'} ${isPlaying ? 'playing' : ''}`}
+        onClick={() => { if (hasAudio) onPlay(); else setShowText(s => !s); }}
+      >
+        <span className="voice-icon">{isPlaying ? '⏸' : '▶'}</span>
+        <div className="voice-bars">
+          {[0, 1, 2, 3, 4].map(i => (
+            <span key={i} className="voice-bar" style={{ animationDelay: `${i * 0.1}s` }} />
+          ))}
+        </div>
+        <span className="voice-duration">{duration}''</span>
       </div>
-      <span className="voice-duration">{duration}''</span>
+      <button
+        className="voice-text-toggle"
+        onClick={(e) => { e.stopPropagation(); if (!hasAudio) setShowText(s => !s); else setShowText(s => !s); }}
+      >
+        {showText ? '收起' : '字'}
+      </button>
+      {showText && voice.text && <div className="voice-transcript">{voice.text}</div>}
     </div>
   );
 }
@@ -452,10 +415,11 @@ function MessageBubble({ msg, index, onQuote, onCopy, onEdit, onDelete, playingV
       style={{ transform: swipeX > 0 ? `translateX(${swipeX}px)` : '' }}
     >
       <div className="message-inner">
-        {msg.reply_to && (
+        {(msg.reply_content || msg.reply_preview) && (
           <div className="reply-indicator-bubble">
             <span className="reply-icon">↩</span>
-            <span className="reply-text">{msg.reply_preview || '引用消息'}</span>
+            <span className="reply-role">{msg.reply_role === 'user' ? '我' : (profile.aiName || '裴拟')}</span>
+            <span className="reply-text">{msg.reply_content || msg.reply_preview}</span>
           </div>
         )}
         {editingId === msg.id ? (
@@ -990,8 +954,8 @@ function App() {
           {messages.length === 0 && !loading && (
             <div className="welcome">
               <div className="welcome-icon">🌊</div>
-              <h2>欢迎来到裴拟的海洋馆</h2>
-              <p>在这片海域，裴拟陪你聊天、思考和生活</p>
+              <h2>欢迎来到海洋馆🐋</h2>
+              <p>在这片属于我们的海域，留下你的故事吧</p>
               <div className="welcome-decoration">🐠 🐙 🦈 🐚 🪸</div>
               {activeApi && <p className="welcome-model">当前模型: {activeApi.name}</p>}
             </div>

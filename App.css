@@ -51,59 +51,61 @@ body {
   pointer-events: none;
 }
 
-/* 可爱的鲸鱼（居中浮动） */
+/* 鲸鱼 emoji（居中浮动 + 喷水动画） */
 .splash-whale-wrap {
   position: absolute;
-  top: 42%;
+  top: 40%;
   left: 50%;
   width: 180px;
-  height: 150px;
+  height: 170px;
   transition: opacity 0.9s ease, transform 0.9s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.splash-whale-svg {
-  width: 100%;
-  height: 100%;
+.splash-whale {
+  font-size: 108px;
+  line-height: 1;
+  text-align: center;
   animation: whale-float 3.2s ease-in-out infinite;
-  filter: drop-shadow(0 12px 30px rgba(0, 30, 50, 0.35));
+  filter: drop-shadow(0 14px 28px rgba(0, 30, 50, 0.4));
+  transform-origin: center bottom;
 }
 
 @keyframes whale-float {
-  0%, 100% { transform: translateY(0) rotate(-1deg); }
-  50% { transform: translateY(-14px) rotate(1deg); }
+  0%, 100% { transform: translateY(0) rotate(-2deg); }
+  50% { transform: translateY(-16px) rotate(2deg); }
 }
 
-/* 鲸鱼喷水 */
-.whale-spray {
-  animation: spray-rise 1.8s ease-in-out infinite;
-  transform-origin: 110px 30px;
+/* 鲸鱼头顶喷水 */
+.splash-whale-spray {
+  position: absolute;
+  top: -4px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 40px;
+  height: 40px;
 }
+
+.splash-whale-spray span {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: rgba(234, 247, 250, 0.85);
+  animation: spray-rise 1.8s ease-in-out infinite;
+}
+
+.splash-whale-spray span:nth-child(1) { margin-left: -2px; animation-delay: 0s; }
+.splash-whale-spray span:nth-child(2) { margin-left: -10px; animation-delay: 0.3s; }
+.splash-whale-spray span:nth-child(3) { margin-left: 6px; animation-delay: 0.6s; }
+.splash-whale-spray span:nth-child(4) { margin-left: -16px; animation-delay: 0.9s; }
+.splash-whale-spray span:nth-child(5) { margin-left: 12px; animation-delay: 1.2s; }
 
 @keyframes spray-rise {
-  0%, 100% { opacity: 0.3; transform: translateY(4px) scale(0.8); }
-  50% { opacity: 0.85; transform: translateY(-4px) scale(1.1); }
-}
-
-/* 尾巴轻轻摆动 */
-.splash-whale-svg .whale-tail {
-  animation: tail-wag 2.4s ease-in-out infinite;
-  transform-origin: 40px 88px;
-}
-
-@keyframes tail-wag {
-  0%, 100% { transform: rotate(0deg); }
-  50% { transform: rotate(5deg); }
-}
-
-/* 身体轻微呼吸 */
-.splash-whale-svg .whale-body {
-  animation: whale-breathe 3.2s ease-in-out infinite;
-  transform-origin: center;
-}
-
-@keyframes whale-breathe {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.015); }
+  0% { transform: translateY(0) scale(0.6); opacity: 0; }
+  30% { opacity: 0.85; }
+  100% { transform: translateY(-34px) scale(1.1); opacity: 0; }
 }
 
 /* 上升气泡 */
@@ -225,12 +227,25 @@ body {
   50% { transform: translateX(-50%) scaleX(1.15); opacity: 0.5; }
 }
 
-.splash-tagline {
+.splash-welcome {
+  text-align: center;
+  margin-top: 6px;
+  transition: opacity 0.9s ease 0.3s;
+}
+
+.splash-welcome-1 {
+  font-size: 17px;
+  color: #ffffff;
+  letter-spacing: 2px;
+  font-weight: 500;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
+}
+
+.splash-welcome-2 {
   font-size: 13px;
-  color: rgba(240,248,255,0.65);
-  letter-spacing: 4px;
-  margin-top: 18px;
-  transition: opacity 0.8s ease 0.3s;
+  color: rgba(240, 248, 255, 0.72);
+  letter-spacing: 2px;
+  margin-top: 6px;
   font-weight: 300;
 }
 
@@ -587,6 +602,12 @@ body {
   white-space: nowrap;
 }
 
+.reply-indicator-bubble .reply-role {
+  font-weight: 700;
+  color: var(--ocean-deeper);
+  flex-shrink: 0;
+}
+
 /* 气泡 */
 .bubble {
   padding: 10px 14px;
@@ -676,6 +697,43 @@ body {
 @keyframes voice-bar-anim {
   0%, 100% { height: 4px; opacity: 0.3; }
   50% { height: 14px; opacity: 0.8; }
+}
+
+/* 语音条外层 + 文字开关 + 转录 */
+.voice-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+.voice-wrap.user { align-items: flex-end; }
+.voice-wrap.ai { align-items: flex-start; }
+
+.voice-text-toggle {
+  background: rgba(91, 163, 196, 0.12);
+  border: 1px solid var(--ocean-3);
+  color: var(--ocean-deeper);
+  border-radius: 10px;
+  font-size: 11px;
+  padding: 1px 8px;
+  cursor: pointer;
+  line-height: 1.4;
+  flex-shrink: 0;
+}
+.voice-text-toggle:hover { background: rgba(91, 163, 196, 0.22); }
+
+.voice-transcript {
+  max-width: 240px;
+  background: rgba(91, 163, 196, 0.08);
+  border-left: 2px solid var(--ocean-deep);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--ocean-text);
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  animation: ctx-appear 0.18s ease-out;
 }
 
 /* 行内贴纸 */
