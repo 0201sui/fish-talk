@@ -174,10 +174,10 @@ body {
 }
 
 .splash-brand {
-  font-size: 54px;
-  font-weight: 800;
+  font-size: 34px;
+  font-weight: 600;
   color: #ffffff;
-  letter-spacing: 16px;
+  letter-spacing: 8px;
   padding-left: 16px;
   text-shadow: 0 0 40px rgba(126, 200, 211, 0.7), 0 0 80px rgba(88, 168, 184, 0.4), 0 4px 20px rgba(0,0,0,0.25);
   transition: opacity 0.9s ease, transform 0.9s ease;
@@ -569,6 +569,10 @@ body {
   max-width: 100%;
   position: relative;
 }
+
+/* 引用气泡存在时，气泡按内容自适应宽度，不再被引用条拉宽变形 */
+.message.user .message-inner { align-items: flex-end; }
+.message.assistant .message-inner { align-items: flex-start; }
 
 /* 引用指示器（在气泡上方）*/
 .reply-indicator-bubble {
@@ -1265,7 +1269,7 @@ body {
     background: rgba(0, 40, 60, 0.3);
     z-index: 99;
   }
-  .splash-brand { font-size: 42px; letter-spacing: 12px; padding-left: 12px; }
+  .splash-brand { font-size: 30px; letter-spacing: 8px; padding-left: 8px; }
   .splash-whale-wrap { width: 140px; height: 116px; }
   .toolbar-item { width: 56px; }
   .toolbar-item-icon { width: 46px; height: 46px; font-size: 22px; }

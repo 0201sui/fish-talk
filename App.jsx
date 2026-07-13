@@ -7,6 +7,14 @@ const API_URL = (typeof window !== 'undefined' && window.location.hostname === '
   ? 'http://localhost:3000'
   : 'https://my-home-backend-9j56.onrender.com';
 
+// 本地聊天记录缓存（防止刷新 / 重进网址后丢失记录）
+const SESSION_KEY = 'fishtalk_current_session';
+const MSG_CACHE_PREFIX = 'fishtalk_msgs_';
+
+function genId() {
+  return 'm_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8);
+}
+
 // ===== 小工具 =====
 function getReplyPreview(msg) {
   if (!msg) return '';
@@ -461,7 +469,7 @@ function MessageBubble({ msg, index, profile, onQuote, onCopy, onEdit, onDelete,
 function App() {
   const [showSplash, setShowSplash] = useState(() => !sessionStorage.getItem('splashed'));
   const [sessions, setSessions] = useState([]);
-  const [currentSessionId, setCurrentSessionId] = useState(null);
+  const [currentSessionId, setCurrentSessionId] = useState(() => localStorage.getItem(SESSION_KEY) || null);
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -534,9 +542,26 @@ function App() {
     return () => window.removeEventListener('resize', setVH);
   }, []);
 
+  // 切换 / 恢复会话时：优先用本地缓存，避免刷新后丢失记录
   useEffect(() => {
-    if (currentSessionId) fetchMessages(currentSessionId);
+    if (!currentSessionId) return;
+    const cached = localStorage.getItem(MSG_CACHE_PREFIX + currentSessionId);
+    if (cached) {
+      try { setMessages(JSON.parse(cached)); return; } catch (e) {}
+    }
+    fetchMessages(currentSessionId);
   }, [currentSessionId]);
+
+  // 持久化当前会话 id 与消息，刷新 / 重进不会丢
+  useEffect(() => {
+    if (currentSessionId) localStorage.setItem(SESSION_KEY, currentSessionId);
+  }, [currentSessionId]);
+
+  useEffect(() => {
+    if (currentSessionId && messages.length) {
+      try { localStorage.setItem(MSG_CACHE_PREFIX + currentSessionId, JSON.stringify(messages)); } catch (e) {}
+    }
+  }, [messages, currentSessionId]);
 
   useEffect(() => {
     localStorage.setItem('selectedModel', model);
@@ -564,7 +589,8 @@ function App() {
       const data = await res.json();
       if (data.sessions) {
         setSessions(data.sessions);
-        if (!currentSessionId && data.sessions.length > 0) setCurrentSessionId(data.sessions[0].id);
+        const hasCurrent = currentSessionId && data.sessions.some(s => s.id === currentSessionId);
+        if (!hasCurrent && data.sessions.length > 0) setCurrentSessionId(data.sessions[0].id);
       }
     } catch (err) { console.error('加载会话失败:', err); }
   };
@@ -601,6 +627,7 @@ function App() {
       });
       const data = await res.json();
       if (data.session) {
+        localStorage.removeItem(MSG_CACHE_PREFIX + data.session.id);
         setSessions(prev => [data.session, ...prev]);
         setCurrentSessionId(data.session.id);
         setMessages([]);
@@ -614,6 +641,7 @@ function App() {
     if (!confirm('确定删除这个对话吗？')) return;
     try {
       await fetch(`${API_URL}/sessions/${id}`, { method: 'DELETE' });
+      localStorage.removeItem(MSG_CACHE_PREFIX + id);
       setSessions(prev => prev.filter(s => s.id !== id));
       if (currentSessionId === id) {
         const next = sessions.find(s => s.id !== id);
@@ -679,6 +707,7 @@ function App() {
     }
 
     const userMsg = {
+      id: genId(),
       role: 'user', content: input,
       images: pendingImages.length > 0 ? pendingImages : undefined,
       created_at: new Date().toISOString(), reply_to: replyTo?.id || null,
@@ -728,9 +757,12 @@ function App() {
             await new Promise(r => setTimeout(r, 700 + Math.random() * 500));
           }
           setMessages(prev => [...prev, {
+            id: genId(),
             role: 'assistant',
             content: data.replies[i].content,
             voice: data.replies[i].voice || null,
+            reply_role: data.replies[i].reply_role || null,
+            reply_content: data.replies[i].reply_content || null,
             created_at: data.replies[i].created_at
           }]);
           setLoading(false);
@@ -910,7 +942,7 @@ function App() {
         <div className="session-list">
           {sessions.map(session => (
             <div key={session.id} className={`session-item ${session.id === currentSessionId ? 'active' : ''}`}
-              onClick={() => { setCurrentSessionId(session.id); setShowSidebar(false); fetchMessages(session.id); }}>
+              onClick={() => { setCurrentSessionId(session.id); setShowSidebar(false); }}>
               <span className="session-name" onDoubleClick={(e) => renameSession(session.id, e)}>
                 🫧 {session.name || '未命名对话'}
               </span>
@@ -935,7 +967,7 @@ function App() {
         <header className="chat-header">
           <div className="chat-header-left">
             <button className="menu-btn" onClick={() => setShowSidebar(true)}>☰</button>
-            <h1>裴拟的海洋馆 🐠</h1>
+            <h1>裴拟的海洋馆 🐟</h1>
           </div>
           <div className="chat-header-right">
             <select className="model-select" value={model} onChange={(e) => setModel(e.target.value)}>
