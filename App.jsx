@@ -117,10 +117,9 @@ function SplashScreen({ onDone }) {
         >
           鱼说
         </h1>
-        <div className="splash-welcome" style={{ opacity: phase >= 1 ? 1 : 0 }}>
-          <p className="splash-welcome-1">欢迎来到海洋馆🐋</p>
-          <p className="splash-welcome-2">在这片属于我们的海域，留下你的故事吧</p>
-        </div>
+        <p className="splash-welcome" style={{ opacity: phase >= 1 ? 1 : 0 }}>
+          在深海里，听见你的声音
+        </p>
         <div className="splash-ripple" />
       </div>
     </div>
@@ -314,17 +313,18 @@ function ContextMenu({ x, y, msg, isUser, onQuote, onCopy, onEdit, onDelete, onC
   );
 }
 
-// ===== 语音消息组件（微信风格，点"字"才显示文字）=====
+// ===== 语音消息组件（微信风格，点语音条显文字）=====
 function VoiceMessage({ voice, isUser, isPlaying, onPlay }) {
   const [showText, setShowText] = useState(false);
   const duration = voice.duration || 3;
   const width = Math.min(220, 80 + duration * 7);
   const hasAudio = !!voice.audio;
   return (
-    <div className={`voice-wrap ${isUser ? 'user' : 'ai'}`} style={{ width }}>
+    <div className={`voice-wrap ${isUser ? 'user' : 'ai'}`}>
       <div
         className={`voice-bubble ${isUser ? 'user' : 'ai'} ${isPlaying ? 'playing' : ''}`}
-        onClick={() => { if (hasAudio) onPlay(); else setShowText(s => !s); }}
+        style={{ width }}
+        onClick={() => { if (hasAudio) onPlay(); setShowText(s => !s); }}
       >
         <span className="voice-icon">{isPlaying ? '⏸' : '▶'}</span>
         <div className="voice-bars">
@@ -334,19 +334,17 @@ function VoiceMessage({ voice, isUser, isPlaying, onPlay }) {
         </div>
         <span className="voice-duration">{duration}''</span>
       </div>
-      <button
-        className="voice-text-toggle"
-        onClick={(e) => { e.stopPropagation(); if (!hasAudio) setShowText(s => !s); else setShowText(s => !s); }}
-      >
-        {showText ? '收起' : '字'}
-      </button>
-      {showText && voice.text && <div className="voice-transcript">{voice.text}</div>}
+      {showText && voice.text && (
+        <div className={`voice-transcript ${isUser ? 'user' : 'ai'}`} onClick={() => setShowText(false)}>
+          {voice.text}
+        </div>
+      )}
     </div>
   );
 }
 
 // ===== 消息气泡组件 =====
-function MessageBubble({ msg, index, onQuote, onCopy, onEdit, onDelete, playingVoiceId, onPlayVoice, editingId, setEditingId, editContent, setEditContent, saveEdit }) {
+function MessageBubble({ msg, index, profile, onQuote, onCopy, onEdit, onDelete, playingVoiceId, onPlayVoice, editingId, setEditingId, editContent, setEditContent, saveEdit }) {
   const longPressTimer = useRef(null);
   const touchStart = useRef(null);
   const [swipeX, setSwipeX] = useState(0);
@@ -418,7 +416,7 @@ function MessageBubble({ msg, index, onQuote, onCopy, onEdit, onDelete, playingV
         {(msg.reply_content || msg.reply_preview) && (
           <div className="reply-indicator-bubble">
             <span className="reply-icon">↩</span>
-            <span className="reply-role">{msg.reply_role === 'user' ? '我' : (profile.aiName || '裴拟')}</span>
+            <span className="reply-role">{msg.reply_role === 'user' || (msg.reply_preview && msg.reply_preview.startsWith('我:')) ? '我' : (profile?.aiName || '裴拟')}</span>
             <span className="reply-text">{msg.reply_content || msg.reply_preview}</span>
           </div>
         )}
@@ -964,6 +962,7 @@ function App() {
             <MessageBubble
               key={msg.id || index}
               msg={msg} index={index}
+              profile={profile}
               onQuote={onQuote} onCopy={onCopy} onEdit={onEdit} onDelete={onDelete}
               playingVoiceId={playingVoiceId}
               onPlayVoice={playVoice}
@@ -1091,7 +1090,14 @@ function App() {
       {showSettings && (
         <div className="modal-overlay" onClick={() => setShowSettings(false)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <h2>⚙ 设置</h2>
+            <div className="modal-header">
+              <button className="modal-back" onClick={() => setShowSettings(false)} aria-label="返回">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="15 18 9 12 15 6" />
+                </svg>
+              </button>
+              <h2>⚙ 设置</h2>
+            </div>
 
             <div className="settings-section">
               <h3 className="settings-section-title">AI 设置</h3>

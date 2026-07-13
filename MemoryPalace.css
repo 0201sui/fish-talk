@@ -152,26 +152,34 @@
 .mp-form input::placeholder, .mp-form textarea::placeholder { color: rgba(168,212,232,0.35); }
 .mp-form-act { display: flex; gap: 8px; justify-content: flex-end; }
 
-/* ===== 记忆条目列表（可滚动） ===== */
+/* ===== 记忆条目列表（横向滑动） ===== */
 .mp-item-list {
-  max-height: 50vh;
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
-  overscroll-behavior: contain;
   display: flex;
-  flex-direction: column;
-  gap: 8px;
+  flex-direction: row;
+  gap: 12px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x mandatory;
+  padding-bottom: 12px;
   padding-right: 4px;
-  padding-bottom: 8px;
 }
+
+.mp-item-list::-webkit-scrollbar { height: 4px; }
+.mp-item-list::-webkit-scrollbar-thumb { background: rgba(120,180,220,0.25); border-radius: 2px; }
 
 /* ===== 单条记忆 ===== */
 .mp-item {
   background: rgba(18,36,58,0.75);
   border: 1px solid rgba(120,180,220,0.1);
-  border-radius: 10px;
-  padding: 10px 12px;
+  border-radius: 12px;
+  padding: 12px 14px;
+  width: 260px;
+  max-width: 78vw;
   flex-shrink: 0;
+  scroll-snap-align: start;
+  display: flex;
+  flex-direction: column;
 }
 .mp-item.sel {
   border-color: rgba(100,200,150,0.5);
@@ -179,8 +187,12 @@
 }
 
 .mp-item-head {
-  display: flex; justify-content: space-between; align-items: center;
-  cursor: pointer; min-height: 30px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  cursor: pointer;
+  min-height: 30px;
+  gap: 8px;
 }
 .mp-item-left {
   display: flex; align-items: center; gap: 7px; flex: 1; min-width: 0;
@@ -203,8 +215,9 @@
 }
 
 .mp-item-body {
-  padding: 10px 0 4px 38px;
+  padding: 10px 2px 4px 26px;
   display: flex; flex-direction: column; gap: 8px;
+  flex: 1;
 }
 .mp-item-body p {
   font-size: 13px; line-height: 1.65; color: rgba(224,232,240,0.7); margin: 0;
