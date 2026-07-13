@@ -1,6 +1,8 @@
 import { useState } from 'react';
 
-const API_URL = 'https://my-home-backend-9j56.onrender.com';
+const API_URL = (typeof window !== 'undefined' && window.location.hostname === 'localhost')
+  ? 'http://localhost:3000'
+  : 'https://my-home-backend-9j56.onrender.com';
 
 function loadData() {
   try {

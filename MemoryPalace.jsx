@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import './MemoryPalace.css';
 
-const API_URL = 'https://my-home-backend-9j56.onrender.com';
+const API_URL = (typeof window !== 'undefined' && window.location.hostname === 'localhost')
+  ? 'http://localhost:3000'
+  : 'https://my-home-backend-9j56.onrender.com';
 
 export default function MemoryPalace({ onClose, currentSessionId }) {
   const [memories, setMemories] = useState([]);
