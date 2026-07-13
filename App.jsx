@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import './App.css';
 
-const API_URL = 'https://my-home-backend-9j56.onrender.com';
+const API_URL = 'http://localhost:3000';
 
 function App() {
   const [sessions, setSessions] = useState([]);
