@@ -167,6 +167,14 @@ function DesktopPet() {
     return () => cancelAnimationFrame(raf);
   }, [dir, petSize]);
 
+  // 持久化桌宠配置：任何变更都写入 localStorage，刷新 / 重进不会恢复默认
+  useEffect(() => {
+    try {
+      localStorage.setItem('petImage', petImage);
+      localStorage.setItem('petSize', String(petSize));
+    } catch (e) { /* 忽略配额溢出 */ }
+  }, [petImage, petSize]);
+
   const startInteract = (e) => {
     const touch = e.touches ? e.touches[0] : e;
     startPos.current = { x: touch.clientX, y: touch.clientY };
@@ -205,8 +213,12 @@ function DesktopPet() {
   };
 
   const savePetSettings = () => {
-    localStorage.setItem('petImage', imgInput);
-    localStorage.setItem('petSize', String(sizeInput));
+    try {
+      localStorage.setItem('petImage', imgInput);
+      localStorage.setItem('petSize', String(sizeInput));
+    } catch (err) {
+      alert('保存失败：图片可能太大，请换一张小一点的图片');
+    }
     setPetImage(imgInput);
     setPetSize(sizeInput);
     setShowSettings(false);
@@ -222,7 +234,26 @@ function DesktopPet() {
     if (!file) return;
     if (file.size > 3 * 1024 * 1024) { alert('图片不能超过3MB'); return; }
     const reader = new FileReader();
-    reader.onload = () => { setImgInput(reader.result); };
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const maxDim = 200;
+        let { width, height } = img;
+        if (width > height && width > maxDim) { height = Math.round(height * maxDim / width); width = maxDim; }
+        else if (height > maxDim) { width = Math.round(width * maxDim / height); height = maxDim; }
+        try {
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+          setImgInput(canvas.toDataURL('image/jpeg', 0.85));
+        } catch (err) {
+          setImgInput(reader.result);
+        }
+      };
+      img.onerror = () => setImgInput(reader.result);
+      img.src = reader.result;
+    };
     reader.readAsDataURL(file);
   };
 
@@ -574,6 +605,16 @@ function App() {
   useEffect(() => {
     localStorage.setItem('ttsConfig', JSON.stringify(ttsConfig));
   }, [ttsConfig]);
+
+  // 打开设置时同步最新桌宠配置（避免覆盖桌宠弹窗里刚改的图片）
+  useEffect(() => {
+    if (showSettings) {
+      setPetSettings({
+        image: localStorage.getItem('petImage') || '',
+        size: parseInt(localStorage.getItem('petSize') || '40')
+      });
+    }
+  }, [showSettings]);
 
   // 全局长按菜单回调
   useEffect(() => {
@@ -956,9 +997,9 @@ function App() {
           )}
         </div>
         <div className="sidebar-footer">
-          <button className="sidebar-btn" onClick={() => setShowProfile(true)}>👤 简介</button>
-          <button className="sidebar-btn" onClick={() => setShowApiConfig(true)}>🔑 API配置</button>
-          <button className="sidebar-btn" onClick={() => setShowMemoryPalace(true)}>🧠 记忆宫殿</button>
+          <button className="sidebar-btn" onClick={() => setShowProfile(true)}>🐬 简介</button>
+          <button className="sidebar-btn" onClick={() => setShowApiConfig(true)}>🔌 API配置</button>
+          <button className="sidebar-btn" onClick={() => setShowMemoryPalace(true)}>🪸 记忆宫殿</button>
         </div>
       </aside>
 
@@ -1094,14 +1135,7 @@ function App() {
         {/* 输入区 */}
         <div className="input-area">
           <div className="input-wrapper">
-            <button className="sticker-btn" onClick={() => { setShowStickerPicker(!showStickerPicker); setShowToolbar(false); }} aria-label="表情包">
-              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="10" />
-                <path d="M8 14.5c1.5 1.8 4.5 1.8 6 0" />
-                <circle cx="9" cy="10" r="1.2" fill="currentColor" stroke="none" />
-                <circle cx="15" cy="10" r="1.2" fill="currentColor" stroke="none" />
-              </svg>
-            </button>
+            <button className="plus-btn" onClick={() => { setShowToolbar(!showToolbar); setShowStickerPicker(false); }}>+</button>
             <textarea
               ref={textareaRef}
               value={input}
@@ -1110,7 +1144,14 @@ function App() {
               placeholder="在这片海域留下你的声音..."
               rows={1}
             />
-            <button className="plus-btn" onClick={() => { setShowToolbar(!showToolbar); setShowStickerPicker(false); }}>+</button>
+            <button className="sticker-btn" onClick={() => { setShowStickerPicker(!showStickerPicker); setShowToolbar(false); }} aria-label="表情包">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10" />
+                <path d="M8 14.5c1.5 1.8 4.5 1.8 6 0" />
+                <circle cx="9" cy="10" r="1.2" fill="currentColor" stroke="none" />
+                <circle cx="15" cy="10" r="1.2" fill="currentColor" stroke="none" />
+              </svg>
+            </button>
             <button className="send-btn" onClick={sendMessage} disabled={loading || (!input.trim() && pendingImages.length === 0)}>
               🐋
             </button>
@@ -1123,12 +1164,13 @@ function App() {
         <div className="modal-overlay" onClick={() => setShowSettings(false)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <button className="modal-back" onClick={() => setShowSettings(false)} aria-label="返回">
+              <h2>⚙ 设置</h2>
+              <button className="modal-close-x" onClick={() => setShowSettings(false)} aria-label="关闭">
                 <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="15 18 9 12 15 6" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                  <line x1="18" y1="6" x2="6" y2="18" />
                 </svg>
               </button>
-              <h2>⚙ 设置</h2>
             </div>
 
             <div className="settings-section">

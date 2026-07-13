@@ -1153,6 +1153,7 @@ body {
 .modal-header {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 10px;
   margin-bottom: 20px;
 }
@@ -1170,6 +1171,21 @@ body {
   transition: background 0.2s;
 }
 .modal-back:hover { background: var(--ocean-1); }
+
+.modal-close-x {
+  background: none;
+  border: none;
+  color: var(--ocean-deeper);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+  flex-shrink: 0;
+}
+.modal-close-x:hover { background: var(--ocean-1); }
 
 /* 设置分区 */
 .settings-section { margin-bottom: 20px; }
