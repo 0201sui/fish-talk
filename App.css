@@ -34,7 +34,7 @@ body {
   inset: 0;
   z-index: 99999;
   overflow: hidden;
-  background: linear-gradient(180deg, #1a4a6a 0%, #2a6b8a 22%, #4a8fb0 50%, #7ab0c4 78%, #a8d4e8 100%);
+  background: linear-gradient(180deg, #162E44 0%, #1D4560 35%, #2A6B8A 68%, #4A8FB0 100%);
   transition: opacity 0.8s ease;
 }
 
@@ -46,50 +46,64 @@ body {
   top: 0; left: 0; right: 0;
   height: 70%;
   background:
-    linear-gradient(168deg, rgba(255,255,255,0.1) 0%, transparent 40%),
-    linear-gradient(172deg, rgba(255,255,255,0.07) 10%, transparent 35%),
-    linear-gradient(175deg, rgba(255,255,255,0.05) 5%, transparent 50%);
+    linear-gradient(165deg, rgba(255,255,255,0.12) 0%, transparent 35%),
+    linear-gradient(172deg, rgba(255,255,255,0.07) 8%, transparent 32%);
   pointer-events: none;
 }
 
-/* 鲸鱼游过 */
-.splash-whale-container {
+/* 可爱的鲸鱼（居中浮动） */
+.splash-whale-wrap {
   position: absolute;
-  top: 20%;
-  left: -180px;
+  top: 42%;
+  left: 50%;
   width: 180px;
-  height: 100px;
-  animation: whale-swim 3.5s ease-in-out forwards;
-}
-
-@keyframes whale-swim {
-  0% { transform: translateX(0); opacity: 0; }
-  8% { opacity: 1; }
-  85% { opacity: 1; }
-  100% { transform: translateX(calc(100vw + 180px)); opacity: 0.5; }
+  height: 150px;
+  transition: opacity 0.9s ease, transform 0.9s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .splash-whale-svg {
   width: 100%;
   height: 100%;
-  animation: whale-bob 2.5s ease-in-out infinite;
-  filter: drop-shadow(0 8px 20px rgba(0, 30, 50, 0.25));
+  animation: whale-float 3.2s ease-in-out infinite;
+  filter: drop-shadow(0 12px 30px rgba(0, 30, 50, 0.35));
 }
 
-@keyframes whale-bob {
-  0%, 100% { transform: translateY(0) rotate(-1.5deg); }
-  50% { transform: translateY(-10px) rotate(1.5deg); }
+@keyframes whale-float {
+  0%, 100% { transform: translateY(0) rotate(-1deg); }
+  50% { transform: translateY(-14px) rotate(1deg); }
 }
 
 /* 鲸鱼喷水 */
-.whale-spray-group {
-  animation: spray-pulse 1.8s ease-in-out infinite;
-  transform-origin: 150px 30px;
+.whale-spray {
+  animation: spray-rise 1.8s ease-in-out infinite;
+  transform-origin: 110px 30px;
 }
 
-@keyframes spray-pulse {
-  0%, 100% { opacity: 0.35; transform: scaleY(0.7) translateY(4px); }
-  50% { opacity: 0.8; transform: scaleY(1.2) translateY(-2px); }
+@keyframes spray-rise {
+  0%, 100% { opacity: 0.3; transform: translateY(4px) scale(0.8); }
+  50% { opacity: 0.85; transform: translateY(-4px) scale(1.1); }
+}
+
+/* 尾巴轻轻摆动 */
+.splash-whale-svg .whale-tail {
+  animation: tail-wag 2.4s ease-in-out infinite;
+  transform-origin: 40px 88px;
+}
+
+@keyframes tail-wag {
+  0%, 100% { transform: rotate(0deg); }
+  50% { transform: rotate(5deg); }
+}
+
+/* 身体轻微呼吸 */
+.splash-whale-svg .whale-body {
+  animation: whale-breathe 3.2s ease-in-out infinite;
+  transform-origin: center;
+}
+
+@keyframes whale-breathe {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.015); }
 }
 
 /* 上升气泡 */
@@ -151,20 +165,20 @@ body {
 /* 底部品牌字 */
 .splash-bottom {
   position: absolute;
-  bottom: 9%;
+  bottom: 10%;
   left: 0; right: 0;
   text-align: center;
   z-index: 2;
 }
 
 .splash-brand {
-  font-size: 52px;
+  font-size: 54px;
   font-weight: 800;
-  color: #f0f8ff;
-  letter-spacing: 14px;
-  padding-left: 14px;
-  text-shadow: 0 0 30px rgba(168,212,232,0.7), 0 0 60px rgba(123,176,196,0.35), 0 4px 15px rgba(0,0,0,0.25);
-  transition: opacity 0.8s ease, transform 0.8s ease;
+  color: #ffffff;
+  letter-spacing: 16px;
+  padding-left: 16px;
+  text-shadow: 0 0 40px rgba(126, 200, 211, 0.7), 0 0 80px rgba(88, 168, 184, 0.4), 0 4px 20px rgba(0,0,0,0.25);
+  transition: opacity 0.9s ease, transform 0.9s ease;
   position: relative;
   display: inline-block;
 }
@@ -175,9 +189,9 @@ body {
   bottom: -10px;
   left: 50%;
   transform: translateX(-50%);
-  width: 70%;
+  width: 65%;
   height: 1.5px;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.55), transparent);
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.5), transparent);
 }
 
 /* 水波纹效果 */
@@ -285,14 +299,28 @@ body {
   margin-bottom: 4px;
   font-weight: 500;
 }
-.pet-setting-field input[type="text"],
-.pet-setting-field input[type="file"] {
+.pet-setting-field input[type="text"] {
   width: 100%;
   padding: 8px;
   border: 1px solid var(--ocean-3);
   border-radius: 6px;
   font-size: 13px;
 }
+
+.pet-file-btn {
+  width: 100%;
+  padding: 9px;
+  border: 1px dashed var(--ocean-deep);
+  border-radius: 8px;
+  background: var(--ocean-1);
+  color: var(--ocean-deeper);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.pet-file-btn:hover { background: var(--ocean-2); }
+
 .pet-setting-field input[type="range"] { width: 100%; }
 
 .pet-settings-actions {
@@ -650,6 +678,16 @@ body {
   50% { height: 14px; opacity: 0.8; }
 }
 
+/* 行内贴纸 */
+.inline-sticker {
+  max-width: 120px;
+  max-height: 120px;
+  border-radius: 8px;
+  vertical-align: middle;
+  margin: 2px;
+  cursor: pointer;
+}
+
 /* 图片消息 */
 .msg-images {
   display: flex;
@@ -711,21 +749,25 @@ body {
 /* ===== 回到底部按钮 ===== */
 .scroll-bottom-btn {
   position: absolute;
-  right: 20px;
-  bottom: 140px;
-  width: 40px; height: 40px;
+  right: 18px;
+  bottom: 130px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
-  background: var(--ocean-deep);
-  color: white;
+  background: white;
+  color: var(--ocean-deeper);
   border: none;
-  font-size: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
-  box-shadow: 0 4px 12px rgba(91, 163, 196, 0.4);
+  box-shadow: 0 3px 12px rgba(91, 163, 196, 0.35);
   z-index: 100;
-  transition: transform 0.2s;
+  transition: transform 0.2s, box-shadow 0.2s;
 }
 
-.scroll-bottom-btn:hover { transform: scale(1.1); }
+.scroll-bottom-btn:hover { transform: translateY(2px); box-shadow: 0 5px 16px rgba(91, 163, 196, 0.45); }
+.scroll-bottom-btn:active { transform: scale(0.94); }
 
 /* ===== 表情包选择器 ===== */
 .sticker-picker {
@@ -969,45 +1011,64 @@ body {
   background: white;
   color: var(--ocean-text);
   outline: none;
-  min-height: 42px;
-  max-height: 100px;
-  line-height: 1.4;
+  min-height: 44px;
+  max-height: 120px;
+  line-height: 1.5;
+  overflow-y: auto;
 }
+
+.input-wrapper textarea::placeholder { color: #9ab7c4; }
 
 .input-wrapper textarea:focus { border-color: var(--ocean-deep); }
 
 .sticker-btn {
-  background: var(--ocean-2);
-  border: none;
+  background: white;
+  border: 1px solid var(--ocean-3);
   border-radius: 12px;
-  padding: 10px 14px;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
-  font-size: 20px;
+  color: var(--ocean-deep);
   flex-shrink: 0;
+  transition: all 0.2s;
 }
 
+.sticker-btn:hover { background: var(--ocean-2); border-color: var(--ocean-deep); }
+.sticker-btn.active { background: var(--ocean-deep); color: white; border-color: var(--ocean-deep); }
+
 .plus-btn {
-  background: var(--ocean-2);
-  border: none;
+  background: white;
+  border: 1px solid var(--ocean-3);
   border-radius: 12px;
-  padding: 10px 14px;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
   font-size: 22px;
   font-weight: 300;
   color: var(--ocean-deeper);
   flex-shrink: 0;
-  transition: background 0.2s;
+  transition: all 0.2s;
   line-height: 1;
 }
 
-.plus-btn:hover { background: var(--ocean-3); }
+.plus-btn:hover { background: var(--ocean-2); border-color: var(--ocean-deep); }
 
 .send-btn {
   background: linear-gradient(135deg, var(--ocean-deep), var(--ocean-ok));
   color: white;
   border: none;
   border-radius: 12px;
-  padding: 10px 16px;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
   font-size: 18px;
   flex-shrink: 0;
@@ -1139,7 +1200,8 @@ body {
     background: rgba(0, 40, 60, 0.3);
     z-index: 99;
   }
-  .splash-brand { font-size: 38px; letter-spacing: 10px; padding-left: 10px; }
+  .splash-brand { font-size: 42px; letter-spacing: 12px; padding-left: 12px; }
+  .splash-whale-wrap { width: 140px; height: 116px; }
   .toolbar-item { width: 56px; }
   .toolbar-item-icon { width: 46px; height: 46px; font-size: 22px; }
 }

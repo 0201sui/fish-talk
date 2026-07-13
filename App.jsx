@@ -7,6 +7,35 @@ const API_URL = (typeof window !== 'undefined' && window.location.hostname === '
   ? 'http://localhost:3000'
   : 'https://my-home-backend-9j56.onrender.com';
 
+// ===== 小工具 =====
+function getReplyPreview(msg) {
+  if (!msg) return '';
+  if (msg.voice) return '[语音]';
+  if (msg.images && msg.images.length > 0) return '[图片]';
+  if (msg.content && msg.content.includes('[贴纸]')) return '[贴纸]';
+  return msg.content?.slice(0, 60) || '';
+}
+
+function renderStickerContent(content) {
+  if (!content) return null;
+  if (!content.includes('[贴纸]')) return content;
+  const parts = [];
+  const regex = /\[贴纸\](.*?)\[\/贴纸\]/g;
+  let lastIndex = 0;
+  let match;
+  while ((match = regex.exec(content)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push(<span key={`t${lastIndex}`}>{content.slice(lastIndex, match.index)}</span>);
+    }
+    parts.push(<img key={`s${match.index}`} src={match[1]} alt="贴纸" className="inline-sticker" />);
+    lastIndex = match.index + match[0].length;
+  }
+  if (lastIndex < content.length) {
+    parts.push(<span key={`t${lastIndex}`}>{content.slice(lastIndex)}</span>);
+  }
+  return parts;
+}
+
 // ===== API 配置 =====
 function getApiProviders() {
   try {
@@ -31,19 +60,19 @@ function SplashScreen({ onDone }) {
 
   // 生成气泡（只生成一次）
   const bubbles = useState(() =>
-    Array.from({ length: 20 }, (_, i) => ({
+    Array.from({ length: 24 }, (_, i) => ({
       id: i,
       left: Math.random() * 100,
-      size: 4 + Math.random() * 14,
-      delay: Math.random() * 4,
-      duration: 3.5 + Math.random() * 4
+      size: 3 + Math.random() * 12,
+      delay: Math.random() * 5,
+      duration: 4 + Math.random() * 5
     }))
   )[0];
 
   useEffect(() => {
-    const t1 = setTimeout(() => setPhase(1), 800);
-    const t2 = setTimeout(() => setPhase(2), 3600);
-    const t3 = setTimeout(() => onDone(), 4400);
+    const t1 = setTimeout(() => setPhase(1), 600);
+    const t2 = setTimeout(() => setPhase(2), 3200);
+    const t3 = setTimeout(() => onDone(), 4000);
     return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
   }, [onDone]);
 
@@ -52,51 +81,59 @@ function SplashScreen({ onDone }) {
       {/* 水面光线 */}
       <div className="splash-rays" />
 
-      {/* 游动的鲸鱼 */}
-      <div className="splash-whale-container">
-        <svg className="splash-whale-svg" viewBox="0 0 300 160">
+      {/* 可爱的鲸鱼（居中，轻轻浮动） */}
+      <div className="splash-whale-wrap" style={{ opacity: phase >= 1 ? 1 : 0, transform: phase >= 1 ? 'translate(-50%, -50%) scale(1)' : 'translate(-50%, -45%) scale(0.85)' }}>
+        <svg className="splash-whale-svg" viewBox="0 0 220 180">
           <defs>
-            <linearGradient id="whaleBody" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#7bc5de" />
-              <stop offset="45%" stopColor="#4a90b8" />
-              <stop offset="100%" stopColor="#2a5a75" />
+            <linearGradient id="whaleSkin" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#7EC8D3" />
+              <stop offset="100%" stopColor="#58A8B8" />
             </linearGradient>
             <linearGradient id="whaleBelly" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#e0f0f8" />
-              <stop offset="100%" stopColor="#a8d4e8" />
+              <stop offset="0%" stopColor="#EAF7FA" />
+              <stop offset="100%" stopColor="#C8ECF2" />
             </linearGradient>
+            <filter id="whaleGlow" x="-20%" y="-20%" width="140%" height="140%">
+              <feGaussianBlur stdDeviation="4" result="blur" />
+              <feComposite in="SourceGraphic" in2="blur" operator="over" />
+            </filter>
           </defs>
 
           {/* 喷水 */}
-          <g className="whale-spray-group">
-            <ellipse cx="150" cy="22" rx="2" ry="5" fill="#d8eef5" opacity="0.7" />
-            <ellipse cx="143" cy="14" rx="1.5" ry="3.5" fill="#a8d4e8" opacity="0.5" />
-            <ellipse cx="158" cy="17" rx="1.5" ry="3.5" fill="#c8e6f0" opacity="0.4" />
-            <ellipse cx="146" cy="6" rx="1" ry="2.5" fill="#a8d4e8" opacity="0.35" />
-            <ellipse cx="155" cy="9" rx="1" ry="2" fill="#c8e6f0" opacity="0.3" />
+          <g className="whale-spray">
+            <circle cx="110" cy="22" r="3.5" fill="#EAF7FA" opacity="0.7" />
+            <circle cx="102" cy="14" r="2.5" fill="#C8ECF2" opacity="0.55" />
+            <circle cx="118" cy="16" r="2.2" fill="#EAF7FA" opacity="0.45" />
+            <circle cx="96" cy="6" r="1.6" fill="#C8ECF2" opacity="0.35" />
+            <circle cx="124" cy="8" r="1.4" fill="#EAF7FA" opacity="0.3" />
           </g>
 
           {/* 尾鳍 */}
-          <path className="whale-tail" d="M 50 78 C 28 68, 12 48, 5 42 C 22 58, 35 68, 45 72 C 35 78, 22 90, 8 102 C 22 88, 38 82, 50 82 Z" fill="url(#whaleBody)" />
+          <path className="whale-tail" d="M 32 88 C 18 76, 8 64, 4 58 C 16 70, 26 80, 36 86 C 28 92, 18 102, 8 112 C 18 104, 28 96, 40 92 Z" fill="#58A8B8" />
 
           {/* 身体 */}
-          <ellipse cx="135" cy="75" rx="92" ry="40" fill="url(#whaleBody)" />
+          <path className="whale-body" d="M 48 90 C 48 52, 85 38, 125 42 C 158 46, 180 68, 178 96 C 176 126, 148 144, 110 144 C 72 144, 48 124, 48 90 Z" fill="url(#whaleSkin)" filter="url(#whaleGlow)" />
 
-          {/* 腹部高光 */}
-          <path d="M 62 82 C 105 108, 175 108, 208 82 C 208 96, 175 108, 135 110 C 95 108, 68 96, 62 82 Z" fill="url(#whaleBelly)" opacity="0.75" />
+          {/* 肚皮 */}
+          <path d="M 62 98 C 78 130, 142 130, 164 98 C 158 122, 130 134, 110 134 C 86 134, 66 120, 62 98 Z" fill="url(#whaleBelly)" opacity="0.95" />
+
+          {/* 肚皮纹理线 */}
+          <path d="M 72 108 Q 110 120, 152 106" stroke="#9BD3DD" strokeWidth="2" fill="none" strokeLinecap="round" opacity="0.6" />
+          <path d="M 80 118 Q 110 128, 144 116" stroke="#9BD3DD" strokeWidth="1.8" fill="none" strokeLinecap="round" opacity="0.5" />
+          <path d="M 92 126 Q 110 132, 134 124" stroke="#9BD3DD" strokeWidth="1.5" fill="none" strokeLinecap="round" opacity="0.4" />
 
           {/* 胸鳍 */}
-          <path d="M 110 102 C 100 116, 88 122, 82 118 C 92 113, 102 107, 115 102 Z" fill="#2a5a75" opacity="0.55" />
+          <path d="M 95 120 C 88 136, 78 142, 72 138 C 82 132, 90 124, 100 118 Z" fill="#4A98A8" opacity="0.55" />
 
           {/* 眼睛 */}
-          <circle cx="190" cy="62" r="5" fill="#1a3a4a" />
-          <circle cx="192" cy="61" r="2" fill="white" />
+          <circle cx="146" cy="74" r="4.5" fill="#2A4A54" />
+          <circle cx="147.5" cy="72.8" r="1.6" fill="white" />
 
-          {/* 嘴巴 */}
-          <path d="M 205 76 Q 213 83 205 89" stroke="#1a3a4a" strokeWidth="2.5" fill="none" strokeLinecap="round" />
+          {/* 微笑 */}
+          <path d="M 150 86 Q 156 90, 150 94" stroke="#2A4A54" strokeWidth="2" fill="none" strokeLinecap="round" />
 
-          {/* 背部高光线 */}
-          <path d="M 80 55 Q 135 48 190 55" stroke="#9bd5e8" strokeWidth="1.5" fill="none" opacity="0.3" />
+          {/* 腮红 */}
+          <ellipse cx="138" cy="88" rx="5" ry="3" fill="#FFB7B2" opacity="0.35" />
         </svg>
       </div>
 
@@ -130,7 +167,7 @@ function SplashScreen({ onDone }) {
         </h1>
         <div className="splash-ripple" />
         <p className="splash-tagline" style={{ opacity: phase >= 1 ? 1 : 0 }}>
-          在深蓝中对话，遇见另一个声音
+          在深海里，听见你的声音
         </p>
       </div>
     </div>
@@ -147,6 +184,7 @@ function DesktopPet() {
   const [imgInput, setImgInput] = useState(petImage);
   const [sizeInput, setSizeInput] = useState(petSize);
   const petRef = useRef(null);
+  const petFileRef = useRef(null);
   const dragging = useRef(false);
   const offset = useRef({ x: 0, y: 0 });
   const longPressTimer = useRef(null);
@@ -262,7 +300,16 @@ function DesktopPet() {
             </div>
             <div className="pet-setting-field">
               <label>上传图片</label>
-              <input type="file" accept="image/*" onChange={onPetFileChange} />
+              <input
+                ref={petFileRef}
+                type="file"
+                accept="image/jpeg,image/png,image/gif,image/webp,image/*"
+                style={{ display: 'none' }}
+                onChange={onPetFileChange}
+              />
+              <button className="pet-file-btn" onClick={() => petFileRef.current?.click()}>
+                📷 从相册选择
+              </button>
             </div>
             <div className="pet-setting-field">
               <label>大小: {sizeInput}px</label>
@@ -436,7 +483,7 @@ function MessageBubble({ msg, index, onQuote, onCopy, onEdit, onDelete, playingV
                 onPlay={() => onPlayVoice(msg)}
               />
             ) : msg.content ? (
-              <div className="bubble">{msg.content}</div>
+              <div className="bubble">{renderStickerContent(msg.content)}</div>
             ) : null}
           </>
         )}
@@ -673,7 +720,7 @@ function App() {
       role: 'user', content: input,
       images: pendingImages.length > 0 ? pendingImages : undefined,
       created_at: new Date().toISOString(), reply_to: replyTo?.id || null,
-      reply_preview: replyTo ? `${replyTo.role === 'user' ? '我' : (profile.aiName || '裴拟')}: ${replyTo.content.slice(0, 40)}` : null
+      reply_preview: replyTo ? `${replyTo.role === 'user' ? '我' : (profile.aiName || '裴拟')}: ${getReplyPreview(replyTo)}` : null
     };
     setMessages(prev => [...prev, userMsg]);
     const sentInput = input;
@@ -696,7 +743,9 @@ function App() {
     if (ttsConfig.apiKey) {
       chatBody.tts_config = {
         apiKey: ttsConfig.apiKey,
-        voiceId: ttsConfig.voiceId || 'male-qn-qingse',
+        voiceId: ttsConfig.customVoiceId || ttsConfig.voiceId || 'male-qn-qingse',
+        customVoiceId: ttsConfig.customVoiceId || '',
+        groupId: ttsConfig.groupId || '',
         speed: ttsConfig.speed || 1.0,
         model: ttsConfig.model || 'speech-02-hd'
       };
@@ -975,7 +1024,11 @@ function App() {
 
         {/* 回到底部按钮 */}
         {showScrollBtn && (
-          <button className="scroll-bottom-btn" onClick={scrollToBottom}>↓</button>
+          <button className="scroll-bottom-btn" onClick={scrollToBottom} aria-label="回到底部">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="6 10 12 16 18 10" />
+            </svg>
+          </button>
         )}
 
         {/* 表情包选择器 */}
@@ -1018,7 +1071,7 @@ function App() {
             </div>
           </div>
         )}
-        <input ref={fileInputRef} type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={onImageSelect} />
+        <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/gif,image/webp,image/*" multiple style={{ display: 'none' }} onChange={onImageSelect} />
 
         {/* 待发送图片预览 */}
         {pendingImages.length > 0 && (
@@ -1037,7 +1090,7 @@ function App() {
           <div className="reply-bar">
             <div className="reply-bar-content">
               <span className="reply-bar-name">{replyTo.role === 'user' ? '我' : (profile.aiName || '裴拟')}</span>
-              <span className="reply-bar-text">: {replyTo.content?.slice(0, 60) || (replyTo.images?.length ? `[图片]` : '')}</span>
+              <span className="reply-bar-text">: {getReplyPreview(replyTo)}</span>
             </div>
             <button className="reply-bar-close" onClick={() => setReplyTo(null)}>×</button>
           </div>
@@ -1046,7 +1099,14 @@ function App() {
         {/* 输入区 */}
         <div className="input-area">
           <div className="input-wrapper">
-            <button className="sticker-btn" onClick={() => { setShowStickerPicker(!showStickerPicker); setShowToolbar(false); }}>😊</button>
+            <button className="sticker-btn" onClick={() => { setShowStickerPicker(!showStickerPicker); setShowToolbar(false); }} aria-label="表情包">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10" />
+                <path d="M8 14.5c1.5 1.8 4.5 1.8 6 0" />
+                <circle cx="9" cy="10" r="1.2" fill="currentColor" stroke="none" />
+                <circle cx="15" cy="10" r="1.2" fill="currentColor" stroke="none" />
+              </svg>
+            </button>
             <textarea
               ref={textareaRef}
               value={input}
@@ -1120,10 +1180,18 @@ function App() {
                 <input type="password" value={ttsConfig.apiKey || ''} onChange={(e) => setTtsConfig({ ...ttsConfig, apiKey: e.target.value })} placeholder="在 minimax.io 注册获取" />
               </div>
               <div className="modal-field">
-                <label>音色</label>
+                <label>音色预设</label>
                 <select value={ttsConfig.voiceId || 'male-qn-qingse'} onChange={(e) => setTtsConfig({ ...ttsConfig, voiceId: e.target.value })}>
                   {miniMaxVoices.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
                 </select>
+              </div>
+              <div className="modal-field">
+                <label>自定义 Voice ID（优先于预设）</label>
+                <input type="text" value={ttsConfig.customVoiceId || ''} onChange={(e) => setTtsConfig({ ...ttsConfig, customVoiceId: e.target.value })} placeholder="填写后优先使用此 voice_id" />
+              </div>
+              <div className="modal-field">
+                <label>Group ID（部分 MiniMax 账号需要）</label>
+                <input type="text" value={ttsConfig.groupId || ''} onChange={(e) => setTtsConfig({ ...ttsConfig, groupId: e.target.value })} placeholder="如需要 group_id 请填写" />
               </div>
               <div className="modal-field">
                 <label>语速: {ttsConfig.speed || 1.0}</label>
