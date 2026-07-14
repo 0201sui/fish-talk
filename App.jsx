@@ -358,6 +358,23 @@ function VoiceMessage({ voice, isUser, isPlaying, onPlay }) {
   );
 }
 
+// ===== 桌宠自动抠图（客户端，@imgly/background-removal，动态加载，失败回退原图）=====
+const removeBackgroundDataUrl = async (src) => {
+  try {
+    const { removeBackground } = await import('@imgly/background-removal');
+    const blob = await removeBackground(src, { output: { format: 'image/png' } });
+    return await new Promise((resolve, reject) => {
+      const r = new FileReader();
+      r.onload = () => resolve(r.result);
+      r.onerror = () => reject(new Error('read failed'));
+      r.readAsDataURL(blob);
+    });
+  } catch (e) {
+    console.warn('桌宠抠图失败，使用原图：', e);
+    return null;
+  }
+};
+
 // ===== 迷你音乐播放条（AI 放歌 / 后台播放时显示在输入框上方）=====
 function FloatingMusicPlayer({ song, onToggle, onSeek, onClose, onOpen, onPrev, onNext, repeatMode, onCycleRepeat }) {
   const formatTime = (sec) => {
@@ -382,7 +399,7 @@ function FloatingMusicPlayer({ song, onToggle, onSeek, onClose, onOpen, onPrev, 
 
   const [mode, setMode] = useState('ball'); // 'ball' | 'bar' | 'lyrics'
   const LINE_H = 24; // 单行歌词高度（需与 CSS .music-lyrics-line 一致）
-  const WIN_H = 96;  // 歌词窗口高度（需与 CSS .music-lyrics-window 一致）
+  const WIN_H = 56;  // 歌词窗口高度（约 2 行，需与 CSS .music-lyrics-window 一致）
   const [pos, setPos] = useState({ right: 16, bottom: 96 });
   const dragState = useRef(null);
   const movedRef = useRef(false);
@@ -709,8 +726,13 @@ function App() {
   });
   const [ttsConfig, setTtsConfig] = useState(() => { try { return JSON.parse(localStorage.getItem('ttsConfig') || '{}'); } catch { return {}; } });
   const [petSettings, setPetSettings] = useState({ image: localStorage.getItem('petImage') || '', size: parseInt(localStorage.getItem('petSize') || '40') });
-  const [petImages, setPetImages] = useState([]); // 桌宠图片库（后端持久化，刷新不丢）
+  const [petImages, setPetImages] = useState(() => {
+    try { const s = JSON.parse(localStorage.getItem('petImages') || '[]'); return Array.isArray(s) ? s : []; } catch { return []; }
+  }); // 桌宠图片库（localStorage + 后端双持久化，刷新不丢；并随聊天请求发给 AI）
   const petLibFileRef = useRef(null); // 设置页图片库上传
+  const [petCutoutLoading, setPetCutoutLoading] = useState(false); // 桌宠抠图中
+  const petImagesRef = useRef(petImages);
+  useEffect(() => { petImagesRef.current = petImages; }, [petImages]);
 
   // ===== 音乐播放（App 统一管理的播放器，AI 也能触发放歌）=====
   const musicAudioRef = useRef(null);
@@ -823,7 +845,10 @@ function App() {
       const data = await res.json();
       if (data.data) {
         setProfile(data.data);
-        if (Array.isArray(data.data.petImages)) setPetImages(data.data.petImages);
+        if (Array.isArray(data.data.petImages) && data.data.petImages.length > 0) {
+          setPetImages(data.data.petImages);
+          try { localStorage.setItem('petImages', JSON.stringify(data.data.petImages)); } catch (e) {}
+        } // 若后端为空（Render 实例重启丢失），保留 localStorage 中的本地副本
         if (data.data.petImage) {
           setPetSettings(prev => ({ ...prev, image: data.data.petImage }));
           localStorage.setItem('petImage', data.data.petImage);
@@ -882,6 +907,12 @@ function App() {
   const savePetImages = async (next) => {
     try { await fetch(`${API_URL}/profile`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ petImages: next }) }); } catch (e) {}
   };
+  // localStorage + 后端双持久化，确保刷新/重进都不丢
+  const persistPetImages = (next) => {
+    setPetImages(next);
+    try { localStorage.setItem('petImages', JSON.stringify(next)); } catch (e) {}
+    savePetImages(next);
+  };
     const addPetImage = (file) => {
     if (!file) return;
     if (file.size > 5 * 1024 * 1024) { alert('图片不能超过5MB'); return; }
@@ -896,21 +927,45 @@ function App() {
         let dataUrl;
         try { const canvas = document.createElement('canvas'); canvas.width = width; canvas.height = height; canvas.getContext('2d').drawImage(img, 0, 0, width, height); dataUrl = canvas.toDataURL('image/jpeg', 0.85); } catch (e) { dataUrl = reader.result; }
         const newPet = { id: 'pet_' + Date.now() + Math.random().toString(36).slice(2, 6), name: file.name || '图片', url: dataUrl };
-        const next = [...petImages, newPet];
-        setPetImages(next); savePetImages(next);
+        // 自动抠图：去掉背景与边框，失败则保留原图
+        setPetCutoutLoading(true);
+        removeBackgroundDataUrl(dataUrl).then(cut => {
+          if (cut) newPet.url = cut;
+          const next = [...petImagesRef.current, newPet];
+          persistPetImages(next);
+          setPetCutoutLoading(false);
+        }).catch(() => {
+          const next = [...petImagesRef.current, newPet];
+          persistPetImages(next);
+          setPetCutoutLoading(false);
+        });
       };
       img.onerror = () => {
         const newPet = { id: 'pet_' + Date.now() + Math.random().toString(36).slice(2, 6), name: file.name || '图片', url: reader.result };
-        const next = [...petImages, newPet]; setPetImages(next); savePetImages(next);
+        persistPetImages([...petImagesRef.current, newPet]);
       };
       img.src = reader.result;
     };
     reader.readAsDataURL(file);
   };
+  // 重新抠图（针对已上传、但仍是带背景的照片）
+  const recutPet = async (p) => {
+    if (!p || !p.url) return;
+    setPetCutoutLoading(true);
+    try {
+      const cut = await removeBackgroundDataUrl(p.url);
+      if (cut) {
+        const next = petImagesRef.current.map(x => x.id === p.id ? { ...x, url: cut } : x);
+        persistPetImages(next);
+        if (petSettings.image === p.url) handlePetImageChange(cut);
+      }
+    } catch (e) { /* 失败则保持原样 */ }
+    setPetCutoutLoading(false);
+  };
   const removePetImage = (id) => {
     const target = petImages.find(p => p.id === id);
     const next = petImages.filter(p => p.id !== id);
-    setPetImages(next); savePetImages(next);
+    persistPetImages(next);
     if (target && target.url === petSettings.image) handlePetImageChange('');
   };
 
@@ -940,6 +995,8 @@ function App() {
     if (musicInfo) chatBody.music_info = musicInfo;
     // 表情包含义（供 AI 理解用户发的表情包）
     chatBody.sticker_meanings = stickers;
+    // 桌宠图片库（随请求发给 AI，确保它总能看到最新上传，可自主更换）
+    chatBody.pet_images = petImages;
     if (ttsConfig.apiKey) {
       chatBody.tts_config = { apiKey: ttsConfig.apiKey, voiceId: ttsConfig.customVoiceId || ttsConfig.voiceId || 'male-qn-qingse', customVoiceId: ttsConfig.customVoiceId || '', groupId: ttsConfig.groupId || '', speed: ttsConfig.speed || 1.0, model: ttsConfig.model || 'speech-02-hd' };
     }
@@ -1015,7 +1072,8 @@ function App() {
     const sentFiles = [...pendingFiles];
     setInput(''); inputRef.current = ''; setPendingImages([]); setPendingFiles([]);
     setReplyTo(null); setShowToolbar(false);
-    if (textareaRef.current) { textareaRef.current.style.height = 'auto'; textareaRef.current.blur(); }
+    // 发送后保持输入框聚焦与键盘常开，方便连续输入（不再自动收起键盘）
+    if (textareaRef.current) { textareaRef.current.style.height = 'auto'; }
 
     // 只保存消息，不触发AI
     try {
@@ -1051,6 +1109,8 @@ function App() {
     if (musicInfo) chatBody.music_info = musicInfo;
     // 表情包含义（供 AI 理解用户发的表情包）
     chatBody.sticker_meanings = stickers;
+    // 桌宠图片库（随请求发给 AI，确保它总能看到最新上传，可自主更换）
+    chatBody.pet_images = petImages;
     if (ttsConfig.apiKey) {
       chatBody.tts_config = { apiKey: ttsConfig.apiKey, voiceId: ttsConfig.customVoiceId || ttsConfig.voiceId || 'male-qn-qingse', customVoiceId: ttsConfig.customVoiceId || '', groupId: ttsConfig.groupId || '', speed: ttsConfig.speed || 1.0, model: ttsConfig.model || 'speech-02-hd' };
     }
@@ -1079,7 +1139,7 @@ function App() {
           try {
             const data = JSON.parse(trimmed.slice(6));
             if (data.type === 'searching') { setTypingStatus('正在留下足迹……'); }
-            else if (data.type === 'delta') { fullText += data.content; setTypingStatus('正在留下足迹……'); }
+            else if (data.type === 'delta') { fullText += data.content; setTypingStatus(''); setStreamingText(stripStreamingTags(fullText)); }
             else if (data.type === 'done') { usage = data.usage; }
             else if (data.type === 'error') { fullText = '抱歉，出了点问题: ' + (data.error || '未知错误'); setTypingStatus(''); }
           } catch (e) {}
@@ -1095,18 +1155,12 @@ function App() {
       const actCommands = [];
       let cleanText = fullText.replace(MUSIC_RE, (m, kw) => { const t = (kw || '').trim(); if (t) musicKeywords.push(t); return ''; });
       cleanText = cleanText.replace(ACT_RE, (m, a) => { const t = (a || '').trim(); if (t) actCommands.push(t); return ''; });
-      // 工具调用 / 流式阶段不展示中间文本，拿到最终结果后用打字机揭示干净文本
+      // 流式阶段已实时展示干净文本（不含工具名）；结束直接落为一条气泡，不再先打字机再按段拆分
+      setLoading(false);
+      setPendingCount(0);
+      abortControllerRef.current = null;
       if (cleanText.trim()) {
-        await new Promise(res => startTypingEffect(cleanText, res));
-      }
-      setStreamingText('');
-      setTypingStatus('');
-      if (cleanText.trim()) {
-        const parts = cleanText.trim().split(/\n\n+/).map(p => p.trim()).filter(Boolean);
-        for (let i = 0; i < parts.length; i++) {
-          if (i > 0) await new Promise(r => setTimeout(r, 300));
-          setMessages(prev => [...prev, { id: genId(), role: 'assistant', content: parts[i], created_at: new Date().toISOString(), usage: i === parts.length - 1 ? usage : null }]);
-        }
+        setMessages(prev => [...prev, { id: genId(), role: 'assistant', content: cleanText.trim(), created_at: new Date().toISOString(), usage }]);
       }
       // 让 AI 主动为用户放歌
       musicKeywords.forEach(kw => playMusicByKeyword(kw));
@@ -1173,7 +1227,7 @@ function App() {
           try {
             const data = JSON.parse(trimmed.slice(6));
             if (data.type === 'searching') { setTypingStatus('正在留下足迹……'); }
-            else if (data.type === 'delta') { fullText += data.content; setTypingStatus('正在留下足迹……'); }
+            else if (data.type === 'delta') { fullText += data.content; setTypingStatus(''); setStreamingText(stripStreamingTags(fullText)); }
             else if (data.type === 'done') { usage = data.usage; }
             else if (data.type === 'error') { fullText = '抱歉，出了点问题: ' + (data.error || '未知错误'); setTypingStatus(''); }
           } catch (e) {}
@@ -1189,18 +1243,12 @@ function App() {
       const actCommands = [];
       let cleanText = fullText.replace(MUSIC_RE, (m, kw) => { const t = (kw || '').trim(); if (t) musicKeywords.push(t); return ''; });
       cleanText = cleanText.replace(ACT_RE, (m, a) => { const t = (a || '').trim(); if (t) actCommands.push(t); return ''; });
-      // 工具调用 / 流式阶段不展示中间文本，拿到最终结果后用打字机揭示干净文本
+      // 流式阶段已实时展示干净文本（不含工具名）；结束直接落为一条气泡，不再先打字机再按段拆分
+      setLoading(false);
+      setPendingCount(0);
+      abortControllerRef.current = null;
       if (cleanText.trim()) {
-        await new Promise(res => startTypingEffect(cleanText, res));
-      }
-      setStreamingText('');
-      setTypingStatus('');
-      if (cleanText.trim()) {
-        const parts = cleanText.trim().split(/\n\n+/).map(p => p.trim()).filter(Boolean);
-        for (let i = 0; i < parts.length; i++) {
-          if (i > 0) await new Promise(r => setTimeout(r, 300));
-          setMessages(prev => [...prev, { id: genId(), role: 'assistant', content: parts[i], created_at: new Date().toISOString(), usage: i === parts.length - 1 ? usage : null }]);
-        }
+        setMessages(prev => [...prev, { id: genId(), role: 'assistant', content: cleanText.trim(), created_at: new Date().toISOString(), usage }]);
       }
       // 让 AI 主动为用户放歌
       musicKeywords.forEach(kw => playMusicByKeyword(kw));
@@ -2063,13 +2111,14 @@ function App() {
               <div className="settings-section">
                 <h3 className="settings-section-title">桌宠图片库</h3>
                 <div className="pet-library">
-                  <div className="pet-lib-upload-tile" onClick={() => petLibFileRef.current?.click()} title="上传桌宠图片">
+                  <div className="pet-lib-upload-tile" onClick={() => petLibFileRef.current?.click()} title="上传桌宠图片（自动抠背景）">
                     <span className="pet-lib-plus">＋</span>
-                    <span className="pet-lib-upload-text">上传图片</span>
+                    <span className="pet-lib-upload-text">{petCutoutLoading ? '抠图中…' : '上传图片'}</span>
                   </div>
                   {petImages.map(p => (
                     <div key={p.id} className={`pet-lib-item ${petSettings.image === p.url ? 'active' : ''}`} onClick={() => selectPet(p)}>
                       <img src={p.url} alt={p.name || '桌宠'} />
+                      <button className="pet-lib-recut" onClick={(e) => { e.stopPropagation(); recutPet(p); }} title="重新抠图" disabled={petCutoutLoading}>🔄</button>
                       <button className="pet-lib-del" onClick={(e) => { e.stopPropagation(); removePetImage(p.id); }}>×</button>
                       {petSettings.image === p.url && <span className="pet-lib-badge">使用中</span>}
                     </div>
