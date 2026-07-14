@@ -13,6 +13,10 @@ const API_URL = (typeof window !== 'undefined' && window.location.hostname === '
   ? 'http://localhost:3000'
   : 'https://my-home-backend-9j56.onrender.com';
 
+// 音乐直连 GD Studio API（用户浏览器在国内可直连，且服务端返回 CORS *；
+// 后端 Render 美国机房会被 Cloudflare 拦 403，所以音乐走前端直连最稳）
+const GD_MUSIC_API = 'https://music-api.gdstudio.xyz/api.php';
+
 // 本地聊天记录缓存（防止刷新 / 重进网址后丢失记录）
 const SESSION_KEY = 'fishtalk_current_session';
 const MSG_CACHE_PREFIX = 'fishtalk_msgs_';
@@ -1484,27 +1488,50 @@ function App() {
       duration: song.duration ? Math.round(song.duration / 1000) : 0
     });
     try {
-      const detailResp = await fetch(`${API_URL}/music/detail/${song.id}${song.pic_id ? `?pic_id=${encodeURIComponent(song.pic_id)}` : ''}`);
-      const detailData = await detailResp.json();
-      if (detailData.success) {
-        setNowPlaying(prev => prev ? { ...prev, cover: detailData.data.cover || '', duration: Math.round((detailData.data.duration || 0) / 1000) } : prev);
+      // 1) 封面（GD Studio 直连；需要 pic_id）
+      let coverUrl = '';
+      if (song.pic_id) {
+        try {
+          const pr = await fetch(`${GD_MUSIC_API}?types=pic&source=netease&id=${encodeURIComponent(song.pic_id)}&size=300`);
+          const pd = await pr.json();
+          coverUrl = pd.url || '';
+          if (coverUrl) setNowPlaying(prev => prev ? { ...prev, cover: coverUrl } : prev);
+        } catch (e) {}
       }
-      const lyricResp = await fetch(`${API_URL}/music/lyric/${song.id}`);
-      const lyricData = await lyricResp.json();
-      if (lyricData.success && lyricData.lyric) {
-        setNowPlaying(prev => prev ? { ...prev, lyric: lyricData.lyric } : prev);
+      // 2) 歌词（GD Studio 直连）
+      try {
+        const lr = await fetch(`${GD_MUSIC_API}?types=lyric&source=netease&id=${encodeURIComponent(song.lyric_id || song.id)}`);
+        const ld = await lr.json();
+        if (ld && ld.lyric) setNowPlaying(prev => prev ? { ...prev, lyric: ld.lyric } : prev);
+      } catch (e) {}
+      // 3) 播放地址（GD Studio 直连，返回可直接播放的网易云 CDN 地址）
+      let playUrl = '';
+      try {
+        const ur = await fetch(`${GD_MUSIC_API}?types=url&source=netease&id=${encodeURIComponent(song.id)}&br=320`);
+        const ud = await ur.json();
+        if (ud && ud.url) playUrl = ud.url;
+        if (!playUrl) {
+          const ur2 = await fetch(`${GD_MUSIC_API}?types=url&source=netease&id=${encodeURIComponent(song.id)}&br=128`);
+          const ud2 = await ur2.json();
+          if (ud2 && ud2.url) playUrl = ud2.url;
+        }
+      } catch (e) {}
+      // 兜底：后端代理（万一前端环境无法直连 GD Studio）
+      if (!playUrl) {
+        try {
+          const urlResp = await fetch(`${API_URL}/music/url/${song.id}`);
+          const urlData = await urlResp.json();
+          if (urlData.success && urlData.url) playUrl = urlData.url;
+        } catch (e) {}
       }
-      const urlResp = await fetch(`${API_URL}/music/url/${song.id}`);
-      const urlData = await urlResp.json();
-      if (urlData.success && urlData.url) {
-        const coverUrl = (detailData && detailData.data && detailData.data.cover) || '';
+      if (playUrl) {
         setupMediaSession({ name: song.name, artist: song.artist, album: song.album || '', cover: coverUrl });
         if ('mediaSession' in navigator) { try { navigator.mediaSession.playbackState = 'playing'; } catch (e) {} }
-        audio.src = urlData.url;
+        audio.src = playUrl;
         audio.play().then(() => {
-          setNowPlaying(prev => prev ? { ...prev, isPlaying: true, url: urlData.url } : prev);
+          setNowPlaying(prev => prev ? { ...prev, isPlaying: true, url: playUrl } : prev);
         }).catch(() => {
-          setNowPlaying(prev => prev ? { ...prev, isPlaying: false, url: urlData.url } : prev);
+          setNowPlaying(prev => prev ? { ...prev, isPlaying: false, url: playUrl } : prev);
         });
       } else {
         setNowPlaying(prev => prev ? { ...prev, isPlaying: false } : prev);
@@ -1523,24 +1550,44 @@ function App() {
     const segs = keyword.split(/[\s\-—,，·|/]+/).map(s => s.trim()).filter(Boolean);
     const candidates = [];
     const seen = new Set();
+    // 归一化 GD Studio / 后端 两种返回结构
+    const normalize = (s) => ({
+      id: String(s.id),
+      name: s.name || s.title || '',
+      artist: Array.isArray(s.artist) ? s.artist.join(' / ') : (s.artist || ''),
+      album: s.album || '',
+      pic_id: s.pic_id || '',
+      lyric_id: s.lyric_id || s.id,
+      duration: s.duration || 0
+    });
+    const collect = (arr) => {
+      for (const raw of (arr || []).slice(0, 10)) {
+        const s = normalize(raw);
+        if (!s.id || !s.name) continue;
+        const hay = (s.name + ' ' + s.artist).toLowerCase();
+        let score = 0;
+        for (const seg of segs) { if (seg && hay.includes(seg.toLowerCase())) score++; }
+        if (seen.has(s.id)) {
+          const ex = candidates.find(c => c.song.id === s.id);
+          if (ex && score > ex.score) ex.score = score;
+        } else { seen.add(s.id); candidates.push({ song: s, score }); }
+      }
+    };
     const doSearch = async (kw) => {
+      // 优先前端直连 GD Studio（用户浏览器国内可直连；后端 Render 被 Cloudflare 拦）
+      try {
+        const resp = await fetch(`${GD_MUSIC_API}?types=search&source=netease&name=${encodeURIComponent(kw)}&count=15&pages=1`);
+        const data = await resp.json();
+        if (Array.isArray(data) && data.length > 0) { collect(data); return; }
+      } catch (e) { /* 直连失败则走后端兜底 */ }
+      // 兜底：后端代理
       try {
         const resp = await fetch(`${API_URL}/music/search`, {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ keyword: kw })
         });
         const data = await resp.json();
-        if (data.success && data.songs) {
-          for (const s of data.songs.slice(0, 10)) {
-            const hay = ((s.name || '') + ' ' + (s.artist || '')).toLowerCase();
-            let score = 0;
-            for (const seg of segs) { if (seg && hay.includes(seg.toLowerCase())) score++; }
-            if (seen.has(s.id)) {
-              const ex = candidates.find(c => c.song.id === s.id);
-              if (ex && score > ex.score) ex.score = score;
-            } else { seen.add(s.id); candidates.push({ song: s, score }); }
-          }
-        }
+        if (data.success && data.songs) collect(data.songs);
       } catch (e) { /* ignore */ }
     };
     await doSearch(keyword.trim());
