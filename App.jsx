@@ -440,7 +440,13 @@ function FloatingMusicPlayer({ song, onToggle, onSeek, onClose, onOpen, onPrev, 
         <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor"><path d="M16 5h2v14h-2zM4 5v14l11-7z" /></svg>
       </button>
       <button className={`mini-music-loop ${repeatMode === 'one' ? 'one' : repeatMode === 'all' ? 'all' : ''}`} onClick={(e) => { e.stopPropagation(); onCycleRepeat && onCycleRepeat(); }} aria-label="循环模式" title={repeatMode === 'one' ? '单曲循环' : repeatMode === 'all' ? '列表循环' : '不循环'}>
-        {repeatMode === 'one' ? '🔂' : '🔁'}
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M17 2l4 4-4 4" />
+          <path d="M3 11V9a4 4 0 0 1 4-4h14" />
+          <path d="M7 22l-4-4 4-4" />
+          <path d="M21 13v2a4 4 0 0 1-4 4H3" />
+        </svg>
+        {repeatMode === 'one' && <span className="loop-one-badge">1</span>}
       </button>
       {onOpen && (
         <button className="mini-music-expand" onClick={(e) => { e.stopPropagation(); onOpen(); }} aria-label="打开播放器" title="打开完整播放器">⤢</button>
@@ -626,19 +632,27 @@ function App() {
   }, [theme]);
 
   const stickToBottomRef = useRef(true);
+  const lastScrollRef = useRef(0);
 
-  const scrollToBottom = useCallback((behavior = 'auto') => {
+  // 直接赋值 scrollTop 最可靠；节流避免流式输出时每帧都触发滚动抖动
+  const scrollToBottom = useCallback((force = false) => {
     const el = messagesAreaRef.current;
     if (!el) return;
-    requestAnimationFrame(() => {
-      const t = messagesAreaRef.current;
-      if (t) t.scrollTo({ top: t.scrollHeight, behavior });
-    });
+    const now = Date.now();
+    if (!force && now - (lastScrollRef.current || 0) < 90) return;
+    lastScrollRef.current = now;
+    el.scrollTop = el.scrollHeight;
   }, []);
 
+  // 新消息 / 加载状态变化 → 强制滚到底部
   useEffect(() => {
-    if (stickToBottomRef.current) scrollToBottom('auto');
-  }, [messages, loading, streamingText, scrollToBottom]);
+    if (stickToBottomRef.current) scrollToBottom(true);
+  }, [messages, loading, scrollToBottom]);
+
+  // 流式输出过程中 → 节流跟随（保持贴底，但不抢用户上滑浏览历史）
+  useEffect(() => {
+    if (stickToBottomRef.current) scrollToBottom(false);
+  }, [streamingText, scrollToBottom]);
 
   useEffect(() => {
     if (showSplash) { sessionStorage.setItem('splashed', '1'); const timer = setTimeout(() => setShowSplash(false), 4400); return () => clearTimeout(timer); }
@@ -765,7 +779,7 @@ function App() {
     const charsPerTick = Math.max(1, Math.ceil(totalLen / 200));
     typingTimerRef.current = setInterval(() => {
       displayLen = Math.min(displayLen + charsPerTick, totalLen);
-      setStreamingText(stripCmdTags(fullText.slice(0, displayLen)));
+      setStreamingText(stripStreamingTags(fullText.slice(0, displayLen)));
       if (displayLen >= totalLen) {
         clearInterval(typingTimerRef.current);
         typingTimerRef.current = null;
@@ -1014,7 +1028,13 @@ function App() {
     if (ta) { ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight, 110) + 'px'; }
   };
 
-  const onScroll = () => { if (messagesAreaRef.current) { const { scrollTop, scrollHeight, clientHeight } = messagesAreaRef.current; setShowScrollBtn(scrollHeight - scrollTop - clientHeight > 200); } };
+  const onScroll = () => {
+    const el = messagesAreaRef.current;
+    if (!el) return;
+    const distance = el.scrollHeight - el.scrollTop - el.clientHeight;
+    setShowScrollBtn(distance > 200);
+    stickToBottomRef.current = distance < 120; // 贴近底部才自动跟随，上滑看历史时不打扰
+  };
   const onQuote = (msg) => { setReplyTo(msg); if (textareaRef.current) textareaRef.current.focus(); };
   const onCopy = (msg) => { navigator.clipboard.writeText(msg.content || ''); };
   const onRead = useCallback((id) => { setReadSet(prev => { if (prev.has(id)) return prev; const n = new Set(prev); n.add(id); return n; }); }, []);
@@ -1316,10 +1336,19 @@ function App() {
     }
   }, [nowPlaying]);
 
-  // 隐藏 AI 指令标记（[music] / [act]），仅用于展示
+  // 隐藏 AI 指令标记（[music] / [act] / [voice]），仅用于展示
   const stripCmdTags = (text) => {
     if (!text) return text;
     return text.replace(/\[music\]([\s\S]*?)\[\/music\]/g, '').replace(/\[act\]([\s\S]*?)\[\/act\]/g, '').replace(/\[voice\]([\s\S]*?)\[\/voice\]/g, '');
+  };
+
+  // 流式显示专用：在 stripCmdTags 基础上，顺手清掉"还没闭合"的标签片段
+  // （例如流式刚吐出 "[voice" 或 "[act]theme:oce" 时，整段先不显示，避免气泡里闪英文/括号）
+  const stripStreamingTags = (text) => {
+    if (!text) return text;
+    let t = text.replace(/\[(?:music|act|voice|quote)\]([\s\S]*?)\[\/(?:music|act|voice|quote)\]/g, '');
+    t = t.replace(/\[(?:music|act|voice|quote)(?:[^\]]*\]$|[^\]]*$)/g, '');
+    return t;
   };
 
   // 把 AI 设置的简介字段持久化
@@ -1527,7 +1556,7 @@ function App() {
           {loading && streamingText ? (
             <div className="message assistant">
               <div className="message-inner">
-                <div className="bubble markdown-body"><MarkdownContent content={streamingText} /></div>
+                <div className="bubble streaming-bubble">{streamingText}</div>
                 <div className="msg-meta">
                   <span className="streaming-indicator">
                     <span className="streaming-dot"></span>
@@ -1557,7 +1586,7 @@ function App() {
 
         {/* 回到底部按钮 */}
         {showScrollBtn && (
-          <button className="scroll-bottom-btn" onClick={scrollToBottom} aria-label="回到底部">
+          <button className="scroll-bottom-btn" onClick={() => scrollToBottom(true)} aria-label="回到底部">
             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 10 12 16 18 10" /></svg>
           </button>
         )}
