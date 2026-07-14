@@ -369,7 +369,7 @@ function VoiceMessage({ voice, isUser, isPlaying, onPlay }) {
   );
 }
 
-// ===== 桌宠自动抠图（客户端，@imgly/background-removal，动态加载，失败回退原图）=====
+// ===== 桌宠智能抠图（客户端，@imgly/background-removal，动态加载，失败回退原图）=====
 const removeBackgroundDataUrl = async (src) => {
   try {
     const { removeBackground } = await import('@imgly/background-removal');
@@ -1014,19 +1014,8 @@ function App() {
         let dataUrl;
         try { const canvas = document.createElement('canvas'); canvas.width = width; canvas.height = height; canvas.getContext('2d').drawImage(img, 0, 0, width, height); dataUrl = canvas.toDataURL('image/jpeg', 0.85); } catch (e) { dataUrl = reader.result; }
         const newPet = { id: 'pet_' + Date.now() + Math.random().toString(36).slice(2, 6), name: file.name || '图片', url: dataUrl };
-        // 自动抠图：去掉背景与边框，失败则保留原图
-        setPetCutoutLoading(true);
-        removeBackgroundDataUrl(dataUrl).then(async (cut) => {
-          newPet.url = await cleanupPetImage(cut || dataUrl); // 抠图后清理边缘/去原图边框
-          const next = [...petImagesRef.current, newPet];
-          persistPetImages(next);
-          setPetCutoutLoading(false);
-        }).catch(async () => {
-          newPet.url = await cleanupPetImage(dataUrl);
-          const next = [...petImagesRef.current, newPet];
-          persistPetImages(next);
-          setPetCutoutLoading(false);
-        });
+        // 不再自动抠图：先以原图存入图片库，让用户在图片库中手动点击"智能抠图"
+        persistPetImages([...petImagesRef.current, newPet]);
       };
       img.onerror = () => {
         const newPet = { id: 'pet_' + Date.now() + Math.random().toString(36).slice(2, 6), name: file.name || '图片', url: reader.result };
@@ -1434,9 +1423,9 @@ function App() {
   const onCopy = (msg) => { navigator.clipboard.writeText(msg.content || ''); };
   const onRead = useCallback((id) => { setReadSet(prev => { if (prev.has(id)) return prev; const n = new Set(prev); n.add(id); return n; }); }, []);
   const onEdit = (msg) => { setEditingId(msg.id); setEditContent(msg.content); };
-  const onDelete = async (msg) => { if (!confirm('确定删除这条消息吗？')) return; try { await fetch(`${API_URL}/messages/${msg.id}`, { method: 'DELETE' }); setMessages(prev => prev.filter(m => m.id !== msg.id)); } catch (err) { console.error('删除失败:', err); } };
+  const onDelete = async (msg) => { if (!confirm('确定删除这条消息吗？')) return; try { await fetch(`${API_URL}/messages/${msg.id}`, { method: 'DELETE' }); setMessages(prev => prev.filter(m => m.id !== msg.id)); if (replyTo?.id === msg.id) setReplyTo(null); try { localStorage.removeItem(MSG_CACHE_PREFIX + currentSessionId); } catch (e) {} if (currentSessionId) fetchMessages(currentSessionId); } catch (err) { console.error('删除失败:', err); } };
   const saveEdit = async (msgId) => { try { await fetch(`${API_URL}/messages/${msgId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content: editContent }) }); setMessages(prev => prev.map(m => m.id === msgId ? { ...m, content: editContent, edited: true } : m)); setEditingId(null); } catch (err) { console.error('编辑失败:', err); } };
-  const onRecall = async (msg) => { if (!confirm('撤回这条消息？')) return; try { await fetch(`${API_URL}/messages/${msg.id}`, { method: 'DELETE' }); setMessages(prev => prev.map(m => m.id === msg.id ? { id: m.id, role: 'system', recall: true, recallText: m.role === 'user' ? '你撤回了一条消息' : (profile.aiName || 'ClaudeAI') + ' 撤回了一条消息' } : m)); } catch (err) { console.error('撤回失败:', err); } };
+  const onRecall = async (msg) => { if (!confirm('撤回这条消息？')) return; try { await fetch(`${API_URL}/messages/${msg.id}`, { method: 'DELETE' }); setMessages(prev => prev.filter(m => m.id !== msg.id)); if (replyTo?.id === msg.id) setReplyTo(null); try { localStorage.removeItem(MSG_CACHE_PREFIX + currentSessionId); } catch (e) {} if (currentSessionId) fetchMessages(currentSessionId); } catch (err) { console.error('撤回失败:', err); } };
 
   // ===== 多选操作 =====
   const toggleMsgSelection = (msgId) => {
@@ -1454,6 +1443,9 @@ function App() {
       try { await fetch(`${API_URL}/messages/${id}`, { method: 'DELETE' }); } catch (err) { console.error('删除失败:', err); }
     }
     setMessages(prev => prev.filter(m => !selectedMsgIds.has(m.id)));
+    setReplyTo(prev => (prev && selectedMsgIds.has(prev.id)) ? null : prev);
+    try { localStorage.removeItem(MSG_CACHE_PREFIX + currentSessionId); } catch (e) {}
+    if (currentSessionId) fetchMessages(currentSessionId);
     exitMultiSelect();
   };
   const forwardSelectedMessages = () => {
@@ -2306,14 +2298,14 @@ function App() {
               <div className="settings-section">
                 <h3 className="settings-section-title">桌宠图片库</h3>
                 <div className="pet-library">
-                  <div className="pet-lib-upload-tile" onClick={() => petLibFileRef.current?.click()} title="上传桌宠图片（自动抠背景）">
+                  <div className="pet-lib-upload-tile" onClick={() => petLibFileRef.current?.click()} title="上传桌宠图片（默认使用原图，可在图片库中手动抠图）">
                     <span className="pet-lib-plus">＋</span>
                     <span className="pet-lib-upload-text">{petCutoutLoading ? (<><span className="pet-cut-spinner" /> 抠图中…</>) : '上传图片'}</span>
                   </div>
                   {petImages.map(p => (
                     <div key={p.id} className={`pet-lib-item ${petSettings.image === p.url ? 'active' : ''}`} onClick={() => selectPet(p)}>
                       <img src={p.url} alt={p.name || '桌宠'} />
-                      <button className="pet-lib-recut" onClick={(e) => { e.stopPropagation(); recutPet(p); }} title="重新抠图" disabled={petCutoutLoading}><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36" /><polyline points="21 3 21 9 15 9" /></svg></button>
+                      <button className="pet-lib-recut" onClick={(e) => { e.stopPropagation(); recutPet(p); }} title="智能抠图" disabled={petCutoutLoading}><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36" /><polyline points="21 3 21 9 15 9" /></svg></button>
                       <button className="pet-lib-del" onClick={(e) => { e.stopPropagation(); removePetImage(p.id); }}>×</button>
                       {petSettings.image === p.url && <span className="pet-lib-badge">使用中</span>}
                     </div>
