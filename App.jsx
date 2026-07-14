@@ -1107,19 +1107,39 @@ function App() {
     setMusicInfo({ name: song.name, artist: song.artist, duration: song.duration ? Math.round(song.duration / 1000) + '秒' : null });
   };
 
-  // AI（或用户）按关键词搜歌并播放（取第一个结果）
+  // AI（或用户）按关键词搜歌并播放（智能匹配：按歌名/歌手片段打分取最佳）
   const playMusicByKeyword = async (keyword) => {
     if (!keyword || !keyword.trim()) return;
-    try {
-      const resp = await fetch(`${API_URL}/music/search`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ keyword: keyword.trim() })
-      });
-      const data = await resp.json();
-      if (data.success && data.songs && data.songs.length > 0) {
-        await playSong(data.songs[0]);
-      }
-    } catch (err) { console.error('AI 放歌搜索失败:', err); }
+    const segs = keyword.split(/[\s\-—,，·|/]+/).map(s => s.trim()).filter(Boolean);
+    const candidates = [];
+    const seen = new Set();
+    const doSearch = async (kw) => {
+      try {
+        const resp = await fetch(`${API_URL}/music/search`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ keyword: kw })
+        });
+        const data = await resp.json();
+        if (data.success && data.songs) {
+          for (const s of data.songs.slice(0, 10)) {
+            const hay = ((s.name || '') + ' ' + (s.artist || '')).toLowerCase();
+            let score = 0;
+            for (const seg of segs) { if (seg && hay.includes(seg.toLowerCase())) score++; }
+            if (seen.has(s.id)) {
+              const ex = candidates.find(c => c.song.id === s.id);
+              if (ex && score > ex.score) ex.score = score;
+            } else { seen.add(s.id); candidates.push({ song: s, score }); }
+          }
+        }
+      } catch (e) { /* ignore */ }
+    };
+    await doSearch(keyword.trim());
+    if (candidates.length === 0) {
+      for (const seg of segs) await doSearch(seg);
+    }
+    if (candidates.length === 0) return;
+    candidates.sort((a, b) => b.score - a.score);
+    await playSong(candidates[0].song);
   };
 
   const togglePlayMusic = () => {
