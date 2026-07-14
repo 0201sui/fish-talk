@@ -399,7 +399,7 @@ function FloatingMusicPlayer({ song, onToggle, onSeek, onClose, onOpen, onPrev, 
 
   const [mode, setMode] = useState('ball'); // 'ball' | 'bar' | 'lyrics'
   const LINE_H = 24; // 单行歌词高度（需与 CSS .music-lyrics-line 一致）
-  const WIN_H = 56;  // 歌词窗口高度（约 2 行，需与 CSS .music-lyrics-window 一致）
+  const WIN_H = 34;  // 歌词窗口高度（宽扁：约 1~1.5 行，需与 CSS .music-lyrics-window 一致）
   const [pos, setPos] = useState({ right: 16, bottom: 96 });
   const dragState = useRef(null);
   const movedRef = useRef(false);
@@ -973,6 +973,8 @@ function App() {
   const buildChatBody = (sentInput, sentImages, sentFiles, sessionId, isRegenerate = false) => {
     const activeApi = getActiveModel();
     const chatBody = { message: sentInput, session_id: sessionId, model };
+    // 用户引用的消息 id（供 AI 知道用户引用了哪句话）
+    if (!isRegenerate && replyTo && replyTo.id) chatBody.reply_to = replyTo.id;
     if (sentImages && sentImages.length > 0) chatBody.images = sentImages;
     if (sentFiles && sentFiles.length > 0) {
       chatBody.file_content = sentFiles.map(f => `--- ${f.name} ---\n${f.content}`).join('\n\n');
@@ -1126,6 +1128,7 @@ function App() {
       let buffer = '';
       let fullText = '';
       let usage = null;
+      let replies = null;
 
       while (true) {
         const { done, value } = await reader.read();
@@ -1140,7 +1143,7 @@ function App() {
             const data = JSON.parse(trimmed.slice(6));
             if (data.type === 'searching') { setTypingStatus('正在留下足迹……'); }
             else if (data.type === 'delta') { fullText += data.content; setTypingStatus(''); setStreamingText(stripStreamingTags(fullText)); }
-            else if (data.type === 'done') { usage = data.usage; }
+            else if (data.type === 'done') { usage = data.usage; replies = data.replies || null; }
             else if (data.type === 'error') { fullText = '抱歉，出了点问题: ' + (data.error || '未知错误'); setTypingStatus(''); }
           } catch (e) {}
         }
@@ -1148,19 +1151,41 @@ function App() {
       stopTypingEffect();
       setTypingStatus('');
       setStreamingText('');
-      // 提取 AI 给出的指令标记（[music] 放歌 / [act] 自我操作），都不显示给用户
-      const MUSIC_RE = /\[music\]([\s\S]*?)\[\/music\]/g;
-      const ACT_RE = /\[act\]([\s\S]*?)\[\/act\]/g;
-      const musicKeywords = [];
-      const actCommands = [];
-      let cleanText = fullText.replace(MUSIC_RE, (m, kw) => { const t = (kw || '').trim(); if (t) musicKeywords.push(t); return ''; });
-      cleanText = cleanText.replace(ACT_RE, (m, a) => { const t = (a || '').trim(); if (t) actCommands.push(t); return ''; });
-      // 流式阶段已实时展示干净文本（不含工具名）；结束直接落为一条气泡，不再先打字机再按段拆分
       setLoading(false);
       setPendingCount(0);
       abortControllerRef.current = null;
-      if (cleanText.trim()) {
-        setMessages(prev => [...prev, { id: genId(), role: 'assistant', content: cleanText.trim(), created_at: new Date().toISOString(), usage }]);
+      // 提取 AI 给出的指令标记（[music] 放歌 / [act] 自我操作），都不显示给用户
+      const musicKeywords = [];
+      const actCommands = [];
+      const stripActMusic = (s) => {
+        let t = (s || '');
+        t = t.replace(/\[music\]([\s\S]*?)\[\/music\]/g, (m, kw) => { const x = (kw || '').trim(); if (x) musicKeywords.push(x); return ''; });
+        t = t.replace(/\[act\]([\s\S]*?)\[\/act\]/g, (m, a) => { const x = (a || '').trim(); if (x) actCommands.push(x); return ''; });
+        return t.trim();
+      };
+      // 用后端返回的 replies 渲染消息：含语音（voice: 已在后端合成好音频）与引用（reply_role/reply_content/reply_to）
+      if (Array.isArray(replies) && replies.length > 0) {
+        const bubbles = [];
+        for (const r of replies) {
+          const b = { id: genId(), role: 'assistant', created_at: r.created_at || new Date().toISOString() };
+          b.content = stripActMusic(r.content || '');
+          if (r.voice && r.voice.audio) { b.voice = r.voice; }
+          else if (r.voice && r.voice.text && !b.content) { b.content = stripActMusic(r.voice.text); }
+          if (r.reply_role) b.reply_role = r.reply_role;
+          if (r.reply_content) b.reply_content = r.reply_content;
+          if (r.reply_to) b.reply_to = r.reply_to;
+          if ((b.content && b.content.length > 0) || b.voice) bubbles.push(b);
+        }
+        if (bubbles.length > 0) {
+          bubbles[bubbles.length - 1].usage = usage;
+          setMessages(prev => [...prev, ...bubbles]);
+        }
+      } else {
+        // 兜底：后端未返回 replies 时，用完整文本落一条气泡
+        const cleanText = stripActMusic(fullText);
+        if (cleanText) {
+          setMessages(prev => [...prev, { id: genId(), role: 'assistant', content: cleanText, created_at: new Date().toISOString(), usage }]);
+        }
       }
       // 让 AI 主动为用户放歌
       musicKeywords.forEach(kw => playMusicByKeyword(kw));
@@ -1214,6 +1239,7 @@ function App() {
       let buffer = '';
       let fullText = '';
       let usage = null;
+      let replies = null;
 
       while (true) {
         const { done, value } = await reader.read();
@@ -1228,7 +1254,7 @@ function App() {
             const data = JSON.parse(trimmed.slice(6));
             if (data.type === 'searching') { setTypingStatus('正在留下足迹……'); }
             else if (data.type === 'delta') { fullText += data.content; setTypingStatus(''); setStreamingText(stripStreamingTags(fullText)); }
-            else if (data.type === 'done') { usage = data.usage; }
+            else if (data.type === 'done') { usage = data.usage; replies = data.replies || null; }
             else if (data.type === 'error') { fullText = '抱歉，出了点问题: ' + (data.error || '未知错误'); setTypingStatus(''); }
           } catch (e) {}
         }
@@ -1236,19 +1262,41 @@ function App() {
       stopTypingEffect();
       setTypingStatus('');
       setStreamingText('');
-      // 提取 AI 给出的指令标记（[music] 放歌 / [act] 自我操作），都不显示给用户
-      const MUSIC_RE = /\[music\]([\s\S]*?)\[\/music\]/g;
-      const ACT_RE = /\[act\]([\s\S]*?)\[\/act\]/g;
-      const musicKeywords = [];
-      const actCommands = [];
-      let cleanText = fullText.replace(MUSIC_RE, (m, kw) => { const t = (kw || '').trim(); if (t) musicKeywords.push(t); return ''; });
-      cleanText = cleanText.replace(ACT_RE, (m, a) => { const t = (a || '').trim(); if (t) actCommands.push(t); return ''; });
-      // 流式阶段已实时展示干净文本（不含工具名）；结束直接落为一条气泡，不再先打字机再按段拆分
       setLoading(false);
       setPendingCount(0);
       abortControllerRef.current = null;
-      if (cleanText.trim()) {
-        setMessages(prev => [...prev, { id: genId(), role: 'assistant', content: cleanText.trim(), created_at: new Date().toISOString(), usage }]);
+      // 提取 AI 给出的指令标记（[music] 放歌 / [act] 自我操作），都不显示给用户
+      const musicKeywords = [];
+      const actCommands = [];
+      const stripActMusic = (s) => {
+        let t = (s || '');
+        t = t.replace(/\[music\]([\s\S]*?)\[\/music\]/g, (m, kw) => { const x = (kw || '').trim(); if (x) musicKeywords.push(x); return ''; });
+        t = t.replace(/\[act\]([\s\S]*?)\[\/act\]/g, (m, a) => { const x = (a || '').trim(); if (x) actCommands.push(x); return ''; });
+        return t.trim();
+      };
+      // 用后端返回的 replies 渲染消息：含语音（voice: 已在后端合成好音频）与引用（reply_role/reply_content/reply_to）
+      if (Array.isArray(replies) && replies.length > 0) {
+        const bubbles = [];
+        for (const r of replies) {
+          const b = { id: genId(), role: 'assistant', created_at: r.created_at || new Date().toISOString() };
+          b.content = stripActMusic(r.content || '');
+          if (r.voice && r.voice.audio) { b.voice = r.voice; }
+          else if (r.voice && r.voice.text && !b.content) { b.content = stripActMusic(r.voice.text); }
+          if (r.reply_role) b.reply_role = r.reply_role;
+          if (r.reply_content) b.reply_content = r.reply_content;
+          if (r.reply_to) b.reply_to = r.reply_to;
+          if ((b.content && b.content.length > 0) || b.voice) bubbles.push(b);
+        }
+        if (bubbles.length > 0) {
+          bubbles[bubbles.length - 1].usage = usage;
+          setMessages(prev => [...prev, ...bubbles]);
+        }
+      } else {
+        // 兜底：后端未返回 replies 时，用完整文本落一条气泡
+        const cleanText = stripActMusic(fullText);
+        if (cleanText) {
+          setMessages(prev => [...prev, { id: genId(), role: 'assistant', content: cleanText, created_at: new Date().toISOString(), usage }]);
+        }
       }
       // 让 AI 主动为用户放歌
       musicKeywords.forEach(kw => playMusicByKeyword(kw));
@@ -1436,7 +1484,7 @@ function App() {
       duration: song.duration ? Math.round(song.duration / 1000) : 0
     });
     try {
-      const detailResp = await fetch(`${API_URL}/music/detail/${song.id}`);
+      const detailResp = await fetch(`${API_URL}/music/detail/${song.id}${song.pic_id ? `?pic_id=${encodeURIComponent(song.pic_id)}` : ''}`);
       const detailData = await detailResp.json();
       if (detailData.success) {
         setNowPlaying(prev => prev ? { ...prev, cover: detailData.data.cover || '', duration: Math.round((detailData.data.duration || 0) / 1000) } : prev);
@@ -2058,7 +2106,7 @@ function App() {
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2" /></svg>
               </button>
             ) : (
-              <button className={`send-btn ${pendingCount > 0 && !input.trim() ? 'pending-trigger' : ''}`} onClick={sendMessage} disabled={!input.trim() && pendingImages.length === 0 && pendingFiles.length === 0 && pendingCount === 0}>
+              <button className={`send-btn ${pendingCount > 0 && !input.trim() ? 'pending-trigger' : ''}`} onMouseDown={(e) => e.preventDefault()} onClick={sendMessage} disabled={!input.trim() && pendingImages.length === 0 && pendingFiles.length === 0 && pendingCount === 0}>
                 {pendingCount > 0 && !input.trim() ? (
                   <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 2L11 13" /><polygon points="22 2 15 22 11 13 2 9 22 2" /></svg>
                 ) : '🐋'}
