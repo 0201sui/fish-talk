@@ -237,7 +237,8 @@ export default function MemoryPalace({ onClose, currentSessionId }) {
   const toggle = (s) => setOpenSection(openSection === s ? null : s);
 
   return (
-    <div className="mp">
+    <div className="mp" onClick={onClose}>
+      <div className="mp-modal" onClick={e => e.stopPropagation()}>
       <div className="mp-top">
         <h2>记忆宫殿</h2>
         <button className="mp-x" onClick={onClose}>×</button>
@@ -387,6 +388,7 @@ export default function MemoryPalace({ onClose, currentSessionId }) {
           )}
         </div>
 
+      </div>
       </div>
     </div>
   );
