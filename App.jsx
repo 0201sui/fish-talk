@@ -230,7 +230,7 @@ function DesktopPet({ image, size, onImageChange, onSizeChange }) {
   const onPetFileChange = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 3 * 1024 * 1024) { alert('图片不能超过3MB'); return; }
+    if (file.size > 5 * 1024 * 1024) { alert('图片不能超过5MB'); return; }
     const reader = new FileReader();
     reader.onload = () => {
       const img = new Image();
@@ -381,6 +381,8 @@ function FloatingMusicPlayer({ song, onToggle, onSeek, onClose, onOpen, onPrev, 
   }
 
   const [mode, setMode] = useState('ball'); // 'ball' | 'bar' | 'lyrics'
+  const LINE_H = 24; // 单行歌词高度（需与 CSS .music-lyrics-line 一致）
+  const WIN_H = 96;  // 歌词窗口高度（需与 CSS .music-lyrics-window 一致）
   const [pos, setPos] = useState({ right: 16, bottom: 96 });
   const dragState = useRef(null);
   const movedRef = useRef(false);
@@ -449,9 +451,32 @@ function FloatingMusicPlayer({ song, onToggle, onSeek, onClose, onOpen, onPrev, 
   }
 
   if (mode === 'lyrics') {
-    const plainLines = (song.lyric || '').split('\n').map(l => l.replace(/\[\d{2}:\d{2}(?:\.\d{1,3})?\]/g, '').trim()).filter(Boolean);
-    const lines = plainLines.length > 0 ? plainLines : [song.name ? ('♪ ' + song.name) : '暂无歌词'];
-    const scrollContent = [...lines, ...lines];
+    // 解析 LRC 时间戳，得到 {time, text} 数组
+    const timed = (song.lyric || '').split('\n').map(line => {
+      const m = line.match(/\[(\d{1,2}):(\d{2})(?:\.(\d{1,3}))?\](.*)/);
+      if (m) {
+        const t = parseInt(m[1], 10) * 60 + parseInt(m[2], 10) + (m[3] ? parseInt(m[3], 10) / Math.pow(10, m[3].length) : 0);
+        return { time: t, text: (m[4] || '').trim() };
+      }
+      return { time: -1, text: line.replace(/\[\d{2}:\d{2}(?:\.\d{1,3})?\]/g, '').trim() };
+    }).filter(l => l.text.length > 0);
+    const hasTiming = timed.length > 0 && timed.some(l => l.time >= 0);
+    const now = song.currentTime || 0;
+    // 当前唱到的那一句
+    let activeIdx = 0;
+    if (hasTiming) {
+      for (let i = 0; i < timed.length; i++) { if (timed[i].time <= now) activeIdx = i; else break; }
+    }
+    // 当前句逐字进度（卡拉OK 高亮到唱到的字）
+    let charProgress = 1;
+    if (hasTiming && timed[activeIdx]) {
+      const cur = timed[activeIdx];
+      const next = timed[activeIdx + 1];
+      const dur = (next ? next.time : (song.duration || now + 6)) - cur.time;
+      charProgress = dur > 0 ? Math.min(1, Math.max(0, (now - cur.time) / dur)) : 1;
+    }
+    const offset = hasTiming ? (-activeIdx * LINE_H + (WIN_H - LINE_H) / 2) : 0;
+    const fillN = (txt) => Math.round(charProgress * txt.length);
     return (
       <div className="music-lyrics" style={{ right: pos.right, bottom: pos.bottom }}
            onMouseDown={onDragStart} onTouchStart={onDragStart} onClick={handleLyricsClick} title="单击恢复悬浮球">
@@ -460,8 +485,22 @@ function FloatingMusicPlayer({ song, onToggle, onSeek, onClose, onOpen, onPrev, 
           {song.artist && <span className="music-lyrics-artist">{song.artist}</span>}
         </div>
         <div className="music-lyrics-window">
-          <div className="music-lyrics-track">
-            {scrollContent.map((t, i) => (<div key={i} className="music-lyrics-line">{t}</div>))}
+          <div className="music-lyrics-track" style={{ transform: `translateY(${offset}px)` }}>
+            {hasTiming ? timed.map((l, i) => {
+              const isActive = i === activeIdx;
+              const dim = Math.abs(i - activeIdx) > 1;
+              return (
+                <div key={i} className={`music-lyrics-line ${isActive ? 'active' : ''} ${dim ? 'dim' : ''}`}>
+                  {isActive
+                    ? (<span><span className="karaoke-done">{l.text.slice(0, fillN(l.text))}</span><span className="karaoke-todo">{l.text.slice(fillN(l.text))}</span></span>)
+                    : l.text}
+                </div>
+              );
+            }) : (
+              (song.lyric && song.lyric.trim())
+                ? (song.lyric.split('\n').filter(l => l.trim()).map((t, i) => (<div key={i} className="music-lyrics-line">{t.replace(/\[\d{2}:\d{2}(?:\.\d{1,3})?\]/g, '')}</div>)))
+                : (<div className="music-lyrics-line active">暂无歌词</div>)
+            )}
           </div>
         </div>
         <div className="music-lyrics-hint">单击收起</div>
@@ -685,6 +724,7 @@ function App() {
 
   const messagesEndRef = useRef(null);
   const messagesAreaRef = useRef(null);
+  const pendingScrollToBottomRef = useRef(false); // 发送消息后强制滚到底部（即使键盘还开着）
   const textareaRef = useRef(null);
   const inputRef = useRef(''); // 镜像最新输入，供 AI 的 type/send 指令读取
   const fileInputRef = useRef(null);
@@ -714,9 +754,12 @@ function App() {
     el.scrollTop = el.scrollHeight;
   }, []);
 
-  // 新消息 / 加载状态变化 → 强制滚到底部
+  // 新消息 / 加载状态变化 → 强制滚到底部（发送自己的消息时无视 stickToBottom 强制跟随）
   useEffect(() => {
-    if (stickToBottomRef.current) scrollToBottom(true);
+    if (pendingScrollToBottomRef.current || stickToBottomRef.current) {
+      pendingScrollToBottomRef.current = false;
+      scrollToBottom(true);
+    }
   }, [messages, loading, scrollToBottom]);
 
   // 流式输出过程中 → 节流跟随（保持贴底，但不抢用户上滑浏览历史）
@@ -839,9 +882,9 @@ function App() {
   const savePetImages = async (next) => {
     try { await fetch(`${API_URL}/profile`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ petImages: next }) }); } catch (e) {}
   };
-  const addPetImage = (file) => {
+    const addPetImage = (file) => {
     if (!file) return;
-    if (file.size > 3 * 1024 * 1024) { alert('图片不能超过3MB'); return; }
+    if (file.size > 5 * 1024 * 1024) { alert('图片不能超过5MB'); return; }
     const reader = new FileReader();
     reader.onload = () => {
       const img = new Image();
@@ -963,6 +1006,10 @@ function App() {
       reply_preview: replyTo ? `${replyTo.role === 'user' ? '我' : (profile.aiName || '裴拟')}: ${getReplyPreview(replyTo)}` : null
     };
     setMessages(prev => [...prev, userMsg]);
+    // 发送后立刻滚到底部：即使键盘还开着，也能看到刚发的那条消息
+    pendingScrollToBottomRef.current = true;
+    requestAnimationFrame(() => { requestAnimationFrame(() => scrollToBottom(true)); });
+    setTimeout(() => scrollToBottom(true), 300); // 兜底：键盘收起后的布局重排会导致再次偏移
     const sentInput = text;
     const sentImages = [...pendingImages];
     const sentFiles = [...pendingFiles];
@@ -1795,9 +1842,9 @@ function App() {
             </div>
             {!stickerBatchMode && (
               <div className="sticker-add">
-                <input className="sticker-cat-input" placeholder="分类（如：日常 / 搞笑）" value={stickerInputCategory} onChange={(e) => setStickerInputCategory(e.target.value)} />
-                <textarea placeholder="粘贴表情包 URL（每行一个）" value={stickerInput} onChange={(e) => setStickerInput(e.target.value)} rows={2} />
-                <button onClick={addStickers}>添加</button>
+                <input className="sticker-cat-input" placeholder="分类（如：日常 / 搞笑，可留空）" value={stickerInputCategory} onChange={(e) => setStickerInputCategory(e.target.value)} />
+                <textarea className="sticker-url-input" placeholder="粘贴表情包图片链接，每行一个&#10;例如：https://xxx.png" value={stickerInput} onChange={(e) => setStickerInput(e.target.value)} rows={4} />
+                <button className="sticker-add-btn" onClick={addStickers}>＋ 添加表情包</button>
               </div>
             )}
           </div>
@@ -2015,22 +2062,21 @@ function App() {
               </div>
               <div className="settings-section">
                 <h3 className="settings-section-title">桌宠图片库</h3>
-                <p className="settings-hint">上传照片保存为桌宠形象（刷新不丢失）；点击图片即可换上，× 删除。</p>
                 <div className="pet-library">
-                  {petImages.length === 0 ? <p className="sticker-empty">还没有上传桌宠图片</p> :
-                    petImages.map(p => (
-                      <div key={p.id} className={`pet-lib-item ${petSettings.image === p.url ? 'active' : ''}`} onClick={() => selectPet(p)}>
-                        <img src={p.url} alt={p.name || '桌宠'} />
-                        <button className="pet-lib-del" onClick={(e) => { e.stopPropagation(); removePetImage(p.id); }}>×</button>
-                        {petSettings.image === p.url && <span className="pet-lib-badge">使用中</span>}
-                      </div>
-                    ))
-                  }
+                  <div className="pet-lib-upload-tile" onClick={() => petLibFileRef.current?.click()} title="上传桌宠图片">
+                    <span className="pet-lib-plus">＋</span>
+                    <span className="pet-lib-upload-text">上传图片</span>
+                  </div>
+                  {petImages.map(p => (
+                    <div key={p.id} className={`pet-lib-item ${petSettings.image === p.url ? 'active' : ''}`} onClick={() => selectPet(p)}>
+                      <img src={p.url} alt={p.name || '桌宠'} />
+                      <button className="pet-lib-del" onClick={(e) => { e.stopPropagation(); removePetImage(p.id); }}>×</button>
+                      {petSettings.image === p.url && <span className="pet-lib-badge">使用中</span>}
+                    </div>
+                  ))}
+                  {petImages.length === 0 && <p className="pet-lib-empty">点击左上角「＋」上传你的桌宠形象吧</p>}
                 </div>
-                <div className="pet-lib-upload">
-                  <input ref={petLibFileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => { const f = e.target.files?.[0]; addPetImage(f); e.target.value = ''; }} />
-                  <button className="btn-save" onClick={() => petLibFileRef.current?.click()}>📷 上传桌宠图片</button>
-                </div>
+                <input ref={petLibFileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => { const f = e.target.files?.[0]; addPetImage(f); e.target.value = ''; }} />
               </div>
             <div className="settings-section">
               <h3 className="settings-section-title">语音设置 (MiniMax TTS)</h3>
