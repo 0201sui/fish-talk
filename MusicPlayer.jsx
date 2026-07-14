@@ -1,22 +1,15 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useCallback } from 'react';
 
 const API_URL = (typeof window !== 'undefined' && window.location.hostname === 'localhost')
   ? 'http://localhost:3000'
   : 'https://my-home-backend-9j56.onrender.com';
 
-export default function MusicPlayer({ onClose, onSongChange }) {
+export default function MusicPlayer({ onClose, nowPlaying, playSong, togglePlay, seek }) {
   const [keyword, setKeyword] = useState('');
   const [results, setResults] = useState([]);
   const [searching, setSearching] = useState(false);
-  const [currentSong, setCurrentSong] = useState(null);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const [duration, setDuration] = useState(0);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [lyric, setLyric] = useState('');
-  const [cover, setCover] = useState('');
+  const [view, setView] = useState('search'); // 'search' | 'card'
   const [loadingSong, setLoadingSong] = useState(false);
-  const audioRef = useRef(null);
 
   const search = async () => {
     if (!keyword.trim()) return;
@@ -30,6 +23,7 @@ export default function MusicPlayer({ onClose, onSongChange }) {
       const data = await resp.json();
       if (data.success) {
         setResults(data.songs || []);
+        setView('search');
       } else {
         alert(data.error || '搜索失败');
       }
@@ -39,94 +33,11 @@ export default function MusicPlayer({ onClose, onSongChange }) {
     setSearching(false);
   };
 
-  const playSong = async (song) => {
+  const onPick = async (song) => {
     setLoadingSong(true);
-    setCurrentSong(song);
-    setIsPlaying(false);
-    setProgress(0);
-    setCurrentTime(0);
-    setLyric('');
-    setCover('');
-
-    try {
-      // 获取歌曲详情（封面）
-      const detailResp = await fetch(`${API_URL}/music/detail/${song.id}`);
-      const detailData = await detailResp.json();
-      if (detailData.success) {
-        setCover(detailData.data.cover);
-        setCurrentSong(prev => ({ ...prev, ...detailData.data }));
-      }
-
-      // 获取歌词
-      const lyricResp = await fetch(`${API_URL}/music/lyric/${song.id}`);
-      const lyricData = await lyricResp.json();
-      if (lyricData.success && lyricData.lyric) {
-        setLyric(lyricData.lyric);
-      }
-
-      // 获取播放URL
-      const urlResp = await fetch(`${API_URL}/music/url/${song.id}`);
-      const urlData = await urlResp.json();
-      if (urlData.success && urlData.url) {
-        if (audioRef.current) {
-          audioRef.current.src = urlData.url;
-          audioRef.current.play().then(() => {
-            setIsPlaying(true);
-          }).catch(err => {
-            console.error('播放失败:', err);
-            alert('该歌曲可能需要VIP，无法播放');
-          });
-        }
-      }
-      // 通知AI当前播放的歌曲
-      if (onSongChange) {
-        onSongChange({
-          name: song.name,
-          artist: song.artist,
-          duration: song.duration ? Math.round(song.duration / 1000) + '秒' : null
-        });
-      }
-    } catch (err) {
-      alert('加载失败: ' + err.message);
-    }
+    setView('card');
+    await playSong(song);
     setLoadingSong(false);
-  };
-
-  const togglePlay = () => {
-    if (!audioRef.current) return;
-    if (isPlaying) {
-      audioRef.current.pause();
-      setIsPlaying(false);
-    } else {
-      audioRef.current.play();
-      setIsPlaying(true);
-    }
-  };
-
-  const handleTimeUpdate = () => {
-    if (!audioRef.current) return;
-    const ct = audioRef.current.currentTime;
-    const d = audioRef.current.duration;
-    setCurrentTime(ct);
-    if (d > 0) setProgress((ct / d) * 100);
-  };
-
-  const handleLoadedMetadata = () => {
-    if (audioRef.current) setDuration(audioRef.current.duration || 0);
-  };
-
-  const handleEnded = () => {
-    setIsPlaying(false);
-    setProgress(0);
-    setCurrentTime(0);
-  };
-
-  const seek = (e) => {
-    if (!audioRef.current || !duration) return;
-    const rect = e.currentTarget.getBoundingClientRect();
-    const pct = (e.clientX - rect.left) / rect.width;
-    audioRef.current.currentTime = pct * duration;
-    setProgress(pct * 100);
   };
 
   const formatTime = (sec) => {
@@ -138,45 +49,30 @@ export default function MusicPlayer({ onClose, onSongChange }) {
 
   // 解析歌词
   const lyricLines = useCallback(() => {
-    if (!lyric) return [];
-    return lyric.split('\n').filter(l => l.trim()).map(line => {
+    if (!nowPlaying || !nowPlaying.lyric) return [];
+    return nowPlaying.lyric.split('\n').filter(l => l.trim()).map(line => {
       const match = line.match(/\[(\d{2}):(\d{2})\.(\d{2,3})\](.*)/);
       if (match) {
-        const time = parseInt(match[1]) * 60 + parseInt(match[2]) + parseInt(match[3]) / 1000;
+        const time = parseInt(match[1], 10) * 60 + parseInt(match[2], 10) + parseInt(match[3], 10) / 1000;
         return { time, text: match[4].trim() };
       }
       return { time: 0, text: line.trim() };
     });
-  }, [lyric]);
+  }, [nowPlaying]);
 
   const getCurrentLyric = () => {
     const lines = lyricLines();
     if (lines.length === 0) return '';
     let current = lines[0];
     for (const line of lines) {
-      if (line.time <= currentTime) current = line;
+      if (line.time <= (nowPlaying.currentTime || 0)) current = line;
       else break;
     }
     return current.text;
   };
 
-  useEffect(() => {
-    return () => {
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current = null;
-      }
-    };
-  }, []);
-
   return (
     <div className="music-player-panel">
-      <audio
-        ref={audioRef}
-        onTimeUpdate={handleTimeUpdate}
-        onLoadedMetadata={handleLoadedMetadata}
-        onEnded={handleEnded}
-      />
       <div className="mp-header">
         <span>音乐</span>
         <button onClick={onClose}>x</button>
@@ -196,10 +92,10 @@ export default function MusicPlayer({ onClose, onSongChange }) {
       </div>
 
       {/* 搜索结果列表 */}
-      {results.length > 0 && !currentSong && (
+      {view === 'search' && results.length > 0 && (
         <div className="mp-results">
           {results.map(song => (
-            <div key={song.id} className="mp-result-item" onClick={() => playSong(song)}>
+            <div key={song.id} className="mp-result-item" onClick={() => onPick(song)}>
               <div className="mp-result-info">
                 <span className="mp-result-name">{song.name}</span>
                 <span className="mp-result-artist">{song.artist}</span>
@@ -211,11 +107,11 @@ export default function MusicPlayer({ onClose, onSongChange }) {
       )}
 
       {/* 播放器卡片 */}
-      {currentSong && (
+      {view === 'card' && nowPlaying && (
         <div className="mp-card">
           <div className="mp-card-cover">
-            {cover ? (
-              <img src={cover} alt="cover" />
+            {nowPlaying.cover ? (
+              <img src={nowPlaying.cover} alt="cover" />
             ) : (
               <div className="mp-cover-placeholder">
                 <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="var(--theme-accent, #5ba3c4)" strokeWidth="1.5">
@@ -224,35 +120,32 @@ export default function MusicPlayer({ onClose, onSongChange }) {
                 </svg>
               </div>
             )}
-            {isPlaying && <div className="mp-cover-spinning" />}
+            {nowPlaying.isPlaying && <div className="mp-cover-spinning" />}
           </div>
           <div className="mp-card-info">
-            <span className="mp-card-name">{currentSong.name}</span>
-            <span className="mp-card-artist">{currentSong.artist}</span>
+            <span className="mp-card-name">{nowPlaying.name}</span>
+            <span className="mp-card-artist">{nowPlaying.artist}</span>
           </div>
 
-          {/* 歌词 */}
-          {lyric && (
+          {nowPlaying.lyric && (
             <div className="mp-lyric">
               <p className="mp-current-lyric">{getCurrentLyric()}</p>
             </div>
           )}
 
-          {/* 进度条 */}
           <div className="mp-progress" onClick={seek}>
-            <div className="mp-progress-fill" style={{ width: `${progress}%` }} />
+            <div className="mp-progress-fill" style={{ width: `${nowPlaying.progress || 0}%` }} />
           </div>
           <div className="mp-time">
-            <span>{formatTime(currentTime)}</span>
-            <span>{formatTime(duration)}</span>
+            <span>{formatTime(nowPlaying.currentTime || 0)}</span>
+            <span>{formatTime(nowPlaying.duration || 0)}</span>
           </div>
 
-          {/* 播放控制 */}
           <div className="mp-controls">
             <button className="mp-play-btn" onClick={togglePlay} disabled={loadingSong}>
               {loadingSong ? (
                 <span className="mp-loading">...</span>
-              ) : isPlaying ? (
+              ) : nowPlaying.isPlaying ? (
                 <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
                   <rect x="6" y="5" width="4" height="14" rx="1" />
                   <rect x="14" y="5" width="4" height="14" rx="1" />
@@ -265,15 +158,14 @@ export default function MusicPlayer({ onClose, onSongChange }) {
             </button>
           </div>
 
-          {/* 返回搜索 */}
-          <button className="mp-back-btn" onClick={() => { setCurrentSong(null); setIsPlaying(false); if (audioRef.current) audioRef.current.pause(); }}>
+          <button className="mp-back-btn" onClick={() => setView('search')}>
             返回搜索
           </button>
         </div>
       )}
 
       {/* 空状态 */}
-      {results.length === 0 && !currentSong && !searching && (
+      {view === 'search' && results.length === 0 && !searching && (
         <div className="mp-empty">
           <div className="mp-empty-icon">
             <svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="var(--theme-accent, #5ba3c4)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
