@@ -641,7 +641,7 @@ function MessageBubble({ msg, index, profile, onQuote, onCopy, onEdit, onDelete,
       <div className="message-inner">
         {(msg.reply_content || msg.reply_preview) && (
           <div className="reply-indicator-bubble">
-            <span className="reply-role">{msg.reply_role === 'user' || (msg.reply_preview && msg.reply_preview.startsWith('我:')) ? '我' : (profile?.aiName || '裴拟')}</span>
+            <span className="reply-role">{msg.reply_role === 'user' || (msg.reply_preview && msg.reply_preview.startsWith('我:')) ? '我' : (profile?.aiName || 'ClaudeAI')}</span>
             <span className="reply-text">{msg.reply_content || msg.reply_preview}</span>
           </div>
         )}
@@ -722,7 +722,7 @@ function App() {
   const [stickerBatchMode, setStickerBatchMode] = useState(false);
   const [stickerSelected, setStickerSelected] = useState(() => new Set());
   const [stickerEdit, setStickerEdit] = useState(null); // { id, meaning }
-  const [profile, setProfile] = useState({ userBio: '', aiBio: '', userName: '我', aiName: '裴拟', nickname: '' });
+  const [profile, setProfile] = useState({ userBio: '', aiBio: '', userName: '我', aiName: 'ClaudeAI', nickname: '' });
   const [settings, setSettings] = useState({
     system_prompt: '', temperature: 0.7,
     compress_threshold: 4000, compress_keep_rounds: 15, max_reply_tokens: 1024,
@@ -1066,7 +1066,7 @@ function App() {
       images: pendingImages.length > 0 ? pendingImages : undefined,
       file_names: pendingFiles.length > 0 ? pendingFiles.map(f => f.name) : undefined,
       created_at: new Date().toISOString(), reply_to: replyTo?.id || null,
-      reply_preview: replyTo ? `${replyTo.role === 'user' ? '我' : (profile.aiName || '裴拟')}: ${getReplyPreview(replyTo)}` : null
+      reply_preview: replyTo ? `${replyTo.role === 'user' ? '我' : (profile.aiName || 'ClaudeAI')}: ${getReplyPreview(replyTo)}` : null
     };
     setMessages(prev => [...prev, userMsg]);
     // 发送后立刻滚到底部：即使键盘还开着，也能看到刚发的那条消息
@@ -1337,7 +1337,7 @@ function App() {
   const onEdit = (msg) => { setEditingId(msg.id); setEditContent(msg.content); };
   const onDelete = async (msg) => { if (!confirm('确定删除这条消息吗？')) return; try { await fetch(`${API_URL}/messages/${msg.id}`, { method: 'DELETE' }); setMessages(prev => prev.filter(m => m.id !== msg.id)); } catch (err) { console.error('删除失败:', err); } };
   const saveEdit = async (msgId) => { try { await fetch(`${API_URL}/messages/${msgId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content: editContent }) }); setMessages(prev => prev.map(m => m.id === msgId ? { ...m, content: editContent, edited: true } : m)); setEditingId(null); } catch (err) { console.error('编辑失败:', err); } };
-  const onRecall = async (msg) => { if (!confirm('撤回这条消息？')) return; try { await fetch(`${API_URL}/messages/${msg.id}`, { method: 'DELETE' }); setMessages(prev => prev.map(m => m.id === msg.id ? { id: m.id, role: 'system', recall: true, recallText: m.role === 'user' ? '你撤回了一条消息' : (profile.aiName || '裴拟') + ' 撤回了一条消息' } : m)); } catch (err) { console.error('撤回失败:', err); } };
+  const onRecall = async (msg) => { if (!confirm('撤回这条消息？')) return; try { await fetch(`${API_URL}/messages/${msg.id}`, { method: 'DELETE' }); setMessages(prev => prev.map(m => m.id === msg.id ? { id: m.id, role: 'system', recall: true, recallText: m.role === 'user' ? '你撤回了一条消息' : (profile.aiName || 'ClaudeAI') + ' 撤回了一条消息' } : m)); } catch (err) { console.error('撤回失败:', err); } };
 
   // ===== 多选操作 =====
   const toggleMsgSelection = (msgId) => {
@@ -1360,7 +1360,7 @@ function App() {
   const forwardSelectedMessages = () => {
     if (selectedMsgIds.size === 0) return;
     const selectedMsgs = messages.filter(m => selectedMsgIds.has(m.id));
-    const text = selectedMsgs.map(m => `[${m.role === 'user' ? (profile.userName || '我') : (profile.aiName || '裴拟')}]\n${m.content}`).join('\n\n---\n\n');
+    const text = selectedMsgs.map(m => `[${m.role === 'user' ? (profile.userName || '我') : (profile.aiName || 'ClaudeAI')}]\n${m.content}`).join('\n\n---\n\n');
     navigator.clipboard.writeText(text).then(() => {
       alert(`已复制 ${selectedMsgIds.size} 条消息到剪贴板，可粘贴到其他地方`);
       exitMultiSelect();
@@ -2095,7 +2095,7 @@ function App() {
         {replyTo && (
           <div className="reply-bar">
             <div className="reply-bar-content">
-              <span className="reply-bar-name">{replyTo.role === 'user' ? '我' : (profile.aiName || '裴拟')}</span>
+              <span className="reply-bar-name">{replyTo.role === 'user' ? '我' : (profile.aiName || 'ClaudeAI')}</span>
               <span className="reply-bar-text">: {getReplyPreview(replyTo)}</span>
             </div>
             <button className="reply-bar-close" onClick={() => setReplyTo(null)}>×</button>
