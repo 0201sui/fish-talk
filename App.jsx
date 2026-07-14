@@ -333,7 +333,7 @@ function VoiceMessage({ voice, isUser, isPlaying, onPlay }) {
 }
 
 // ===== 迷你音乐播放条（AI 放歌 / 后台播放时显示在输入框上方）=====
-function FloatingMusicPlayer({ song, onToggle, onSeek, onClose, onOpen }) {
+function FloatingMusicPlayer({ song, onToggle, onSeek, onClose, onOpen, onPrev, onNext, repeatMode, onCycleRepeat }) {
   const formatTime = (sec) => {
     if (!sec || isNaN(sec)) return '0:00';
     const m = Math.floor(sec / 60);
@@ -426,6 +426,9 @@ function FloatingMusicPlayer({ song, onToggle, onSeek, onClose, onOpen }) {
         </div>
       </div>
       <button className="mini-music-min" onClick={() => setCollapsed(true)} aria-label="缩小" title="缩小">—</button>
+      <button className="mini-music-prev" onClick={(e) => { e.stopPropagation(); onPrev && onPrev(); }} aria-label="上一首" title="上一首">
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor"><path d="M6 5h2v14H6zM20 5v14l-11-7z" /></svg>
+      </button>
       <button className="mini-music-play" onClick={(e) => { e.stopPropagation(); onToggle(); }} aria-label="播放/暂停">
         {song.isPlaying ? (
           <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1" /><rect x="14" y="5" width="4" height="14" rx="1" /></svg>
@@ -433,11 +436,16 @@ function FloatingMusicPlayer({ song, onToggle, onSeek, onClose, onOpen }) {
           <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M8 5.5v13a1 1 0 0 0 1.5.87l11-6.5a1 1 0 0 0 0-1.74l-11-6.5A1 1 0 0 0 8 5.5z" /></svg>
         )}
       </button>
+      <button className="mini-music-next" onClick={(e) => { e.stopPropagation(); onNext && onNext(); }} aria-label="下一首" title="下一首">
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor"><path d="M16 5h2v14h-2zM4 5v14l11-7z" /></svg>
+      </button>
+      <button className={`mini-music-loop ${repeatMode === 'one' ? 'one' : repeatMode === 'all' ? 'all' : ''}`} onClick={(e) => { e.stopPropagation(); onCycleRepeat && onCycleRepeat(); }} aria-label="循环模式" title={repeatMode === 'one' ? '单曲循环' : repeatMode === 'all' ? '列表循环' : '不循环'}>
+        {repeatMode === 'one' ? '🔂' : '🔁'}
+      </button>
       {onOpen && (
         <button className="mini-music-expand" onClick={(e) => { e.stopPropagation(); onOpen(); }} aria-label="打开播放器" title="打开完整播放器">⤢</button>
       )}
       <button className="mini-music-close" onClick={(e) => { e.stopPropagation(); onClose(); }} aria-label="关闭">×</button>
-      <span className="mini-music-time">{formatTime(song.currentTime || 0)} / {formatTime(song.duration || 0)}</span>
     </div>
   );
 }
@@ -580,7 +588,7 @@ function App() {
   });
   const [stickers, setStickers] = useState(() => { try { return JSON.parse(localStorage.getItem('stickers') || '[]'); } catch { return []; } });
   const [stickerInput, setStickerInput] = useState('');
-  const [profile, setProfile] = useState({ userBio: '', aiBio: '', userName: '我', aiName: '裴拟' });
+  const [profile, setProfile] = useState({ userBio: '', aiBio: '', userName: '我', aiName: '裴拟', nickname: '' });
   const [settings, setSettings] = useState({
     system_prompt: '', temperature: 0.7,
     compress_threshold: 4000, compress_keep_rounds: 15, max_reply_tokens: 1024,
@@ -592,10 +600,17 @@ function App() {
   // ===== 音乐播放（App 统一管理的播放器，AI 也能触发放歌）=====
   const musicAudioRef = useRef(null);
   const [nowPlaying, setNowPlaying] = useState(null); // {id,name,artist,cover,url,lyric,isPlaying,progress,currentTime,duration}
+  const [playlist, setPlaylist] = useState([]); // 当前播放队列（歌曲列表）
+  const [playlistIndex, setPlaylistIndex] = useState(-1);
+  const [repeatMode, setRepeatMode] = useState('off'); // 'off' | 'all' | 'one'
+  const repeatModeRef = useRef('off');
+  const playlistRef = useRef([]);
+  const playlistIndexRef = useRef(-1);
 
   const messagesEndRef = useRef(null);
   const messagesAreaRef = useRef(null);
   const textareaRef = useRef(null);
+  const inputRef = useRef(''); // 镜像最新输入，供 AI 的 type/send 指令读取
   const fileInputRef = useRef(null);
   const docFileInputRef = useRef(null);
   const audioRef = useRef(null);
@@ -610,11 +625,20 @@ function App() {
     localStorage.setItem('theme', theme);
   }, [theme]);
 
-  const scrollToBottom = useCallback(() => {
-    setTimeout(() => { if (messagesAreaRef.current) { messagesAreaRef.current.scrollTo({ top: messagesAreaRef.current.scrollHeight, behavior: 'smooth' }); } }, 50);
+  const stickToBottomRef = useRef(true);
+
+  const scrollToBottom = useCallback((behavior = 'auto') => {
+    const el = messagesAreaRef.current;
+    if (!el) return;
+    requestAnimationFrame(() => {
+      const t = messagesAreaRef.current;
+      if (t) t.scrollTo({ top: t.scrollHeight, behavior });
+    });
   }, []);
 
-  useEffect(() => { scrollToBottom(); }, [messages, loading, streamingText, scrollToBottom]);
+  useEffect(() => {
+    if (stickToBottomRef.current) scrollToBottom('auto');
+  }, [messages, loading, streamingText, scrollToBottom]);
 
   useEffect(() => {
     if (showSplash) { sessionStorage.setItem('splashed', '1'); const timer = setTimeout(() => setShowSplash(false), 4400); return () => clearTimeout(timer); }
@@ -648,6 +672,10 @@ function App() {
   useEffect(() => { localStorage.setItem('searchSettings', JSON.stringify(searchSettings)); }, [searchSettings]);
   useEffect(() => { if (showSettings) { setPetSettings({ image: localStorage.getItem('petImage') || '', size: parseInt(localStorage.getItem('petSize') || '40') }); } }, [showSettings]);
   useEffect(() => { window.__showContextMenu = (x, y, msg, index) => { setContextMenu({ x, y, msg, index }); }; return () => { delete window.__showContextMenu; }; }, []);
+
+  // 同步音乐队列/循环模式到 ref，供音频事件回调读取最新值
+  useEffect(() => { repeatModeRef.current = repeatMode; }, [repeatMode]);
+  useEffect(() => { playlistRef.current = playlist; playlistIndexRef.current = playlistIndex; }, [playlist, playlistIndex]);
 
   const fetchSessions = async () => {
     try {
@@ -737,7 +765,7 @@ function App() {
     const charsPerTick = Math.max(1, Math.ceil(totalLen / 200));
     typingTimerRef.current = setInterval(() => {
       displayLen = Math.min(displayLen + charsPerTick, totalLen);
-      setStreamingText(fullText.slice(0, displayLen));
+      setStreamingText(stripCmdTags(fullText.slice(0, displayLen)));
       if (displayLen >= totalLen) {
         clearInterval(typingTimerRef.current);
         typingTimerRef.current = null;
@@ -758,8 +786,9 @@ function App() {
 
   // ===== 发送消息（有内容=保存不回复，空内容=触发AI回复）=====
   const sendMessage = async () => {
+    const text = inputRef.current;
     // 空输入 + 有待回复消息 → 触发AI
-    if (!input.trim() && pendingImages.length === 0 && pendingFiles.length === 0) {
+    if (!text.trim() && pendingImages.length === 0 && pendingFiles.length === 0) {
       if (loading) return;
       if (pendingCount > 0) {
         triggerAIResponse();
@@ -771,24 +800,24 @@ function App() {
     let sessionId = currentSessionId;
     if (!sessionId) {
       try {
-        const res = await fetch(`${API_URL}/sessions`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: input.slice(0, 20) || '新对话' }) });
+        const res = await fetch(`${API_URL}/sessions`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: text.slice(0, 20) || '新对话' }) });
         const data = await res.json();
         if (data.session) { setSessions(prev => [data.session, ...prev]); sessionId = data.session.id; setCurrentSessionId(sessionId); }
       } catch (err) { console.error('创建会话失败:', err); return; }
     }
 
     const userMsg = {
-      id: genId(), role: 'user', content: input,
+      id: genId(), role: 'user', content: text,
       images: pendingImages.length > 0 ? pendingImages : undefined,
       file_names: pendingFiles.length > 0 ? pendingFiles.map(f => f.name) : undefined,
       created_at: new Date().toISOString(), reply_to: replyTo?.id || null,
       reply_preview: replyTo ? `${replyTo.role === 'user' ? '我' : (profile.aiName || '裴拟')}: ${getReplyPreview(replyTo)}` : null
     };
     setMessages(prev => [...prev, userMsg]);
-    const sentInput = input;
+    const sentInput = text;
     const sentImages = [...pendingImages];
     const sentFiles = [...pendingFiles];
-    setInput(''); setPendingImages([]); setPendingFiles([]);
+    setInput(''); inputRef.current = ''; setPendingImages([]); setPendingFiles([]);
     setReplyTo(null); setShowToolbar(false);
     if (textareaRef.current) { textareaRef.current.style.height = 'auto'; textareaRef.current.blur(); }
 
@@ -861,10 +890,13 @@ function App() {
       stopTypingEffect();
       setStreamingText('');
       setTypingStatus('');
-      // 提取 AI 给出的 [music]放歌标记（不显示给用户），其余文本正常展示
+      // 提取 AI 给出的指令标记（[music] 放歌 / [act] 自我操作），都不显示给用户
       const MUSIC_RE = /\[music\]([\s\S]*?)\[\/music\]/g;
+      const ACT_RE = /\[act\]([\s\S]*?)\[\/act\]/g;
       const musicKeywords = [];
-      const cleanText = fullText.replace(MUSIC_RE, (m, kw) => { const t = (kw || '').trim(); if (t) musicKeywords.push(t); return ''; });
+      const actCommands = [];
+      let cleanText = fullText.replace(MUSIC_RE, (m, kw) => { const t = (kw || '').trim(); if (t) musicKeywords.push(t); return ''; });
+      cleanText = cleanText.replace(ACT_RE, (m, a) => { const t = (a || '').trim(); if (t) actCommands.push(t); return ''; });
       if (cleanText.trim()) {
         const parts = cleanText.trim().split(/\n\n+/).map(p => p.trim()).filter(Boolean);
         for (let i = 0; i < parts.length; i++) {
@@ -874,6 +906,8 @@ function App() {
       }
       // 让 AI 主动为用户放歌
       musicKeywords.forEach(kw => playMusicByKeyword(kw));
+      // 执行 AI 的自我操作指令（切换主题 / 打开面板 / 打字 / 设置昵称等）
+      actCommands.forEach((a, i) => setTimeout(() => executeAction(a), 400 + i * 300));
     } catch (err) {
       if (err.name !== 'AbortError') {
         setMessages(prev => [...prev, { role: 'assistant', content: '网络错误，请稍后再试', created_at: new Date().toISOString() }]);
@@ -944,10 +978,13 @@ function App() {
       stopTypingEffect();
       setStreamingText('');
       setTypingStatus('');
-      // 提取 AI 给出的 [music]放歌标记（不显示给用户），其余文本正常展示
+      // 提取 AI 给出的指令标记（[music] 放歌 / [act] 自我操作），都不显示给用户
       const MUSIC_RE = /\[music\]([\s\S]*?)\[\/music\]/g;
+      const ACT_RE = /\[act\]([\s\S]*?)\[\/act\]/g;
       const musicKeywords = [];
-      const cleanText = fullText.replace(MUSIC_RE, (m, kw) => { const t = (kw || '').trim(); if (t) musicKeywords.push(t); return ''; });
+      const actCommands = [];
+      let cleanText = fullText.replace(MUSIC_RE, (m, kw) => { const t = (kw || '').trim(); if (t) musicKeywords.push(t); return ''; });
+      cleanText = cleanText.replace(ACT_RE, (m, a) => { const t = (a || '').trim(); if (t) actCommands.push(t); return ''; });
       if (cleanText.trim()) {
         const parts = cleanText.trim().split(/\n\n+/).map(p => p.trim()).filter(Boolean);
         for (let i = 0; i < parts.length; i++) {
@@ -957,6 +994,8 @@ function App() {
       }
       // 让 AI 主动为用户放歌
       musicKeywords.forEach(kw => playMusicByKeyword(kw));
+      // 执行 AI 的自我操作指令（切换主题 / 打开面板 / 打字 / 设置昵称等）
+      actCommands.forEach((a, i) => setTimeout(() => executeAction(a), 400 + i * 300));
     } catch (err) {
       if (err.name !== 'AbortError') {
         setMessages(prev => [...prev, { role: 'assistant', content: '网络错误，请稍后再试', created_at: new Date().toISOString() }]);
@@ -970,6 +1009,7 @@ function App() {
   const handleKeyDown = (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } };
   const handleInputChange = (e) => {
     setInput(e.target.value);
+    inputRef.current = e.target.value;
     const ta = textareaRef.current;
     if (ta) { ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight, 110) + 'px'; }
   };
@@ -1108,7 +1148,9 @@ function App() {
         setNowPlaying(prev => prev ? { ...prev, currentTime: a.currentTime, duration: a.duration, progress: (a.currentTime / a.duration) * 100 } : prev);
       });
       a.addEventListener('ended', () => {
+        if (repeatModeRef.current === 'one') { try { a.currentTime = 0; const p = a.play(); if (p && p.catch) p.catch(() => {}); } catch (e) {} return; }
         setNowPlaying(prev => prev ? { ...prev, isPlaying: false, progress: 100, currentTime: a.duration || 0 } : prev);
+        playNext();
       });
       a.addEventListener('error', () => {
         setNowPlaying(prev => prev ? { ...prev, isPlaying: false } : prev);
@@ -1119,8 +1161,9 @@ function App() {
   };
 
   // 播放某首歌（先取详情/歌词/URL 再播放），并通知 AI 当前播放
-  const playSong = async (song) => {
+  const playSong = async (song, list, idx) => {
     if (!song || !song.id) return;
+    if (list && Array.isArray(list)) { setPlaylist(list); if (typeof idx === 'number') setPlaylistIndex(idx); }
     const audio = ensureAudio();
     try { audio.pause(); } catch (e) {}
     setNowPlaying({
@@ -1142,6 +1185,9 @@ function App() {
       const urlResp = await fetch(`${API_URL}/music/url/${song.id}`);
       const urlData = await urlResp.json();
       if (urlData.success && urlData.url) {
+        const coverUrl = (detailData && detailData.data && detailData.data.cover) || '';
+        setupMediaSession({ name: song.name, artist: song.artist, album: song.album || '', cover: coverUrl });
+        if ('mediaSession' in navigator) { try { navigator.mediaSession.playbackState = 'playing'; } catch (e) {} }
         audio.src = urlData.url;
         audio.play().then(() => {
           setNowPlaying(prev => prev ? { ...prev, isPlaying: true, url: urlData.url } : prev);
@@ -1191,7 +1237,8 @@ function App() {
     }
     if (candidates.length === 0) return;
     candidates.sort((a, b) => b.score - a.score);
-    await playSong(candidates[0].song);
+    const list = candidates.map(c => c.song);
+    await playSong(list[0], list, 0);
   };
 
   const togglePlayMusic = () => {
@@ -1218,6 +1265,113 @@ function App() {
     setNowPlaying(null);
     setMusicInfo(null);
   };
+
+  // 上一首 / 下一首
+  const playNext = () => {
+    const list = playlistRef.current;
+    if (!list || !list.length) return;
+    let i = playlistIndexRef.current + 1;
+    if (i >= list.length) {
+      if (repeatModeRef.current === 'all') i = 0;
+      else { closeMusic(); return; }
+    }
+    playSong(list[i], list, i);
+  };
+  const playPrev = () => {
+    const list = playlistRef.current;
+    if (!list || !list.length) return;
+    let i = playlistIndexRef.current - 1;
+    if (i < 0) {
+      if (repeatModeRef.current === 'all') i = list.length - 1;
+      else i = 0;
+    }
+    playSong(list[i], list, i);
+  };
+  const cycleRepeat = () => {
+    setRepeatMode(prev => prev === 'off' ? 'all' : prev === 'all' ? 'one' : 'off');
+  };
+
+  // 锁屏 / 后台媒体控制（息屏也能继续播放）
+  const setupMediaSession = (song) => {
+    if (!('mediaSession' in navigator)) return;
+    try {
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: song.name || '未知歌曲',
+        artist: song.artist || '未知歌手',
+        album: song.album || '',
+        artwork: song.cover ? [{ src: song.cover, sizes: '512x512', type: 'image/png' }] : []
+      });
+      const ms = navigator.mediaSession;
+      ms.setActionHandler('play', () => { if (musicAudioRef.current) musicAudioRef.current.play().catch(() => {}); });
+      ms.setActionHandler('pause', () => { if (musicAudioRef.current) musicAudioRef.current.pause(); });
+      ms.setActionHandler('nexttrack', () => playNext());
+      ms.setActionHandler('previoustrack', () => playPrev());
+      ms.setActionHandler('seekbackward', () => { if (musicAudioRef.current) musicAudioRef.current.currentTime = Math.max(0, musicAudioRef.current.currentTime - 10); });
+      ms.setActionHandler('seekforward', () => { if (musicAudioRef.current) musicAudioRef.current.currentTime = Math.min(musicAudioRef.current.duration || 0, musicAudioRef.current.currentTime + 10); });
+    } catch (e) {}
+  };
+  useEffect(() => {
+    if ('mediaSession' in navigator) {
+      try { navigator.mediaSession.playbackState = nowPlaying && nowPlaying.isPlaying ? 'playing' : 'paused'; } catch (e) {}
+    }
+  }, [nowPlaying]);
+
+  // 隐藏 AI 指令标记（[music] / [act]），仅用于展示
+  const stripCmdTags = (text) => {
+    if (!text) return text;
+    return text.replace(/\[music\]([\s\S]*?)\[\/music\]/g, '').replace(/\[act\]([\s\S]*?)\[\/act\]/g, '').replace(/\[voice\]([\s\S]*?)\[\/voice\]/g, '');
+  };
+
+  // 把 AI 设置的简介字段持久化
+  const applyProfileField = async (field, value) => {
+    const next = { ...profile, [field]: value };
+    setProfile(next);
+    try {
+      await fetch(`${API_URL}/profile`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(next) });
+    } catch (e) { console.error('保存简介字段失败:', e); }
+  };
+
+  // 执行 AI 通过 [act] 标记的界面操作
+  const executeAction = (raw) => {
+    if (!raw) return;
+    const idx = raw.indexOf(':');
+    const cmd = (idx === -1 ? raw : raw.slice(0, idx)).trim();
+    const arg = idx === -1 ? '' : raw.slice(idx + 1).trim();
+    switch (cmd) {
+      case 'theme': {
+        const map = { '海洋蓝': 'ocean', '浅橙': 'orange', '浅灰': 'gray', '浅紫': 'purple', ocean: 'ocean', orange: 'orange', gray: 'gray', purple: 'purple' };
+        const t = map[arg] || arg;
+        if (['ocean', 'orange', 'gray', 'purple'].includes(t)) setTheme(t);
+        break;
+      }
+      case 'open': {
+        const map = { '音乐': () => setShowMusicPlayer(true), '简介': () => setShowProfile(true), '记忆宫殿': () => setShowMemoryPalace(true), '工具栏': () => setShowToolbar(true), '一起读': () => setShowReadTogether(true) };
+        const fn = map[arg];
+        if (fn) fn();
+        break;
+      }
+      case 'type': {
+        inputRef.current = arg;
+        setInput(arg);
+        setTimeout(() => { if (textareaRef.current) { textareaRef.current.focus(); textareaRef.current.style.height = 'auto'; textareaRef.current.style.height = Math.min(textareaRef.current.scrollHeight, 110) + 'px'; } }, 30);
+        break;
+      }
+      case 'send': {
+        setTimeout(() => { sendMessage(); }, 150);
+        break;
+      }
+      case 'nickname': {
+        if (arg) applyProfileField('nickname', arg);
+        break;
+      }
+      case 'ainame': {
+        if (arg) applyProfileField('aiName', arg);
+        break;
+      }
+      default: break;
+    }
+  };
+  if (typeof window !== 'undefined') window.__runAction = executeAction;
 
   // ===== 表情包 =====
   const addStickers = () => { const urls = stickerInput.split('\n').map(s => s.trim()).filter(Boolean); if (urls.length === 0) return; setStickers(prev => [...prev, ...urls.map(url => ({ id: Date.now() + Math.random(), url }))]); setStickerInput(''); };
@@ -1540,11 +1694,6 @@ function App() {
         <div className="input-area">
           <div className="input-wrapper">
             <button className="plus-btn" onClick={() => { setShowToolbar(!showToolbar); setShowStickerPicker(false); }}>+</button>
-            <button className="sticker-btn" onClick={() => { setShowStickerPicker(!showStickerPicker); setShowToolbar(false); }} aria-label="表情包">
-              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="10" /><path d="M8 14.5c1.5 1.8 4.5 1.8 6 0" /><circle cx="9" cy="10" r="1.2" fill="currentColor" stroke="none" /><circle cx="15" cy="10" r="1.2" fill="currentColor" stroke="none" />
-              </svg>
-            </button>
             <div className="input-box">
               <textarea ref={textareaRef} className="chat-input" value={input} onChange={handleInputChange} onKeyDown={handleKeyDown} placeholder="在这片海域留下你的声音…" rows={1} />
               {/* 语音输入按钮：放在输入框内右侧，像微信 */}
@@ -1563,8 +1712,14 @@ function App() {
                 )}
               </button>
             </div>
-            {/* 发送/停止按钮 */}
-            {loading ? (
+              {/* 表情包按钮（放在发送键旁边）*/}
+              <button className="sticker-btn" onClick={() => { setShowStickerPicker(!showStickerPicker); setShowToolbar(false); }} aria-label="表情包">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10" /><path d="M8 14.5c1.5 1.8 4.5 1.8 6 0" /><circle cx="9" cy="10" r="1.2" fill="currentColor" stroke="none" /><circle cx="15" cy="10" r="1.2" fill="currentColor" stroke="none" />
+                </svg>
+              </button>
+              {/* 发送/停止按钮 */}
+              {loading ? (
               <button className="send-btn stop-btn" onClick={stopGeneration} title="停止生成">
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2" /></svg>
               </button>
@@ -1591,6 +1746,10 @@ function App() {
             onSeek={seekMusic}
             onClose={closeMusic}
             onOpen={() => setShowMusicPlayer(true)}
+            onPrev={playPrev}
+            onNext={playNext}
+            repeatMode={repeatMode}
+            onCycleRepeat={cycleRepeat}
           />
         )}
       </div>
@@ -1634,6 +1793,7 @@ function App() {
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <h2>👤 简介</h2>
             <div className="modal-field"><label>你的名字</label><input value={profile.userName || ''} onChange={(e) => setProfile({ ...profile, userName: e.target.value })} /></div>
+            <div className="modal-field"><label>昵称（AI 给你的称呼）</label><input value={profile.nickname || ''} onChange={(e) => setProfile({ ...profile, nickname: e.target.value })} placeholder="AI 熟悉你后可能会自动填写" /></div>
             <div className="modal-field"><label>你的简介</label><textarea value={profile.userBio || ''} onChange={(e) => setProfile({ ...profile, userBio: e.target.value })} placeholder="介绍一下你自己..." /></div>
             <div className="modal-field"><label>AI 的名字</label><input value={profile.aiName || ''} onChange={(e) => setProfile({ ...profile, aiName: e.target.value })} /></div>
             <div className="modal-field"><label>AI 的简介</label><textarea value={profile.aiBio || ''} onChange={(e) => setProfile({ ...profile, aiBio: e.target.value })} placeholder="描述你心目中 AI 的样子..." /></div>
