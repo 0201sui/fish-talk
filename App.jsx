@@ -168,15 +168,13 @@ function SplashScreen({ onDone }) {
   );
 }
 
-// ===== 桌宠组件 =====
-function DesktopPet() {
+// ===== 桌宠组件（受控：图片/大小由 App 统一管理，支持图片库与 AI 切换）=====
+function DesktopPet({ image, size, onImageChange, onSizeChange }) {
   const [pos, setPos] = useState({ x: 50, y: 80 });
   const [dir, setDir] = useState(1);
-  const [petImage, setPetImage] = useState(() => localStorage.getItem('petImage') || '');
-  const [petSize, setPetSize] = useState(() => parseInt(localStorage.getItem('petSize') || '40'));
   const [showSettings, setShowSettings] = useState(false);
-  const [imgInput, setImgInput] = useState(petImage);
-  const [sizeInput, setSizeInput] = useState(petSize);
+  const [imgInput, setImgInput] = useState(image || '');
+  const [sizeInput, setSizeInput] = useState(size || 40);
   const petRef = useRef(null);
   const petFileRef = useRef(null);
   const dragging = useRef(false);
@@ -184,30 +182,29 @@ function DesktopPet() {
   const longPressTimer = useRef(null);
   const startPos = useRef({ x: 0, y: 0 });
 
+  useEffect(() => { setImgInput(image || ''); }, [image]);
+  useEffect(() => { setSizeInput(size || 40); }, [size]);
+
   useEffect(() => {
     let raf;
     let t = 0;
     const animate = () => {
       t += 0.02;
       if (!dragging.current) {
-        setPos(p => ({ x: Math.max(10, Math.min(window.innerWidth - petSize - 10, p.x + dir * 0.3)), y: p.y + Math.sin(t) * 0.5 }));
+        setPos(p => ({ x: Math.max(10, Math.min(window.innerWidth - size - 10, p.x + dir * 0.3)), y: p.y + Math.sin(t) * 0.5 }));
       }
       raf = requestAnimationFrame(animate);
     };
     raf = requestAnimationFrame(animate);
     return () => cancelAnimationFrame(raf);
-  }, [dir, petSize]);
-
-  useEffect(() => {
-    try { localStorage.setItem('petImage', petImage); localStorage.setItem('petSize', String(petSize)); } catch (e) {}
-  }, [petImage, petSize]);
+  }, [dir, size]);
 
   const startInteract = (e) => {
     const touch = e.touches ? e.touches[0] : e;
     startPos.current = { x: touch.clientX, y: touch.clientY };
     dragging.current = true;
     offset.current = { x: touch.clientX - pos.x, y: touch.clientY - pos.y };
-    longPressTimer.current = setTimeout(() => { dragging.current = false; setShowSettings(true); setImgInput(petImage); setSizeInput(petSize); }, 600);
+    longPressTimer.current = setTimeout(() => { dragging.current = false; setShowSettings(true); setImgInput(image || ''); setSizeInput(size || 40); }, 600);
   };
   const onMove = (e) => {
     if (longPressTimer.current) {
@@ -224,8 +221,9 @@ function DesktopPet() {
   const endInteract = () => { if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null; } dragging.current = false; };
 
   const savePetSettings = () => {
-    try { localStorage.setItem('petImage', imgInput); localStorage.setItem('petSize', String(sizeInput)); } catch (err) { alert('保存失败：图片可能太大'); }
-    setPetImage(imgInput); setPetSize(sizeInput); setShowSettings(false);
+    onImageChange(imgInput);
+    onSizeChange(sizeInput);
+    setShowSettings(false);
   };
   const resetPet = () => { setImgInput(''); setSizeInput(40); };
 
@@ -256,11 +254,11 @@ function DesktopPet() {
 
   return (
     <>
-      <div ref={petRef} className="desktop-pet" style={{ left: pos.x, top: pos.y, width: petSize, height: petSize, transform: dir < 0 ? 'scaleX(-1)' : '' }}
+      <div ref={petRef} className="desktop-pet" style={{ left: pos.x, top: pos.y, width: size, height: size, transform: dir < 0 ? 'scaleX(-1)' : '' }}
         onMouseDown={startInteract} onMouseMove={onMove} onMouseUp={endInteract} onMouseLeave={endInteract}
         onTouchStart={startInteract} onTouchMove={onMove} onTouchEnd={endInteract}
-        onContextMenu={(e) => { e.preventDefault(); setShowSettings(true); setImgInput(petImage); setSizeInput(petSize); }}>
-        {petImage ? <img src={petImage} alt="桌宠" style={{ width: '100%', height: '100%', objectFit: 'contain', pointerEvents: 'none' }} draggable={false} /> : <span style={{ fontSize: petSize, lineHeight: 1 }}>🐠</span>}
+        onContextMenu={(e) => { e.preventDefault(); setShowSettings(true); setImgInput(image || ''); setSizeInput(size || 40); }}>
+        {image ? <img src={image} alt="桌宠" style={{ width: '100%', height: '100%', objectFit: 'contain', pointerEvents: 'none' }} draggable={false} /> : <span style={{ fontSize: size, lineHeight: 1 }}>🐠</span>}
       </div>
       {showSettings && (
         <div className="pet-settings-overlay" onClick={() => setShowSettings(false)}>
@@ -275,6 +273,34 @@ function DesktopPet() {
         </div>
       )}
     </>
+  );
+}
+
+// ===== 表情包格子（支持点击插入 / 批量选择 / 长按改含义）=====
+function StickerTile({ sticker, batchMode, selected, onInsert, onDelete, onToggleSelect, onEdit }) {
+  const timer = useRef(null);
+  const start = useRef({ x: 0, y: 0 });
+  const startPress = (e) => {
+    const t = e.touches ? e.touches[0] : e;
+    start.current = { x: t.clientX, y: t.clientY };
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(() => { timer.current = null; onEdit(sticker); }, 550);
+  };
+  const movePress = (e) => {
+    const t = e.touches ? e.touches[0] : e;
+    if (Math.abs(t.clientX - start.current.x) > 8 || Math.abs(t.clientY - start.current.y) > 8) { if (timer.current) { clearTimeout(timer.current); timer.current = null; } }
+  };
+  const endPress = () => { if (timer.current) { clearTimeout(timer.current); timer.current = null; } };
+  return (
+    <div className={`sticker-item ${selected ? 'selected' : ''}`}
+      onMouseDown={startPress} onMouseMove={movePress} onMouseUp={endPress} onMouseLeave={endPress}
+      onTouchStart={startPress} onTouchMove={movePress} onTouchEnd={endPress}
+      onContextMenu={(e) => { e.preventDefault(); onEdit(sticker); }}
+      onClick={() => { if (batchMode) onToggleSelect(sticker.id); else onInsert(sticker.url); }}>
+      <img src={sticker.url} alt={sticker.meaning || 'sticker'} />
+      {batchMode && <span className="sticker-check">{selected ? '✓' : ''}</span>}
+      {!batchMode && <button className="sticker-del" onClick={(e) => { e.stopPropagation(); onDelete(sticker.id); }}>×</button>}
+    </div>
   );
 }
 
@@ -354,10 +380,11 @@ function FloatingMusicPlayer({ song, onToggle, onSeek, onClose, onOpen, onPrev, 
     for (const l of lyricLines) { if (l.time <= (song.currentTime || 0)) currentLyric = l.text; else break; }
   }
 
-  const [collapsed, setCollapsed] = useState(false);
+  const [mode, setMode] = useState('ball'); // 'ball' | 'bar' | 'lyrics'
   const [pos, setPos] = useState({ right: 16, bottom: 96 });
   const dragState = useRef(null);
   const movedRef = useRef(false);
+  const clickTimer = useRef(null);
 
   const onDragStart = (e) => {
     const p = e.touches ? e.touches[0] : e;
@@ -385,12 +412,27 @@ function FloatingMusicPlayer({ song, onToggle, onSeek, onClose, onOpen, onPrev, 
     window.addEventListener('touchend', up);
   };
 
-  const ballClick = () => { if (!movedRef.current) setCollapsed(false); };
+  // 悬浮球：单击展开播放条，双击切换为流动歌词滚动器
+  const handleBallClick = () => {
+    if (movedRef.current) return;
+    if (clickTimer.current) {
+      clearTimeout(clickTimer.current);
+      clickTimer.current = null;
+      setMode('lyrics');
+    } else {
+      clickTimer.current = setTimeout(() => { clickTimer.current = null; setMode('bar'); }, 250);
+    }
+  };
+  // 歌词滚动器：单击恢复为悬浮球
+  const handleLyricsClick = () => {
+    if (movedRef.current) return;
+    setMode('ball');
+  };
 
-  if (collapsed) {
+  if (mode === 'ball') {
     return (
       <div className="music-ball" style={{ right: pos.right, bottom: pos.bottom }}
-           onMouseDown={onDragStart} onTouchStart={onDragStart} onClick={ballClick} title="点击展开">
+           onMouseDown={onDragStart} onTouchStart={onDragStart} onClick={handleBallClick} title="单击展开 · 双击看歌词">
         <div className="music-ball-cover" style={song.cover ? { backgroundImage: `url(${song.cover})` } : {}}>
           {!song.cover && (
             <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#fff" strokeWidth="1.5">
@@ -402,6 +444,27 @@ function FloatingMusicPlayer({ song, onToggle, onSeek, onClose, onOpen, onPrev, 
         {song.isPlaying && (
           <div className="music-ball-eq"><span></span><span></span><span></span></div>
         )}
+      </div>
+    );
+  }
+
+  if (mode === 'lyrics') {
+    const plainLines = (song.lyric || '').split('\n').map(l => l.replace(/\[\d{2}:\d{2}(?:\.\d{1,3})?\]/g, '').trim()).filter(Boolean);
+    const lines = plainLines.length > 0 ? plainLines : [song.name ? ('♪ ' + song.name) : '暂无歌词'];
+    const scrollContent = [...lines, ...lines];
+    return (
+      <div className="music-lyrics" style={{ right: pos.right, bottom: pos.bottom }}
+           onMouseDown={onDragStart} onTouchStart={onDragStart} onClick={handleLyricsClick} title="单击恢复悬浮球">
+        <div className="music-lyrics-head">
+          <span className="music-lyrics-title">{song.name || '歌词'}</span>
+          {song.artist && <span className="music-lyrics-artist">{song.artist}</span>}
+        </div>
+        <div className="music-lyrics-window">
+          <div className="music-lyrics-track">
+            {scrollContent.map((t, i) => (<div key={i} className="music-lyrics-line">{t}</div>))}
+          </div>
+        </div>
+        <div className="music-lyrics-hint">单击收起</div>
       </div>
     );
   }
@@ -425,7 +488,7 @@ function FloatingMusicPlayer({ song, onToggle, onSeek, onClose, onOpen, onPrev, 
           <div className="mini-music-fill" style={{ width: `${song.progress || 0}%` }} />
         </div>
       </div>
-      <button className="mini-music-min" onClick={() => setCollapsed(true)} aria-label="缩小" title="缩小">—</button>
+      <button className="mini-music-min" onClick={() => setMode('ball')} aria-label="缩小" title="缩小">—</button>
       <button className="mini-music-prev" onClick={(e) => { e.stopPropagation(); onPrev && onPrev(); }} aria-label="上一首" title="上一首">
         <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor"><path d="M6 5h2v14H6zM20 5v14l-11-7z" /></svg>
       </button>
@@ -594,6 +657,11 @@ function App() {
   });
   const [stickers, setStickers] = useState(() => { try { return JSON.parse(localStorage.getItem('stickers') || '[]'); } catch { return []; } });
   const [stickerInput, setStickerInput] = useState('');
+  const [stickerCategory, setStickerCategory] = useState('全部');
+  const [stickerInputCategory, setStickerInputCategory] = useState('默认');
+  const [stickerBatchMode, setStickerBatchMode] = useState(false);
+  const [stickerSelected, setStickerSelected] = useState(() => new Set());
+  const [stickerEdit, setStickerEdit] = useState(null); // { id, meaning }
   const [profile, setProfile] = useState({ userBio: '', aiBio: '', userName: '我', aiName: '裴拟', nickname: '' });
   const [settings, setSettings] = useState({
     system_prompt: '', temperature: 0.7,
@@ -602,6 +670,8 @@ function App() {
   });
   const [ttsConfig, setTtsConfig] = useState(() => { try { return JSON.parse(localStorage.getItem('ttsConfig') || '{}'); } catch { return {}; } });
   const [petSettings, setPetSettings] = useState({ image: localStorage.getItem('petImage') || '', size: parseInt(localStorage.getItem('petSize') || '40') });
+  const [petImages, setPetImages] = useState([]); // 桌宠图片库（后端持久化，刷新不丢）
+  const petLibFileRef = useRef(null); // 设置页图片库上传
 
   // ===== 音乐播放（App 统一管理的播放器，AI 也能触发放歌）=====
   const musicAudioRef = useRef(null);
@@ -705,7 +775,22 @@ function App() {
     try { const res = await fetch(`${API_URL}/settings`); const data = await res.json(); if (data.settings) setSettings(data.settings); } catch (err) { console.error('加载设置失败:', err); }
   };
   const fetchProfile = async () => {
-    try { const res = await fetch(`${API_URL}/profile`); const data = await res.json(); if (data.data) setProfile(data.data); } catch (err) { console.error('加载简介失败:', err); }
+    try {
+      const res = await fetch(`${API_URL}/profile`);
+      const data = await res.json();
+      if (data.data) {
+        setProfile(data.data);
+        if (Array.isArray(data.data.petImages)) setPetImages(data.data.petImages);
+        if (data.data.petImage) {
+          setPetSettings(prev => ({ ...prev, image: data.data.petImage }));
+          localStorage.setItem('petImage', data.data.petImage);
+        }
+        if (typeof data.data.petSize === 'number') {
+          setPetSettings(prev => ({ ...prev, size: data.data.petSize }));
+          localStorage.setItem('petSize', String(data.data.petSize));
+        }
+      }
+    } catch (err) { console.error('加载简介失败:', err); }
   };
 
   const createSession = async () => {
@@ -739,6 +824,53 @@ function App() {
     try { await fetch(`${API_URL}/profile`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(profile) }); setShowProfile(false); } catch (err) { console.error('保存简介失败:', err); }
   };
 
+  // ===== 桌宠图片库（上传 / 持久化 / 删除 / 选择）=====
+  const handlePetImageChange = (img) => {
+    setPetSettings(prev => ({ ...prev, image: img }));
+    localStorage.setItem('petImage', img);
+    try { fetch(`${API_URL}/profile`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ petImage: img }) }); } catch (e) {}
+  };
+  const handlePetSizeChange = (sz) => {
+    setPetSettings(prev => ({ ...prev, size: sz }));
+    localStorage.setItem('petSize', String(sz));
+    try { fetch(`${API_URL}/profile`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ petSize: sz }) }); } catch (e) {}
+  };
+  const selectPet = (pet) => { if (pet && pet.url) handlePetImageChange(pet.url); };
+  const savePetImages = async (next) => {
+    try { await fetch(`${API_URL}/profile`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ petImages: next }) }); } catch (e) {}
+  };
+  const addPetImage = (file) => {
+    if (!file) return;
+    if (file.size > 3 * 1024 * 1024) { alert('图片不能超过3MB'); return; }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const maxDim = 300;
+        let { width, height } = img;
+        if (width > height && width > maxDim) { height = Math.round(height * maxDim / width); width = maxDim; }
+        else if (height > maxDim) { width = Math.round(width * maxDim / height); height = maxDim; }
+        let dataUrl;
+        try { const canvas = document.createElement('canvas'); canvas.width = width; canvas.height = height; canvas.getContext('2d').drawImage(img, 0, 0, width, height); dataUrl = canvas.toDataURL('image/jpeg', 0.85); } catch (e) { dataUrl = reader.result; }
+        const newPet = { id: 'pet_' + Date.now() + Math.random().toString(36).slice(2, 6), name: file.name || '图片', url: dataUrl };
+        const next = [...petImages, newPet];
+        setPetImages(next); savePetImages(next);
+      };
+      img.onerror = () => {
+        const newPet = { id: 'pet_' + Date.now() + Math.random().toString(36).slice(2, 6), name: file.name || '图片', url: reader.result };
+        const next = [...petImages, newPet]; setPetImages(next); savePetImages(next);
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  };
+  const removePetImage = (id) => {
+    const target = petImages.find(p => p.id === id);
+    const next = petImages.filter(p => p.id !== id);
+    setPetImages(next); savePetImages(next);
+    if (target && target.url === petSettings.image) handlePetImageChange('');
+  };
+
   // ===== 构建聊天请求体 =====
   const buildChatBody = (sentInput, sentImages, sentFiles, sessionId, isRegenerate = false) => {
     const activeApi = getActiveModel();
@@ -763,6 +895,8 @@ function App() {
     if (searchSettings.city) chatBody.search_city = searchSettings.city;
     // 音乐信息
     if (musicInfo) chatBody.music_info = musicInfo;
+    // 表情包含义（供 AI 理解用户发的表情包）
+    chatBody.sticker_meanings = stickers;
     if (ttsConfig.apiKey) {
       chatBody.tts_config = { apiKey: ttsConfig.apiKey, voiceId: ttsConfig.customVoiceId || ttsConfig.voiceId || 'male-qn-qingse', customVoiceId: ttsConfig.customVoiceId || '', groupId: ttsConfig.groupId || '', speed: ttsConfig.speed || 1.0, model: ttsConfig.model || 'speech-02-hd' };
     }
@@ -770,7 +904,7 @@ function App() {
   };
 
   // ===== 打字效果（逐字显示）=====
-  const startTypingEffect = (fullText) => {
+  const startTypingEffect = (fullText, onDone) => {
     if (typingTimerRef.current) clearInterval(typingTimerRef.current);
     typingBufferRef.current = fullText;
     let displayLen = 0;
@@ -783,6 +917,7 @@ function App() {
       if (displayLen >= totalLen) {
         clearInterval(typingTimerRef.current);
         typingTimerRef.current = null;
+        if (onDone) onDone();
       }
     }, 20);
   };
@@ -867,6 +1002,8 @@ function App() {
     if (searchSettings.city) chatBody.search_city = searchSettings.city;
     // 音乐信息
     if (musicInfo) chatBody.music_info = musicInfo;
+    // 表情包含义（供 AI 理解用户发的表情包）
+    chatBody.sticker_meanings = stickers;
     if (ttsConfig.apiKey) {
       chatBody.tts_config = { apiKey: ttsConfig.apiKey, voiceId: ttsConfig.customVoiceId || ttsConfig.voiceId || 'male-qn-qingse', customVoiceId: ttsConfig.customVoiceId || '', groupId: ttsConfig.groupId || '', speed: ttsConfig.speed || 1.0, model: ttsConfig.model || 'speech-02-hd' };
     }
@@ -894,16 +1031,16 @@ function App() {
           if (!trimmed.startsWith('data: ')) continue;
           try {
             const data = JSON.parse(trimmed.slice(6));
-            if (data.type === 'searching') { setTypingStatus('正在搜索中……'); }
-            else if (data.type === 'delta') { fullText += data.content; setTypingStatus(''); startTypingEffect(fullText); }
+            if (data.type === 'searching') { setTypingStatus('正在留下足迹……'); }
+            else if (data.type === 'delta') { fullText += data.content; setTypingStatus('正在留下足迹……'); }
             else if (data.type === 'done') { usage = data.usage; }
-            else if (data.type === 'error') { fullText = '抱歉，出了点问题: ' + (data.error || '未知错误'); setStreamingText(fullText); }
+            else if (data.type === 'error') { fullText = '抱歉，出了点问题: ' + (data.error || '未知错误'); setTypingStatus(''); }
           } catch (e) {}
         }
       }
       stopTypingEffect();
-      setStreamingText('');
       setTypingStatus('');
+      setStreamingText('');
       // 提取 AI 给出的指令标记（[music] 放歌 / [act] 自我操作），都不显示给用户
       const MUSIC_RE = /\[music\]([\s\S]*?)\[\/music\]/g;
       const ACT_RE = /\[act\]([\s\S]*?)\[\/act\]/g;
@@ -911,6 +1048,12 @@ function App() {
       const actCommands = [];
       let cleanText = fullText.replace(MUSIC_RE, (m, kw) => { const t = (kw || '').trim(); if (t) musicKeywords.push(t); return ''; });
       cleanText = cleanText.replace(ACT_RE, (m, a) => { const t = (a || '').trim(); if (t) actCommands.push(t); return ''; });
+      // 工具调用 / 流式阶段不展示中间文本，拿到最终结果后用打字机揭示干净文本
+      if (cleanText.trim()) {
+        await new Promise(res => startTypingEffect(cleanText, res));
+      }
+      setStreamingText('');
+      setTypingStatus('');
       if (cleanText.trim()) {
         const parts = cleanText.trim().split(/\n\n+/).map(p => p.trim()).filter(Boolean);
         for (let i = 0; i < parts.length; i++) {
@@ -982,16 +1125,16 @@ function App() {
           if (!trimmed.startsWith('data: ')) continue;
           try {
             const data = JSON.parse(trimmed.slice(6));
-            if (data.type === 'searching') { setTypingStatus('正在搜索中……'); }
-            else if (data.type === 'delta') { fullText += data.content; setTypingStatus(''); startTypingEffect(fullText); }
+            if (data.type === 'searching') { setTypingStatus('正在留下足迹……'); }
+            else if (data.type === 'delta') { fullText += data.content; setTypingStatus('正在留下足迹……'); }
             else if (data.type === 'done') { usage = data.usage; }
-            else if (data.type === 'error') { fullText = '抱歉，出了点问题: ' + (data.error || '未知错误'); setStreamingText(fullText); }
+            else if (data.type === 'error') { fullText = '抱歉，出了点问题: ' + (data.error || '未知错误'); setTypingStatus(''); }
           } catch (e) {}
         }
       }
       stopTypingEffect();
-      setStreamingText('');
       setTypingStatus('');
+      setStreamingText('');
       // 提取 AI 给出的指令标记（[music] 放歌 / [act] 自我操作），都不显示给用户
       const MUSIC_RE = /\[music\]([\s\S]*?)\[\/music\]/g;
       const ACT_RE = /\[act\]([\s\S]*?)\[\/act\]/g;
@@ -999,6 +1142,12 @@ function App() {
       const actCommands = [];
       let cleanText = fullText.replace(MUSIC_RE, (m, kw) => { const t = (kw || '').trim(); if (t) musicKeywords.push(t); return ''; });
       cleanText = cleanText.replace(ACT_RE, (m, a) => { const t = (a || '').trim(); if (t) actCommands.push(t); return ''; });
+      // 工具调用 / 流式阶段不展示中间文本，拿到最终结果后用打字机揭示干净文本
+      if (cleanText.trim()) {
+        await new Promise(res => startTypingEffect(cleanText, res));
+      }
+      setStreamingText('');
+      setTypingStatus('');
       if (cleanText.trim()) {
         const parts = cleanText.trim().split(/\n\n+/).map(p => p.trim()).filter(Boolean);
         for (let i = 0; i < parts.length; i++) {
@@ -1397,15 +1546,41 @@ function App() {
         if (arg) applyProfileField('aiName', arg);
         break;
       }
+      case 'pet': {
+        const pet = petImages.find(p => String(p.id) === String(arg));
+        if (pet) selectPet(pet);
+        break;
+      }
       default: break;
     }
   };
   if (typeof window !== 'undefined') window.__runAction = executeAction;
 
   // ===== 表情包 =====
-  const addStickers = () => { const urls = stickerInput.split('\n').map(s => s.trim()).filter(Boolean); if (urls.length === 0) return; setStickers(prev => [...prev, ...urls.map(url => ({ id: Date.now() + Math.random(), url }))]); setStickerInput(''); };
+  const addStickers = () => {
+    const urls = stickerInput.split('\n').map(s => s.trim()).filter(Boolean);
+    if (urls.length === 0) return;
+    const cat = stickerInputCategory.trim() || '默认';
+    setStickers(prev => [...prev, ...urls.map(url => ({ id: 'st_' + Date.now() + Math.random().toString(36).slice(2, 6), url, meaning: '', category: cat }))]);
+    setStickerInput('');
+  };
   const removeSticker = (id) => setStickers(prev => prev.filter(s => s.id !== id));
   const insertSticker = (url) => { setInput(prev => prev + ` [贴纸]${url}[/贴纸] `); setShowStickerPicker(false); };
+  const toggleStickerSelect = (id) => setStickerSelected(prev => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  const deleteSelectedStickers = () => {
+    if (stickerSelected.size === 0) return;
+    if (!confirm(`确定删除选中的 ${stickerSelected.size} 个表情包吗？`)) return;
+    setStickers(prev => prev.filter(s => !stickerSelected.has(s.id)));
+    setStickerSelected(new Set());
+    setStickerBatchMode(false);
+  };
+  const saveStickerMeaning = () => {
+    if (!stickerEdit) return;
+    setStickers(prev => prev.map(s => s.id === stickerEdit.id ? { ...s, meaning: stickerEdit.meaning } : s));
+    setStickerEdit(null);
+  };
+  const visibleStickers = stickerCategory === '全部' ? stickers : stickers.filter(s => (s.category || '默认') === stickerCategory);
+  const stickerCategories = ['全部', ...Array.from(new Set(stickers.map(s => s.category || '默认')))];
 
   // ===== Markdown 导出 =====
   const exportMarkdown = async () => {
@@ -1452,7 +1627,7 @@ function App() {
 
   return (
     <div className="app">
-      <DesktopPet />
+      <DesktopPet image={petSettings.image} size={petSettings.size} onImageChange={handlePetImageChange} onSizeChange={handlePetSizeChange} />
 
       {contextMenu && (
         <ContextMenu x={contextMenu.x} y={contextMenu.y} msg={contextMenu.msg} isUser={contextMenu.msg.role === 'user'}
@@ -1594,13 +1769,48 @@ function App() {
         {/* 表情包选择器 */}
         {showStickerPicker && (
           <div className="sticker-picker">
-            <div className="sticker-picker-header"><span>表情包</span><button onClick={() => setShowStickerPicker(false)}>×</button></div>
+            <div className="sticker-picker-header">
+              <span>表情包{stickerBatchMode ? `（已选 ${stickerSelected.size}）` : ''}</span>
+              <div className="sticker-picker-tools">
+                <button className={stickerBatchMode ? 'active' : ''} onClick={() => { setStickerBatchMode(b => !b); setStickerSelected(new Set()); }}>{stickerBatchMode ? '取消' : '批量'}</button>
+                {stickerBatchMode && <button className="danger" onClick={deleteSelectedStickers}>删除</button>}
+                <button onClick={() => setShowStickerPicker(false)}>×</button>
+              </div>
+            </div>
+            {!stickerBatchMode && (
+              <div className="sticker-cats">
+                {stickerCategories.map(cat => (
+                  <button key={cat} className={`sticker-cat ${stickerCategory === cat ? 'active' : ''}`} onClick={() => setStickerCategory(cat)}>{cat}</button>
+                ))}
+              </div>
+            )}
             <div className="sticker-list">
-              {stickers.length === 0 ? (<p className="sticker-empty">还没有表情包，在下方添加 URL</p>) : (
-                stickers.map(s => (<div key={s.id} className="sticker-item"><img src={s.url} alt="sticker" onClick={() => insertSticker(s.url)} /><button onClick={() => removeSticker(s.id)}>×</button></div>))
+              {visibleStickers.length === 0 ? (<p className="sticker-empty">还没有表情包，在下方添加 URL</p>) : (
+                visibleStickers.map(s => (
+                  <StickerTile key={s.id} sticker={s} batchMode={stickerBatchMode} selected={stickerSelected.has(s.id)}
+                    onInsert={insertSticker} onDelete={removeSticker} onToggleSelect={toggleStickerSelect}
+                    onEdit={(st) => setStickerEdit({ id: st.id, meaning: st.meaning || '' })} />
+                ))
               )}
             </div>
-            <div className="sticker-add"><textarea placeholder="粘贴表情包 URL（每行一个）" value={stickerInput} onChange={(e) => setStickerInput(e.target.value)} rows={2} /><button onClick={addStickers}>添加</button></div>
+            {!stickerBatchMode && (
+              <div className="sticker-add">
+                <input className="sticker-cat-input" placeholder="分类（如：日常 / 搞笑）" value={stickerInputCategory} onChange={(e) => setStickerInputCategory(e.target.value)} />
+                <textarea placeholder="粘贴表情包 URL（每行一个）" value={stickerInput} onChange={(e) => setStickerInput(e.target.value)} rows={2} />
+                <button onClick={addStickers}>添加</button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {stickerEdit && (
+          <div className="modal-overlay" onClick={() => setStickerEdit(null)}>
+            <div className="modal" onClick={e => e.stopPropagation()}>
+              <h2>表情包含义</h2>
+              <p className="settings-hint">告诉 AI 这个表情包的意思，AI 会更懂你的情绪和意图。</p>
+              <div className="modal-field"><label>含义说明</label><textarea value={stickerEdit.meaning} onChange={(e) => setStickerEdit({ ...stickerEdit, meaning: e.target.value })} placeholder="例如：开心、无奈、求安慰……" rows={3} /></div>
+              <div className="modal-actions"><button className="btn-cancel" onClick={() => setStickerEdit(null)}>取消</button><button className="btn-save" onClick={saveStickerMeaning}>保存</button></div>
+            </div>
           </div>
         )}
 
@@ -1798,11 +2008,30 @@ function App() {
               <label className="modal-check"><input type="checkbox" checked={searchSettings.enabled} onChange={(e) => setSearchSettings({ ...searchSettings, enabled: e.target.checked })} />启用联网搜索（天气、新闻等实际问题）</label>
               <div className="modal-field"><label>默认城市（用于天气查询定位）</label><input type="text" value={searchSettings.city || ''} onChange={(e) => setSearchSettings({ ...searchSettings, city: e.target.value })} placeholder="如：北京" /></div>
             </div>
-            <div className="settings-section">
-              <h3 className="settings-section-title">桌宠设置</h3>
-              <div className="modal-field"><label>桌宠图片URL（留空用默认🐠）</label><input type="text" value={petSettings.image} onChange={(e) => setPetSettings({ ...petSettings, image: e.target.value })} placeholder="粘贴图片URL" /></div>
-              <div className="modal-field"><label>桌宠大小: {petSettings.size}px</label><input type="range" min="20" max="100" value={petSettings.size} onChange={(e) => setPetSettings({ ...petSettings, size: parseInt(e.target.value) })} /></div>
-            </div>
+              <div className="settings-section">
+                <h3 className="settings-section-title">桌宠设置</h3>
+                <div className="modal-field"><label>桌宠图片URL（留空用默认🐠）</label><input type="text" value={petSettings.image} onChange={(e) => handlePetImageChange(e.target.value)} placeholder="粘贴图片URL" /></div>
+                <div className="modal-field"><label>桌宠大小: {petSettings.size}px</label><input type="range" min="20" max="100" value={petSettings.size} onChange={(e) => handlePetSizeChange(parseInt(e.target.value))} /></div>
+              </div>
+              <div className="settings-section">
+                <h3 className="settings-section-title">桌宠图片库</h3>
+                <p className="settings-hint">上传照片保存为桌宠形象（刷新不丢失）；点击图片即可换上，× 删除。</p>
+                <div className="pet-library">
+                  {petImages.length === 0 ? <p className="sticker-empty">还没有上传桌宠图片</p> :
+                    petImages.map(p => (
+                      <div key={p.id} className={`pet-lib-item ${petSettings.image === p.url ? 'active' : ''}`} onClick={() => selectPet(p)}>
+                        <img src={p.url} alt={p.name || '桌宠'} />
+                        <button className="pet-lib-del" onClick={(e) => { e.stopPropagation(); removePetImage(p.id); }}>×</button>
+                        {petSettings.image === p.url && <span className="pet-lib-badge">使用中</span>}
+                      </div>
+                    ))
+                  }
+                </div>
+                <div className="pet-lib-upload">
+                  <input ref={petLibFileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => { const f = e.target.files?.[0]; addPetImage(f); e.target.value = ''; }} />
+                  <button className="btn-save" onClick={() => petLibFileRef.current?.click()}>📷 上传桌宠图片</button>
+                </div>
+              </div>
             <div className="settings-section">
               <h3 className="settings-section-title">语音设置 (MiniMax TTS)</h3>
               <div className="modal-field"><label>MiniMax API Key</label><input type="password" value={ttsConfig.apiKey || ''} onChange={(e) => setTtsConfig({ ...ttsConfig, apiKey: e.target.value })} placeholder="在 minimax.io 注册获取" /></div>
