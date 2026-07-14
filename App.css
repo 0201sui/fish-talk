@@ -1417,6 +1417,14 @@ body {
   display: flex; align-items: center; justify-content: center; cursor: pointer;
 }
 .pet-lib-del:hover { background: #e25555; }
+.pet-lib-recut {
+  position: absolute; top: 2px; left: 2px;
+  width: 18px; height: 18px; border: none; border-radius: 50%; padding: 0;
+  background: rgba(0, 0, 0, 0.55); color: #fff; font-size: 11px; line-height: 1;
+  display: flex; align-items: center; justify-content: center; cursor: pointer;
+}
+.pet-lib-recut:hover { background: var(--theme-accent); }
+.pet-lib-recut:disabled { opacity: 0.5; cursor: default; }
 .pet-lib-badge {
   position: absolute; left: 0; bottom: 0; right: 0;
   background: var(--theme-accent); color: #fff; font-size: 10px; text-align: center;
@@ -2710,25 +2718,25 @@ body {
 .music-lyrics {
   position: fixed;
   z-index: 60;
-  width: 196px;
-  border-radius: 16px;
+  width: 180px;
+  border-radius: 14px;
   background: linear-gradient(135deg, var(--theme-accent), #1d5a73);
   color: #fff;
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.3);
-  padding: 10px 12px;
+  padding: 8px 10px;
   cursor: grab;
   touch-action: none;
 }
 .music-lyrics:active { cursor: grabbing; }
-.music-lyrics-head { display: flex; align-items: baseline; gap: 6px; margin-bottom: 6px; }
-.music-lyrics-title { font-size: 13px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.music-lyrics-artist { font-size: 11px; opacity: 0.82; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.music-lyrics-head { display: flex; align-items: baseline; gap: 6px; margin-bottom: 4px; }
+.music-lyrics-title { font-size: 12px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.music-lyrics-artist { font-size: 10px; opacity: 0.82; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .music-lyrics-window {
-  height: 96px;
+  height: 56px;
   overflow: hidden;
   position: relative;
-  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 22%, #000 78%, transparent);
-  mask-image: linear-gradient(to bottom, transparent, #000 22%, #000 78%, transparent);
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 28%, #000 72%, transparent);
+  mask-image: linear-gradient(to bottom, transparent, #000 28%, #000 72%, transparent);
 }
 .music-lyrics-track {
   display: flex; flex-direction: column;
