@@ -558,12 +558,13 @@ body {
 
 .context-menu {
   position: fixed;
-  background: rgba(40, 50, 60, 0.92);
+  background: var(--ocean-foam);
+  border: 1px solid var(--ocean-2);
   backdrop-filter: blur(20px);
-  border-radius: 10px;
+  border-radius: 12px;
   padding: 4px 0;
-  min-width: 120px;
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25);
+  min-width: 132px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
   z-index: 5001;
   animation: ctx-appear 0.15s ease-out;
 }
@@ -580,14 +581,15 @@ body {
   border: none;
   padding: 10px 16px;
   font-size: 14px;
-  color: #fff;
+  color: var(--ocean-deeper);
   cursor: pointer;
   text-align: left;
   transition: background 0.15s;
 }
 
-.ctx-item:hover { background: rgba(255, 255, 255, 0.12); }
-.ctx-item.danger { color: #ff8a8a; }
+.ctx-item:hover { background: var(--ocean-2); }
+.ctx-item.danger { color: var(--ocean-warn); }
+.ctx-item.accent { color: var(--theme-accent); font-weight: 600; }
 
 /* ===== 消息区 ===== */
 .messages-area {
@@ -1142,26 +1144,83 @@ body {
   align-items: flex-end;
 }
 
-.input-wrapper textarea {
+.input-box {
+  position: relative;
   flex: 1;
-  padding: 10px 14px;
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  background: white;
   border: 1px solid var(--ocean-3);
   border-radius: 12px;
-  resize: none;
-  font-size: 16px;
-  font-family: inherit;
-  background: white;
-  color: var(--ocean-text);
-  outline: none;
-  min-height: 44px;
+  padding: 4px 6px;
+  min-height: 42px;
   max-height: 120px;
-  line-height: 1.5;
+  transition: border-color 0.2s;
+}
+
+.input-box:focus-within { border-color: var(--ocean-deep); }
+
+.chat-input {
+  flex: 1;
+  border: none;
+  outline: none;
+  resize: none;
+  background: transparent;
+  padding: 9px 4px;
+  font-size: 15px;
+  font-family: inherit;
+  color: var(--ocean-text);
+  line-height: 1.4;
+  min-height: 34px;
+  max-height: 110px;
   overflow-y: auto;
 }
 
-.input-wrapper textarea::placeholder { color: #9ab7c4; }
+.chat-input::placeholder { color: #9ab7c4; }
 
-.input-wrapper textarea:focus { border-color: var(--ocean-deep); }
+/* 语音 / 表情按钮移入输入框内（像微信），让输入区更宽 */
+.voice-input-btn.inside,
+.sticker-btn.inside {
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  margin: 0;
+}
+
+/* AI 思考时，小水泡从输入框底部上升 */
+.input-bubbles {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 100%;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.input-bubbles span {
+  position: absolute;
+  bottom: 2px;
+  border-radius: 50%;
+  background: var(--theme-accent);
+  opacity: 0;
+  animation: input-bubble-rise 2.2s infinite ease-in;
+}
+
+.input-bubbles span:nth-child(1) { left: 14%; width: 4px; height: 4px; animation-delay: 0s; }
+.input-bubbles span:nth-child(2) { left: 30%; width: 6px; height: 6px; animation-delay: 0.4s; }
+.input-bubbles span:nth-child(3) { left: 46%; width: 3px; height: 3px; animation-delay: 0.8s; }
+.input-bubbles span:nth-child(4) { left: 60%; width: 5px; height: 5px; animation-delay: 1.2s; }
+.input-bubbles span:nth-child(5) { left: 74%; width: 4px; height: 4px; animation-delay: 1.6s; }
+.input-bubbles span:nth-child(6) { left: 88%; width: 6px; height: 6px; animation-delay: 2.0s; }
+
+@keyframes input-bubble-rise {
+  0% { bottom: 2px; opacity: 0; transform: scale(0.5); }
+  20% { opacity: 0.7; transform: scale(1); }
+  80% { opacity: 0.3; }
+  100% { bottom: 100%; opacity: 0; transform: scale(0.3); }
+}
 
 .sticker-btn {
   background: white;
@@ -1751,6 +1810,12 @@ body {
 
 .typing-status-text {
   font-style: italic;
+  animation: typing-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes typing-pulse {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 1; }
 }
 
 /* 气泡上升动画 */
@@ -2390,6 +2455,85 @@ body {
   font-size: 14px;
   color: var(--ocean-accent);
 }
+
+/* ===== 迷你音乐播放条（AI 放歌 / 后台播放）===== */
+.mini-music {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 16px 6px;
+  padding: 8px 12px;
+  background: var(--ocean-1);
+  border: 1px solid var(--ocean-2);
+  border-radius: 12px;
+  cursor: pointer;
+  flex-shrink: 0;
+  position: relative;
+}
+
+.mini-music-cover {
+  width: 38px;
+  height: 38px;
+  border-radius: 8px;
+  background-size: cover;
+  background-position: center;
+  background-color: var(--ocean-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  overflow: hidden;
+  position: relative;
+}
+
+.mini-cover-spinning {
+  position: absolute;
+  inset: 0;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: rgba(255, 255, 255, 0.85);
+  border-radius: 8px;
+  animation: mp-spin 1.5s linear infinite;
+}
+
+.mini-music-info { flex: 1; min-width: 0; }
+.mini-music-name { font-size: 13px; font-weight: 600; color: var(--ocean-deeper); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mini-music-artist { font-size: 11px; color: var(--ocean-accent); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.mini-music-progress {
+  margin-top: 5px;
+  height: 3px;
+  background: var(--ocean-3);
+  border-radius: 2px;
+  overflow: hidden;
+  cursor: pointer;
+}
+.mini-music-fill { height: 100%; background: var(--theme-accent); border-radius: 2px; transition: width 0.15s linear; }
+
+.mini-music-play {
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 50%;
+  background: var(--theme-accent);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.mini-music-close {
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: transparent;
+  color: var(--ocean-warn);
+  font-size: 18px;
+  cursor: pointer;
+  flex-shrink: 0;
+  line-height: 1;
+}
+.mini-music-time { font-size: 10px; color: var(--ocean-accent); flex-shrink: 0; }
 
 /* ===== 手机适配 ===== */
 @media (max-width: 768px) {
