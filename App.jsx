@@ -173,7 +173,7 @@ function SplashScreen({ onDone }) {
 }
 
 // ===== 桌宠组件（受控：图片/大小由 App 统一管理，支持图片库与 AI 切换）=====
-function DesktopPet({ image, size, onImageChange, onSizeChange }) {
+function DesktopPet({ image, size, shape, onImageChange, onSizeChange, onShapeChange }) {
   const [pos, setPos] = useState({ x: 50, y: 80 });
   const [dir, setDir] = useState(1);
   const [showSettings, setShowSettings] = useState(false);
@@ -262,16 +262,23 @@ function DesktopPet({ image, size, onImageChange, onSizeChange }) {
         onMouseDown={startInteract} onMouseMove={onMove} onMouseUp={endInteract} onMouseLeave={endInteract}
         onTouchStart={startInteract} onTouchMove={onMove} onTouchEnd={endInteract}
         onContextMenu={(e) => { e.preventDefault(); setShowSettings(true); setImgInput(image || ''); setSizeInput(size || 40); }}>
-        {image ? <img src={image} alt="桌宠" style={{ width: '100%', height: '100%', objectFit: 'contain', pointerEvents: 'none' }} draggable={false} /> : <span style={{ fontSize: size, lineHeight: 1 }}>🐠</span>}
+        {image ? <img src={image} alt="桌宠" style={{ width: '100%', height: '100%', objectFit: 'contain', pointerEvents: 'none', borderRadius: shape === 'circle' ? '50%' : shape === 'rounded' ? '22%' : '0' }} draggable={false} /> : <span style={{ fontSize: size, lineHeight: 1 }}>🐠</span>}
       </div>
       {showSettings && (
         <div className="pet-settings-overlay" onClick={() => setShowSettings(false)}>
           <div className="pet-settings" onClick={e => e.stopPropagation()}>
             <h3>桌宠设置</h3>
-            <div className="pet-preview">{imgInput ? <img src={imgInput} alt="预览" style={{ width: sizeInput, height: sizeInput, objectFit: 'contain' }} /> : <span style={{ fontSize: sizeInput }}>🐠</span>}</div>
+            <div className="pet-preview">{imgInput ? <img src={imgInput} alt="预览" style={{ width: sizeInput, height: sizeInput, objectFit: 'contain', borderRadius: shape === 'circle' ? '50%' : shape === 'rounded' ? '22%' : '0' }} /> : <span style={{ fontSize: sizeInput }}>🐠</span>}</div>
             <div className="pet-setting-field"><label>图片URL</label><input type="text" value={imgInput} onChange={e => setImgInput(e.target.value)} placeholder="粘贴图片URL或上传文件" /></div>
             <div className="pet-setting-field"><label>上传图片</label><input ref={petFileRef} type="file" accept="image/jpeg,image/png,image/gif,image/webp,image/*" style={{ display: 'none' }} onChange={onPetFileChange} /><button className="pet-file-btn" onClick={() => petFileRef.current?.click()}>📷 从相册选择</button></div>
             <div className="pet-setting-field"><label>大小: {sizeInput}px</label><input type="range" min="20" max="100" value={sizeInput} onChange={e => setSizeInput(parseInt(e.target.value))} /></div>
+            <div className="pet-setting-field"><label>形状（无边框）</label>
+              <div className="pet-shape-row">
+                {[['square', '方型'], ['rounded', '圆角'], ['circle', '圆形']].map(([k, label]) => (
+                  <button key={k} className={`pet-shape-btn ${shape === k ? 'active' : ''}`} onClick={() => { if (onShapeChange) onShapeChange(k); }}>{label}</button>
+                ))}
+              </div>
+            </div>
             <div className="pet-settings-actions"><button className="btn-cancel" onClick={resetPet}>重置</button><button className="btn-save" onClick={savePetSettings}>保存</button></div>
           </div>
         </div>
@@ -378,6 +385,50 @@ const removeBackgroundDataUrl = async (src) => {
     return null;
   }
 };
+
+// 清理桌宠图片：①裁剪透明边缘（去掉抠图残留的虚边/光晕）②若整体不透明（抠图失败或带实色边框），
+// 向内收缩去掉四边统一的颜色边框，确保桌宠干净、无边框。
+const cleanupPetImage = (dataUrl) => new Promise((resolve) => {
+  const img = new Image();
+  img.onload = () => {
+    try {
+      const c = document.createElement('canvas');
+      c.width = img.width; c.height = img.height;
+      const ctx = c.getContext('2d');
+      ctx.drawImage(img, 0, 0);
+      const data = ctx.getImageData(0, 0, c.width, c.height);
+      const { width: w, height: h } = c;
+      const px = (x, y) => { const i = (y * w + x) * 4; return [data.data[i], data.data[i + 1], data.data[i + 2], data.data[i + 3]]; };
+      const isTransparent = (x, y) => px(x, y)[3] < 16;
+      const near = (x, y, base) => { const p = px(x, y); const dr = p[0] - base[0], dg = p[1] - base[1], db = p[2] - base[2]; return dr * dr + dg * dg + db * db < 900; };
+      let minX = w, minY = h, maxX = -1, maxY = -1;
+      for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { if (!isTransparent(x, y)) { if (x < minX) minX = x; if (x > maxX) maxX = x; if (y < minY) minY = y; if (y > maxY) maxY = y; } }
+      if (maxX < 0) return resolve(dataUrl);
+      // 整体不透明 → 可能是带实色边框的原图，尝试去掉四边统一颜色
+      if (minX === 0 && minY === 0 && maxX === w - 1 && maxY === h - 1) {
+        const corners = [[0, 0], [w - 1, 0], [0, h - 1], [w - 1, h - 1]].map(([x, y]) => px(x, y).slice(0, 3).join(','));
+        const cnt = {}; corners.forEach(k => cnt[k] = (cnt[k] || 0) + 1);
+        const baseKey = Object.keys(cnt).sort((a, b) => cnt[b] - cnt[a])[0];
+        const base = baseKey.split(',').map(Number);
+        let l = 0, r = w - 1, t = 0, b = h - 1;
+        while (l < r && near(l, t, base) && near(l, b, base)) l++;
+        while (r > l && near(r, t, base) && near(r, b, base)) r--;
+        while (t < b && near(l, t, base) && near(r, t, base)) t++;
+        while (b > t && near(l, b, base) && near(r, b, base)) b--;
+        if (r - l < w - 8 && b - t < h - 8) { minX = l; maxX = r; minY = t; maxY = b; }
+      }
+      const pad = 2;
+      minX = Math.max(0, minX - pad); minY = Math.max(0, minY - pad);
+      maxX = Math.min(w - 1, maxX + pad); maxY = Math.min(h - 1, maxY + pad);
+      const out = document.createElement('canvas');
+      out.width = maxX - minX + 1; out.height = maxY - minY + 1;
+      out.getContext('2d').drawImage(c, minX, minY, out.width, out.height, 0, 0, out.width, out.height);
+      resolve(out.toDataURL('image/png'));
+    } catch (e) { resolve(dataUrl); }
+  };
+  img.onerror = () => resolve(dataUrl);
+  img.src = dataUrl;
+});
 
 // ===== 迷你音乐播放条（AI 放歌 / 后台播放时显示在输入框上方）=====
 function FloatingMusicPlayer({ song, onToggle, onSeek, onClose, onOpen, onPrev, onNext, repeatMode, onCycleRepeat }) {
@@ -730,6 +781,8 @@ function App() {
   });
   const [ttsConfig, setTtsConfig] = useState(() => { try { return JSON.parse(localStorage.getItem('ttsConfig') || '{}'); } catch { return {}; } });
   const [petSettings, setPetSettings] = useState({ image: localStorage.getItem('petImage') || '', size: parseInt(localStorage.getItem('petSize') || '40') });
+  // 桌宠显示形状：square=方型无边框 / rounded=圆角 / circle=圆形（统一无边框）
+  const [petShape, setPetShape] = useState(() => localStorage.getItem('petShape') || 'square');
   const [petImages, setPetImages] = useState(() => {
     try { const s = JSON.parse(localStorage.getItem('petImages') || '[]'); return Array.isArray(s) ? s : []; } catch { return []; }
   }); // 桌宠图片库（localStorage + 后端双持久化，刷新不丢；并随聊天请求发给 AI）
@@ -793,9 +846,39 @@ function App() {
     if (stickToBottomRef.current) scrollToBottom(false);
   }, [streamingText, scrollToBottom]);
 
+  // 键盘收起（视口变高）且原本贴底时，重新滚到底部，避免最后一条对话被顶上去
+  useEffect(() => {
+    const vp = (typeof window !== 'undefined') && window.visualViewport;
+    if (!vp) return;
+    let lastH = vp.height;
+    const onResize = () => {
+      if (vp.height > lastH && stickToBottomRef.current) {
+        requestAnimationFrame(() => scrollToBottom(true));
+        setTimeout(() => scrollToBottom(true), 60);
+      }
+      lastH = vp.height;
+    };
+    vp.addEventListener('resize', onResize);
+    return () => vp.removeEventListener('resize', onResize);
+  }, [scrollToBottom]);
+
   useEffect(() => {
     if (showSplash) { sessionStorage.setItem('splashed', '1'); const timer = setTimeout(() => setShowSplash(false), 4400); return () => clearTimeout(timer); }
   }, [showSplash]);
+
+  // 移动端自动播放限制：用户发消息（手势）后，AI 触发的播放可能被浏览器拦截。
+  // 这里在任意一次用户交互（点屏幕/触摸）后，若音乐已就绪但未播放，就恢复播放。
+  useEffect(() => {
+    const unlock = () => {
+      const a = musicAudioRef.current;
+      if (a && a.src && a.paused) {
+        a.play().then(() => setNowPlaying(prev => prev ? { ...prev, isPlaying: true } : prev)).catch(() => {});
+      }
+    };
+    document.addEventListener('pointerdown', unlock);
+    document.addEventListener('touchstart', unlock, { passive: true });
+    return () => { document.removeEventListener('pointerdown', unlock); document.removeEventListener('touchstart', unlock); };
+  }, []);
 
   useEffect(() => {
     fetchSessions(); fetchSettings(); fetchProfile();
@@ -933,12 +1016,13 @@ function App() {
         const newPet = { id: 'pet_' + Date.now() + Math.random().toString(36).slice(2, 6), name: file.name || '图片', url: dataUrl };
         // 自动抠图：去掉背景与边框，失败则保留原图
         setPetCutoutLoading(true);
-        removeBackgroundDataUrl(dataUrl).then(cut => {
-          if (cut) newPet.url = cut;
+        removeBackgroundDataUrl(dataUrl).then(async (cut) => {
+          newPet.url = await cleanupPetImage(cut || dataUrl); // 抠图后清理边缘/去原图边框
           const next = [...petImagesRef.current, newPet];
           persistPetImages(next);
           setPetCutoutLoading(false);
-        }).catch(() => {
+        }).catch(async () => {
+          newPet.url = await cleanupPetImage(dataUrl);
           const next = [...petImagesRef.current, newPet];
           persistPetImages(next);
           setPetCutoutLoading(false);
@@ -958,11 +1042,10 @@ function App() {
     setPetCutoutLoading(true);
     try {
       const cut = await removeBackgroundDataUrl(p.url);
-      if (cut) {
-        const next = petImagesRef.current.map(x => x.id === p.id ? { ...x, url: cut } : x);
-        persistPetImages(next);
-        if (petSettings.image === p.url) handlePetImageChange(cut);
-      }
+      const cleaned = await cleanupPetImage(cut || p.url); // 重新抠图后同样清理边缘/去边框
+      const next = petImagesRef.current.map(x => x.id === p.id ? { ...x, url: cleaned } : x);
+      persistPetImages(next);
+      if (petSettings.image === p.url) handlePetImageChange(cleaned);
     } catch (e) { /* 失败则保持原样 */ }
     setPetCutoutLoading(false);
   };
@@ -1146,7 +1229,13 @@ function App() {
           try {
             const data = JSON.parse(trimmed.slice(6));
             if (data.type === 'searching') { setTypingStatus('正在留下足迹……'); }
-            else if (data.type === 'delta') { fullText += data.content; setTypingStatus(''); setStreamingText(stripStreamingTags(fullText)); }
+            else if (data.type === 'delta') {
+              fullText += data.content;
+              setTypingStatus('');
+              // 语音消息不要流式显示文字，避免"先打字再变语音"的奇怪观感
+              if (/\[voice\]/.test(fullText)) setStreamingText('正在生成语音…');
+              else setStreamingText(stripStreamingTags(fullText));
+            }
             else if (data.type === 'done') { usage = data.usage; replies = data.replies || null; }
             else if (data.type === 'error') { fullText = '抱歉，出了点问题: ' + (data.error || '未知错误'); setTypingStatus(''); }
           } catch (e) {}
@@ -1257,7 +1346,13 @@ function App() {
           try {
             const data = JSON.parse(trimmed.slice(6));
             if (data.type === 'searching') { setTypingStatus('正在留下足迹……'); }
-            else if (data.type === 'delta') { fullText += data.content; setTypingStatus(''); setStreamingText(stripStreamingTags(fullText)); }
+            else if (data.type === 'delta') {
+              fullText += data.content;
+              setTypingStatus('');
+              // 语音消息不要流式显示文字，避免"先打字再变语音"的奇怪观感
+              if (/\[voice\]/.test(fullText)) setStreamingText('正在生成语音…');
+              else setStreamingText(stripStreamingTags(fullText));
+            }
             else if (data.type === 'done') { usage = data.usage; replies = data.replies || null; }
             else if (data.type === 'error') { fullText = '抱歉，出了点问题: ' + (data.error || '未知错误'); setTypingStatus(''); }
           } catch (e) {}
@@ -1528,11 +1623,12 @@ function App() {
         setupMediaSession({ name: song.name, artist: song.artist, album: song.album || '', cover: coverUrl });
         if ('mediaSession' in navigator) { try { navigator.mediaSession.playbackState = 'playing'; } catch (e) {} }
         audio.src = playUrl;
-        audio.play().then(() => {
-          setNowPlaying(prev => prev ? { ...prev, isPlaying: true, url: playUrl } : prev);
-        }).catch(() => {
-          setNowPlaying(prev => prev ? { ...prev, isPlaying: false, url: playUrl } : prev);
-        });
+        // 先乐观标记为播放中；若被浏览器自动播放策略拦截，下一次用户交互（点屏幕）会由全局 unlock 恢复
+        setNowPlaying(prev => prev ? { ...prev, isPlaying: true, url: playUrl } : prev);
+        const p = audio.play();
+        if (p && p.then) {
+          p.catch(() => { /* 被拦截：等用户下次交互恢复，不报错 */ });
+        }
       } else {
         setNowPlaying(prev => prev ? { ...prev, isPlaying: false } : prev);
       }
@@ -1817,7 +1913,7 @@ function App() {
 
   return (
     <div className="app">
-      <DesktopPet image={petSettings.image} size={petSettings.size} onImageChange={handlePetImageChange} onSizeChange={handlePetSizeChange} />
+      <DesktopPet image={petSettings.image} size={petSettings.size} shape={petShape} onImageChange={handlePetImageChange} onSizeChange={handlePetSizeChange} onShapeChange={(k) => { setPetShape(k); localStorage.setItem('petShape', k); }} />
 
       {contextMenu && (
         <ContextMenu x={contextMenu.x} y={contextMenu.y} msg={contextMenu.msg} isUser={contextMenu.msg.role === 'user'}
