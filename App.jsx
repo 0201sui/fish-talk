@@ -333,7 +333,7 @@ function VoiceMessage({ voice, isUser, isPlaying, onPlay }) {
 }
 
 // ===== 迷你音乐播放条（AI 放歌 / 后台播放时显示在输入框上方）=====
-function MiniMusicPlayer({ song, onToggle, onSeek, onClose, onOpen }) {
+function FloatingMusicPlayer({ song, onToggle, onSeek, onClose, onOpen }) {
   const formatTime = (sec) => {
     if (!sec || isNaN(sec)) return '0:00';
     const m = Math.floor(sec / 60);
@@ -354,9 +354,62 @@ function MiniMusicPlayer({ song, onToggle, onSeek, onClose, onOpen }) {
     for (const l of lyricLines) { if (l.time <= (song.currentTime || 0)) currentLyric = l.text; else break; }
   }
 
+  const [collapsed, setCollapsed] = useState(false);
+  const [pos, setPos] = useState({ right: 16, bottom: 96 });
+  const dragState = useRef(null);
+  const movedRef = useRef(false);
+
+  const onDragStart = (e) => {
+    const p = e.touches ? e.touches[0] : e;
+    movedRef.current = false;
+    dragState.current = { x: p.clientX, y: p.clientY, r: pos.right, b: pos.bottom };
+    const move = (ev) => {
+      const q = ev.touches ? ev.touches[0] : ev;
+      const dx = q.clientX - dragState.current.x;
+      const dy = q.clientY - dragState.current.y;
+      if (Math.abs(dx) > 4 || Math.abs(dy) > 4) movedRef.current = true;
+      const vw = window.innerWidth, vh = window.innerHeight;
+      const newRight = Math.min(Math.max(8, dragState.current.r - dx), vw - 56);
+      const newBottom = Math.min(Math.max(8, dragState.current.b - dy), vh - 56);
+      setPos({ right: newRight, bottom: newBottom });
+    };
+    const up = () => {
+      window.removeEventListener('mousemove', move);
+      window.removeEventListener('mouseup', up);
+      window.removeEventListener('touchmove', move);
+      window.removeEventListener('touchend', up);
+    };
+    window.addEventListener('mousemove', move);
+    window.addEventListener('mouseup', up);
+    window.addEventListener('touchmove', move, { passive: false });
+    window.addEventListener('touchend', up);
+  };
+
+  const ballClick = () => { if (!movedRef.current) setCollapsed(false); };
+
+  if (collapsed) {
+    return (
+      <div className="music-ball" style={{ right: pos.right, bottom: pos.bottom }}
+           onMouseDown={onDragStart} onTouchStart={onDragStart} onClick={ballClick} title="点击展开">
+        <div className="music-ball-cover" style={song.cover ? { backgroundImage: `url(${song.cover})` } : {}}>
+          {!song.cover && (
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#fff" strokeWidth="1.5">
+              <circle cx="12" cy="12" r="10" /><circle cx="12" cy="12" r="3" fill="#fff" stroke="none" />
+            </svg>
+          )}
+          {song.isPlaying && <div className="mini-cover-spinning" />}
+        </div>
+        {song.isPlaying && (
+          <div className="music-ball-eq"><span></span><span></span><span></span></div>
+        )}
+      </div>
+    );
+  }
+
   return (
-    <div className="mini-music" onClick={onOpen}>
-      <div className="mini-music-cover" style={song.cover ? { backgroundImage: `url(${song.cover})` } : {}}>
+    <div className="mini-music" style={{ right: pos.right, bottom: pos.bottom }}>
+      <div className="mini-music-cover" style={song.cover ? { backgroundImage: `url(${song.cover})` } : {}}
+           onMouseDown={onDragStart} onTouchStart={onDragStart} title="拖动我">
         {!song.cover && (
           <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="var(--theme-accent, #5ba3c4)" strokeWidth="1.5">
             <circle cx="12" cy="12" r="10" />
@@ -372,6 +425,7 @@ function MiniMusicPlayer({ song, onToggle, onSeek, onClose, onOpen }) {
           <div className="mini-music-fill" style={{ width: `${song.progress || 0}%` }} />
         </div>
       </div>
+      <button className="mini-music-min" onClick={() => setCollapsed(true)} aria-label="缩小" title="缩小">—</button>
       <button className="mini-music-play" onClick={(e) => { e.stopPropagation(); onToggle(); }} aria-label="播放/暂停">
         {song.isPlaying ? (
           <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1" /><rect x="14" y="5" width="4" height="14" rx="1" /></svg>
@@ -379,6 +433,9 @@ function MiniMusicPlayer({ song, onToggle, onSeek, onClose, onOpen }) {
           <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M8 5.5v13a1 1 0 0 0 1.5.87l11-6.5a1 1 0 0 0 0-1.74l-11-6.5A1 1 0 0 0 8 5.5z" /></svg>
         )}
       </button>
+      {onOpen && (
+        <button className="mini-music-expand" onClick={(e) => { e.stopPropagation(); onOpen(); }} aria-label="打开播放器" title="打开完整播放器">⤢</button>
+      )}
       <button className="mini-music-close" onClick={(e) => { e.stopPropagation(); onClose(); }} aria-label="关闭">×</button>
       <span className="mini-music-time">{formatTime(song.currentTime || 0)} / {formatTime(song.duration || 0)}</span>
     </div>
@@ -471,11 +528,6 @@ function MessageBubble({ msg, index, profile, onQuote, onCopy, onEdit, onDelete,
         <div className="msg-meta">
           {msg.role === 'user' && (userRead ? <span className="read-status read">已读</span> : <span className="read-status delivered">已送达</span>)}
           {msg.role === 'assistant' && !read && <span className="read-status unread">未读</span>}
-          {msg.usage && (
-            <span className="token-info" title="Token 用量">
-              {msg.usage.total_tokens ? `${msg.usage.total_tokens} tokens` : ''}
-            </span>
-          )}
           {!isQuoted && (<span className="msg-time">{formatTime(msg.created_at)}{msg.edited && ' (已编辑)'}</span>)}
         </div>
       </div>
@@ -1486,19 +1538,16 @@ function App() {
 
         {/* 输入区 */}
         <div className="input-area">
-          {nowPlaying && (
-            <MiniMusicPlayer
-              song={nowPlaying}
-              onToggle={togglePlayMusic}
-              onSeek={seekMusic}
-              onClose={closeMusic}
-              onOpen={() => setShowMusicPlayer(true)}
-            />
-          )}
           <div className="input-wrapper">
             <button className="plus-btn" onClick={() => { setShowToolbar(!showToolbar); setShowStickerPicker(false); }}>+</button>
+            <button className="sticker-btn" onClick={() => { setShowStickerPicker(!showStickerPicker); setShowToolbar(false); }} aria-label="表情包">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10" /><path d="M8 14.5c1.5 1.8 4.5 1.8 6 0" /><circle cx="9" cy="10" r="1.2" fill="currentColor" stroke="none" /><circle cx="15" cy="10" r="1.2" fill="currentColor" stroke="none" />
+              </svg>
+            </button>
             <div className="input-box">
-              {/* 语音输入按钮（放在输入框内，像微信）*/}
+              <textarea ref={textareaRef} className="chat-input" value={input} onChange={handleInputChange} onKeyDown={handleKeyDown} placeholder="在这片海域留下你的声音…" rows={1} />
+              {/* 语音输入按钮：放在输入框内右侧，像微信 */}
               <button className={`voice-input-btn inside ${isListening ? 'listening' : ''}`} onClick={toggleVoiceInput} aria-label="语音输入" title={isListening ? '正在录音，点击停止' : '语音输入'}>
                 {isListening ? (
                   <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -1513,33 +1562,37 @@ function App() {
                   </svg>
                 )}
               </button>
-              <textarea ref={textareaRef} className="chat-input" value={input} onChange={handleInputChange} onKeyDown={handleKeyDown} placeholder="在这片海域留下你的声音…" rows={1} />
-              <button className="sticker-btn inside" onClick={() => { setShowStickerPicker(!showStickerPicker); setShowToolbar(false); }} aria-label="表情包">
-                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="12" r="10" /><path d="M8 14.5c1.5 1.8 4.5 1.8 6 0" /><circle cx="9" cy="10" r="1.2" fill="currentColor" stroke="none" /><circle cx="15" cy="10" r="1.2" fill="currentColor" stroke="none" />
-                </svg>
-              </button>
-              {/* 发送/停止按钮 */}
-              {loading ? (
-                <button className="send-btn stop-btn" onClick={stopGeneration} title="停止生成">
-                  <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2" /></svg>
-                </button>
-              ) : (
-                <button className={`send-btn ${pendingCount > 0 && !input.trim() ? 'pending-trigger' : ''}`} onClick={sendMessage} disabled={!input.trim() && pendingImages.length === 0 && pendingFiles.length === 0 && pendingCount === 0}>
-                  {pendingCount > 0 && !input.trim() ? (
-                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 2L11 13" /><polygon points="22 2 15 22 11 13 2 9 22 2" /></svg>
-                  ) : '🐋'}
-                </button>
-              )}
-              {/* AI 思考时，小水泡从输入框底部上升 */}
-              {loading && (
-                <div className="input-bubbles">
-                  <span></span><span></span><span></span><span></span><span></span><span></span>
-                </div>
-              )}
             </div>
+            {/* 发送/停止按钮 */}
+            {loading ? (
+              <button className="send-btn stop-btn" onClick={stopGeneration} title="停止生成">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2" /></svg>
+              </button>
+            ) : (
+              <button className={`send-btn ${pendingCount > 0 && !input.trim() ? 'pending-trigger' : ''}`} onClick={sendMessage} disabled={!input.trim() && pendingImages.length === 0 && pendingFiles.length === 0 && pendingCount === 0}>
+                {pendingCount > 0 && !input.trim() ? (
+                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 2L11 13" /><polygon points="22 2 15 22 11 13 2 9 22 2" /></svg>
+                ) : '🐋'}
+              </button>
+            )}
           </div>
+          {/* AI 思考时，小水泡从底部栏底下往上冒 */}
+          {loading && (
+            <div className="input-bubbles">
+              <span></span><span></span><span></span><span></span><span></span><span></span>
+            </div>
+          )}
         </div>
+        {/* 音乐悬浮球（可拖动 / 可缩小）*/}
+        {nowPlaying && (
+          <FloatingMusicPlayer
+            song={nowPlaying}
+            onToggle={togglePlayMusic}
+            onSeek={seekMusic}
+            onClose={closeMusic}
+            onOpen={() => setShowMusicPlayer(true)}
+          />
+        )}
       </div>
 
       {/* 设置弹窗 */}
