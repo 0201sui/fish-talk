@@ -272,9 +272,9 @@ function DesktopPet({ image, size, shape, onImageChange, onSizeChange, onShapeCh
             <div className="pet-setting-field"><label>图片URL</label><input type="text" value={imgInput} onChange={e => setImgInput(e.target.value)} placeholder="粘贴图片URL或上传文件" /></div>
             <div className="pet-setting-field"><label>上传图片</label><input ref={petFileRef} type="file" accept="image/jpeg,image/png,image/gif,image/webp,image/*" style={{ display: 'none' }} onChange={onPetFileChange} /><button className="pet-file-btn" onClick={() => petFileRef.current?.click()}>📷 从相册选择</button></div>
             <div className="pet-setting-field"><label>大小: {sizeInput}px</label><input type="range" min="20" max="100" value={sizeInput} onChange={e => setSizeInput(parseInt(e.target.value))} /></div>
-            <div className="pet-setting-field"><label>形状（无边框）</label>
+            <div className="pet-setting-field"><label>形状</label>
               <div className="pet-shape-row">
-                {[['square', '方型'], ['rounded', '圆角'], ['circle', '圆形']].map(([k, label]) => (
+                {[['none', '无边框'], ['square', '方型'], ['rounded', '圆角'], ['circle', '圆形']].map(([k, label]) => (
                   <button key={k} className={`pet-shape-btn ${shape === k ? 'active' : ''}`} onClick={() => { if (onShapeChange) onShapeChange(k); }}>{label}</button>
                 ))}
               </div>
@@ -782,7 +782,7 @@ function App() {
   const [ttsConfig, setTtsConfig] = useState(() => { try { return JSON.parse(localStorage.getItem('ttsConfig') || '{}'); } catch { return {}; } });
   const [petSettings, setPetSettings] = useState({ image: localStorage.getItem('petImage') || '', size: parseInt(localStorage.getItem('petSize') || '40') });
   // 桌宠显示形状：square=方型无边框 / rounded=圆角 / circle=圆形（统一无边框）
-  const [petShape, setPetShape] = useState(() => localStorage.getItem('petShape') || 'square');
+  const [petShape, setPetShape] = useState(() => localStorage.getItem('petShape') || 'none');
   const [petImages, setPetImages] = useState(() => {
     try { const s = JSON.parse(localStorage.getItem('petImages') || '[]'); return Array.isArray(s) ? s : []; } catch { return []; }
   }); // 桌宠图片库（localStorage + 后端双持久化，刷新不丢；并随聊天请求发给 AI）
@@ -1232,8 +1232,10 @@ function App() {
             else if (data.type === 'delta') {
               fullText += data.content;
               setTypingStatus('');
-              // 语音消息不要流式显示文字，避免"先打字再变语音"的奇怪观感
+              // 语音 / 音乐 / 工具标记不要以流式文字显示，避免"先打字再变语音"或"显示工具过程"的怪异观感
               if (/\[voice\]/.test(fullText)) setStreamingText('正在生成语音…');
+              else if (/\[music\]/.test(fullText)) setStreamingText('正在找歌…');
+              else if (/\[act\]/.test(fullText)) setStreamingText('正在处理…');
               else setStreamingText(stripStreamingTags(fullText));
             }
             else if (data.type === 'done') { usage = data.usage; replies = data.replies || null; }
@@ -1349,8 +1351,10 @@ function App() {
             else if (data.type === 'delta') {
               fullText += data.content;
               setTypingStatus('');
-              // 语音消息不要流式显示文字，避免"先打字再变语音"的奇怪观感
+              // 语音 / 音乐 / 工具标记不要以流式文字显示，避免"先打字再变语音"或"显示工具过程"的怪异观感
               if (/\[voice\]/.test(fullText)) setStreamingText('正在生成语音…');
+              else if (/\[music\]/.test(fullText)) setStreamingText('正在找歌…');
+              else if (/\[act\]/.test(fullText)) setStreamingText('正在处理…');
               else setStreamingText(stripStreamingTags(fullText));
             }
             else if (data.type === 'done') { usage = data.usage; replies = data.replies || null; }
@@ -2304,12 +2308,12 @@ function App() {
                 <div className="pet-library">
                   <div className="pet-lib-upload-tile" onClick={() => petLibFileRef.current?.click()} title="上传桌宠图片（自动抠背景）">
                     <span className="pet-lib-plus">＋</span>
-                    <span className="pet-lib-upload-text">{petCutoutLoading ? '抠图中…' : '上传图片'}</span>
+                    <span className="pet-lib-upload-text">{petCutoutLoading ? (<><span className="pet-cut-spinner" /> 抠图中…</>) : '上传图片'}</span>
                   </div>
                   {petImages.map(p => (
                     <div key={p.id} className={`pet-lib-item ${petSettings.image === p.url ? 'active' : ''}`} onClick={() => selectPet(p)}>
                       <img src={p.url} alt={p.name || '桌宠'} />
-                      <button className="pet-lib-recut" onClick={(e) => { e.stopPropagation(); recutPet(p); }} title="重新抠图" disabled={petCutoutLoading}>🔄</button>
+                      <button className="pet-lib-recut" onClick={(e) => { e.stopPropagation(); recutPet(p); }} title="重新抠图" disabled={petCutoutLoading}><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36" /><polyline points="21 3 21 9 15 9" /></svg></button>
                       <button className="pet-lib-del" onClick={(e) => { e.stopPropagation(); removePetImage(p.id); }}>×</button>
                       {petSettings.image === p.url && <span className="pet-lib-badge">使用中</span>}
                     </div>
