@@ -2788,3 +2788,12 @@ body {
     border-radius: 12px 12px 0 0;
   }
 }
+
+/* 桌宠形状选择（无边框） */
+.pet-shape-row { display: flex; gap: 8px; margin-top: 4px; }
+.pet-shape-btn {
+  flex: 1; padding: 7px 0; font-size: 13px; cursor: pointer;
+  background: var(--ocean-1); color: var(--ocean-deeper);
+  border: 1px solid var(--ocean-3); border-radius: 8px;
+}
+.pet-shape-btn.active { background: var(--theme-accent); border-color: var(--theme-accent); color: #fff; }
