@@ -1175,7 +1175,8 @@ body {
   min-height: 26px;
   max-height: 100px;
   overflow-y: auto;
-  white-space: nowrap;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 .chat-input::placeholder { color: #9ab7c4; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -2536,8 +2537,9 @@ body {
   flex-shrink: 0;
 }
 .mini-music-prev, .mini-music-next, .mini-music-loop {
-  width: 26px;
-  height: 26px;
+  position: relative;
+  width: 28px;
+  height: 28px;
   border: none;
   border-radius: 50%;
   background: var(--ocean-2);
@@ -2549,9 +2551,24 @@ body {
   flex-shrink: 0;
   transition: all 0.15s;
 }
-.mini-music-prev:hover, .mini-music-next:hover { background: var(--theme-accent); color: #fff; }
-.mini-music-loop { font-size: 13px; line-height: 1; }
+.mini-music-prev:hover, .mini-music-next:hover, .mini-music-loop:hover { background: var(--theme-accent); color: #fff; }
 .mini-music-loop.all, .mini-music-loop.one { background: var(--theme-accent); color: #fff; }
+/* 单曲循环角标 */
+.loop-one-badge {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #fff;
+  color: var(--theme-accent);
+  font-size: 8px;
+  font-weight: 700;
+  line-height: 12px;
+  text-align: center;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
 .mini-music-close {
   width: 24px;
   height: 24px;
