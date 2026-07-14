@@ -294,7 +294,7 @@ body {
   z-index: 9000;
   cursor: grab;
   user-select: none;
-  filter: drop-shadow(0 4px 8px rgba(91, 163, 196, 0.3));
+  filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.18));
   transition: transform 0.1s ease;
   pointer-events: auto;
   display: flex;
@@ -1448,7 +1448,13 @@ body {
 }
 .pet-lib-upload-tile:hover { border-color: var(--theme-accent); background: var(--ocean-2); }
 .pet-lib-plus { font-size: 26px; line-height: 1; }
-.pet-lib-upload-text { font-size: 11px; }
+.pet-lib-upload-text { font-size: 11px; display: inline-flex; align-items: center; gap: 5px; }
+.pet-cut-spinner {
+  width: 13px; height: 13px; border-radius: 50%;
+  border: 2px solid rgba(91, 163, 196, 0.35); border-top-color: var(--theme-accent);
+  animation: pet-cut-spin 0.7s linear infinite; display: inline-block;
+}
+@keyframes pet-cut-spin { to { transform: rotate(360deg); } }
 .pet-lib-empty { grid-column: 1 / -1; text-align: center; color: var(--ocean-accent); font-size: 12px; padding: 10px 4px; }
 
 .modal-field { margin-bottom: 14px; }
