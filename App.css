@@ -1167,7 +1167,7 @@ body {
   outline: none;
   resize: none;
   background: transparent;
-  padding: 9px 4px;
+  padding: 9px 44px 9px 4px;
   font-size: 15px;
   font-family: inherit;
   color: var(--ocean-text);
@@ -1175,33 +1175,39 @@ body {
   min-height: 34px;
   max-height: 110px;
   overflow-y: auto;
+  white-space: nowrap;
 }
 
-.chat-input::placeholder { color: #9ab7c4; }
+.chat-input::placeholder { color: #9ab7c4; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-/* 语音 / 表情按钮移入输入框内（像微信），让输入区更宽 */
-.voice-input-btn.inside,
-.sticker-btn.inside {
-  width: 36px;
-  height: 36px;
+/* 语音按钮移入输入框内右侧（像微信），表情/加号移到输入框外 */
+.voice-input-btn.inside {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 34px;
+  height: 34px;
   flex-shrink: 0;
   margin: 0;
+  z-index: 2;
 }
 
-/* AI 思考时，小水泡从输入框底部上升 */
+/* AI 思考时，小水泡从底部栏底下往上冒 */
 .input-bubbles {
-  position: absolute;
+  position: fixed;
   left: 0;
   right: 0;
-  bottom: 0;
-  height: 100%;
+  bottom: 64px;
+  height: 220px;
   pointer-events: none;
-  overflow: hidden;
+  overflow: visible;
+  z-index: 50;
 }
 
 .input-bubbles span {
   position: absolute;
-  bottom: 2px;
+  bottom: 0;
   border-radius: 50%;
   background: var(--theme-accent);
   opacity: 0;
@@ -1216,10 +1222,10 @@ body {
 .input-bubbles span:nth-child(6) { left: 88%; width: 6px; height: 6px; animation-delay: 2.0s; }
 
 @keyframes input-bubble-rise {
-  0% { bottom: 2px; opacity: 0; transform: scale(0.5); }
+  0% { bottom: 0; opacity: 0; transform: scale(0.5); }
   20% { opacity: 0.7; transform: scale(1); }
   80% { opacity: 0.3; }
-  100% { bottom: 100%; opacity: 0; transform: scale(0.3); }
+  100% { bottom: 220px; opacity: 0; transform: scale(0.3); }
 }
 
 .sticker-btn {
@@ -2458,17 +2464,20 @@ body {
 
 /* ===== 迷你音乐播放条（AI 放歌 / 后台播放）===== */
 .mini-music {
+  position: fixed;
+  z-index: 60;
+  right: 16px;
+  bottom: 96px;
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin: 0 16px 6px;
-  padding: 8px 12px;
+  gap: 8px;
+  width: min(340px, calc(100vw - 32px));
+  padding: 8px 10px;
   background: var(--ocean-1);
   border: 1px solid var(--ocean-2);
-  border-radius: 12px;
-  cursor: pointer;
+  border-radius: 14px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18);
   flex-shrink: 0;
-  position: relative;
 }
 
 .mini-music-cover {
@@ -2534,6 +2543,50 @@ body {
   line-height: 1;
 }
 .mini-music-time { font-size: 10px; color: var(--ocean-accent); flex-shrink: 0; }
+
+/* 缩小按钮 / 展开按钮 */
+.mini-music-min, .mini-music-expand {
+  width: 24px; height: 24px; border: none; background: transparent;
+  color: var(--ocean-deeper); font-size: 16px; cursor: pointer; flex-shrink: 0; line-height: 1;
+  display: flex; align-items: center; justify-content: center;
+}
+.mini-music-min:hover, .mini-music-expand:hover { color: var(--theme-accent); }
+
+/* 音乐悬浮球（可拖动 / 可缩小）*/
+.music-ball {
+  position: fixed;
+  z-index: 60;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: var(--theme-accent);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+  overflow: hidden;
+  touch-action: none;
+}
+.music-ball:active { cursor: grabbing; }
+.music-ball-cover {
+  width: 52px; height: 52px;
+  background-size: cover; background-position: center;
+  display: flex; align-items: center; justify-content: center;
+  position: relative;
+}
+.music-ball-eq {
+  position: absolute; bottom: 5px; left: 50%; transform: translateX(-50%);
+  display: flex; gap: 2px; align-items: flex-end; height: 10px;
+}
+.music-ball-eq span {
+  width: 3px; background: #fff; border-radius: 1px;
+  animation: music-eq 0.9s infinite ease-in-out;
+}
+.music-ball-eq span:nth-child(1) { height: 4px; animation-delay: 0s; }
+.music-ball-eq span:nth-child(2) { height: 9px; animation-delay: 0.2s; }
+.music-ball-eq span:nth-child(3) { height: 6px; animation-delay: 0.4s; }
+@keyframes music-eq { 0%, 100% { transform: scaleY(0.4); } 50% { transform: scaleY(1); } }
 
 /* ===== 手机适配 ===== */
 @media (max-width: 768px) {
