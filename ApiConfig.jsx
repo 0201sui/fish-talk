@@ -24,12 +24,30 @@ export default function ApiConfig({ onClose, onConfigChange }) {
   const [testStatus, setTestStatus] = useState({});
   const [testMsg, setTestMsg] = useState({});
   const [newModelInput, setNewModelInput] = useState({});
+  const [temperature, setTemperature] = useState(() => {
+    const saved = parseFloat(localStorage.getItem('apiTemperature'));
+    return isNaN(saved) ? 0.7 : saved;
+  });
+  const [aiParams, setAiParams] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('aiParams') || '{}'); } catch { return {}; }
+  });
 
   // 表单区域的测试/拉取状态
   const [formTestStatus, setFormTestStatus] = useState('idle'); // idle | loading | ok | fail
   const [formTestMsg, setFormTestMsg] = useState('');
   const [formFetchStatus, setFormFetchStatus] = useState('idle');
   const [formFetchMsg, setFormFetchMsg] = useState('');
+
+  const handleTempChange = (val) => {
+    setTemperature(val);
+    localStorage.setItem('apiTemperature', String(val));
+  };
+
+  const handleAiParamChange = (key, val) => {
+    const next = { ...aiParams, [key]: val };
+    setAiParams(next);
+    localStorage.setItem('aiParams', JSON.stringify(next));
+  };
 
   const persist = (next) => {
     setData(next);
@@ -298,10 +316,69 @@ export default function ApiConfig({ onClose, onConfigChange }) {
 
         <div style={S.body}>
 
-          {/* 已有提供商 */}
+          {/* ====== 步骤1：添加新提供商 ====== */}
+          <div>
+            <p style={S.sectionLabel}>步骤 1 · 添加 API 提供商</p>
+            <div style={S.form}>
+              <div style={S.field}>
+                <label style={S.fieldLabel}>名称</label>
+                <input style={S.input} placeholder="如：OpenAI、我的中转站"
+                  value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
+              </div>
+              <div style={S.field}>
+                <label style={S.fieldLabel}>Base URL</label>
+                <input style={S.input} placeholder="如：https://api.openai.com"
+                  value={form.baseUrl} onChange={e => setForm(f => ({ ...f, baseUrl: e.target.value }))} />
+              </div>
+              <div style={S.field}>
+                <label style={S.fieldLabel}>API Key</label>
+                <input style={S.input} type="password" placeholder="sk-..."
+                  value={form.apiKey} onChange={e => setForm(f => ({ ...f, apiKey: e.target.value }))} />
+              </div>
+              <div style={S.field}>
+                <label style={S.fieldLabel}>模型（逗号分隔，可手动填写或点下方拉取）</label>
+                <input style={S.input} placeholder="如：gpt-4o, gpt-3.5-turbo"
+                  value={form.modelsInput} onChange={e => setForm(f => ({ ...f, modelsInput: e.target.value }))} />
+              </div>
+
+              {/* 测试连接 + 拉取模型 */}
+              <div style={S.btnRow}>
+                <button
+                  style={S.btnOutline(formTestStatus === 'loading')}
+                  onClick={testFormConnection}
+                  disabled={formTestStatus === 'loading'}
+                >
+                  {formTestStatus === 'loading' ? '测试中…' : '🔗 测试连接'}
+                </button>
+                <button
+                  style={S.btnOutline(formFetchStatus === 'loading')}
+                  onClick={fetchModels}
+                  disabled={formFetchStatus === 'loading'}
+                >
+                  {formFetchStatus === 'loading' ? '拉取中…' : '📋 拉取模型'}
+                </button>
+              </div>
+
+              {/* 测试结果提示 */}
+              {formTestMsg && (
+                <div style={formTestStatus === 'ok' ? S.testOk : S.testFail}>
+                  {formTestMsg}
+                </div>
+              )}
+              {formFetchMsg && (
+                <div style={formFetchStatus === 'ok' ? S.testOk : S.testFail}>
+                  {formFetchMsg}
+                </div>
+              )}
+
+              <button style={S.btnSubmit} onClick={addProvider}>💾 保存</button>
+            </div>
+          </div>
+
+          {/* ====== 步骤2：管理已有提供商 ====== */}
           {data.providers.length > 0 && (
             <div>
-              <p style={S.sectionLabel}>已添加的提供商</p>
+              <p style={S.sectionLabel}>步骤 2 · 已添加的提供商</p>
               {data.providers.map(p => (
                 <div key={p.id} style={S.card(data.activeId === p.id)}>
                   <div style={S.cardTop}>
@@ -362,63 +439,112 @@ export default function ApiConfig({ onClose, onConfigChange }) {
             </div>
           )}
 
-          {/* 添加新提供商 */}
+          {/* ====== 步骤3：温度（基础生成参数） ====== */}
           <div>
-            <p style={S.sectionLabel}>添加新提供商</p>
-            <div style={S.form}>
-              <div style={S.field}>
-                <label style={S.fieldLabel}>名称</label>
-                <input style={S.input} placeholder="如：OpenAI、我的中转站"
-                  value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
+            <p style={S.sectionLabel}>步骤 3 · 温度（生成随机性）</p>
+            <div style={S.field}>
+              <label style={S.fieldLabel}>温度 (Temperature)：{temperature.toFixed(1)}</label>
+              <input
+                type="range" min="0" max="1" step="0.1"
+                value={temperature}
+                onChange={e => handleTempChange(parseFloat(e.target.value))}
+                style={{
+                  width: '100%', height: '6px', borderRadius: '3px',
+                  appearance: 'none', WebkitAppearance: 'none',
+                  background: 'linear-gradient(to right, #c8e0ed, #5ba3c4)',
+                  outline: 'none', margin: '10px 0 6px',
+                  cursor: 'pointer',
+                }}
+              />
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#7ab0c4', padding: '0 4px' }}>
+                <span>精确 (0.0)</span>
+                <span>平衡 (0.5)</span>
+                <span>创意 (1.0)</span>
               </div>
-              <div style={S.field}>
-                <label style={S.fieldLabel}>Base URL</label>
-                <input style={S.input} placeholder="如：https://api.openai.com"
-                  value={form.baseUrl} onChange={e => setForm(f => ({ ...f, baseUrl: e.target.value }))} />
-              </div>
-              <div style={S.field}>
-                <label style={S.fieldLabel}>API Key</label>
-                <input style={S.input} type="password" placeholder="sk-..."
-                  value={form.apiKey} onChange={e => setForm(f => ({ ...f, apiKey: e.target.value }))} />
-              </div>
+            </div>
+          </div>
 
-              {/* 测试连接 + 拉取模型 两个按钮 */}
-              <div style={S.btnRow}>
-                <button
-                  style={S.btnOutline(formTestStatus === 'loading')}
-                  onClick={testFormConnection}
-                  disabled={formTestStatus === 'loading'}
-                >
-                  {formTestStatus === 'loading' ? '测试中…' : '🔗 测试连接'}
-                </button>
-                <button
-                  style={S.btnOutline(formFetchStatus === 'loading')}
-                  onClick={fetchModels}
-                  disabled={formFetchStatus === 'loading'}
-                >
-                  {formFetchStatus === 'loading' ? '拉取中…' : '📋 拉取模型'}
-                </button>
+          {/* ====== 步骤4：AI 高级参数 ====== */}
+          <div>
+            <p style={S.sectionLabel}>步骤 4 · AI 高级参数</p>
+            <div style={S.field}>
+              <label style={S.fieldLabel}>上下文轮数：{aiParams.max_context_rounds || 250}</label>
+              <input
+                type="range" min="50" max="500" step="10"
+                value={aiParams.max_context_rounds || 250}
+                onChange={e => handleAiParamChange('max_context_rounds', parseInt(e.target.value))}
+                style={{
+                  width: '100%', height: '6px', borderRadius: '3px',
+                  appearance: 'none', WebkitAppearance: 'none',
+                  background: 'linear-gradient(to right, #c8e0ed, #5ba3c4)',
+                  outline: 'none', margin: '10px 0 6px', cursor: 'pointer',
+                }}
+              />
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#7ab0c4', padding: '0 4px' }}>
+                <span>50</span><span>250</span><span>500</span>
               </div>
-
-              {/* 测试结果提示 */}
-              {formTestMsg && (
-                <div style={formTestStatus === 'ok' ? S.testOk : S.testFail}>
-                  {formTestMsg}
-                </div>
-              )}
-              {formFetchMsg && (
-                <div style={formFetchStatus === 'ok' ? S.testOk : S.testFail}>
-                  {formFetchMsg}
-                </div>
-              )}
-
-              <div style={S.field}>
-                <label style={S.fieldLabel}>模型（逗号分隔，可手动填写或点上方拉取）</label>
-                <input style={S.input} placeholder="如：gpt-4o, gpt-3.5-turbo"
-                  value={form.modelsInput} onChange={e => setForm(f => ({ ...f, modelsInput: e.target.value }))} />
+            </div>
+            <div style={S.field}>
+              <label style={S.fieldLabel}>自动总结阈值（每N轮对话后触发总结）：{aiParams.auto_summarize_after || 50}</label>
+              <input
+                type="range" min="10" max="200" step="5"
+                value={aiParams.auto_summarize_after || 50}
+                onChange={e => handleAiParamChange('auto_summarize_after', parseInt(e.target.value))}
+                style={{
+                  width: '100%', height: '6px', borderRadius: '3px',
+                  appearance: 'none', WebkitAppearance: 'none',
+                  background: 'linear-gradient(to right, #c8e0ed, #5ba3c4)',
+                  outline: 'none', margin: '10px 0 6px', cursor: 'pointer',
+                }}
+              />
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#7ab0c4', padding: '0 4px' }}>
+                <span>10轮</span><span>50轮</span><span>200轮</span>
               </div>
-
-              <button style={S.btnSubmit} onClick={addProvider}>💾 保存</button>
+            </div>
+            <div style={S.field}>
+              <label style={S.fieldLabel}>总结后保留近N轮对话：{aiParams.compress_keep_rounds || 15}</label>
+              <input
+                type="range" min="5" max="50" step="1"
+                value={aiParams.compress_keep_rounds || 15}
+                onChange={e => handleAiParamChange('compress_keep_rounds', parseInt(e.target.value))}
+                style={{
+                  width: '100%', height: '6px', borderRadius: '3px',
+                  appearance: 'none', WebkitAppearance: 'none',
+                  background: 'linear-gradient(to right, #c8e0ed, #5ba3c4)',
+                  outline: 'none', margin: '10px 0 6px', cursor: 'pointer',
+                }}
+              />
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#7ab0c4', padding: '0 4px' }}>
+                <span>5轮</span><span>15轮</span><span>50轮</span>
+              </div>
+            </div>
+            <div style={S.field}>
+              <label style={S.fieldLabel}>最大回复 Token：{aiParams.max_reply_tokens || 1024}</label>
+              <input
+                type="range" min="256" max="8192" step="256"
+                value={aiParams.max_reply_tokens || 1024}
+                onChange={e => handleAiParamChange('max_reply_tokens', parseInt(e.target.value))}
+                style={{
+                  width: '100%', height: '6px', borderRadius: '3px',
+                  appearance: 'none', WebkitAppearance: 'none',
+                  background: 'linear-gradient(to right, #c8e0ed, #5ba3c4)',
+                  outline: 'none', margin: '10px 0 6px', cursor: 'pointer',
+                }}
+              />
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#7ab0c4', padding: '0 4px' }}>
+                <span>256</span><span>1024</span><span>8192</span>
+              </div>
+            </div>
+            <div style={S.field}>
+              <label style={{ ...S.fieldLabel, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <input
+                  type="checkbox"
+                  checked={aiParams.delete_after_summarize || false}
+                  onChange={e => handleAiParamChange('delete_after_summarize', e.target.checked)}
+                  style={{ width: 'auto' }}
+                />
+                总结后删除原始消息（节省存储，但无法恢复）
+              </label>
             </div>
           </div>
 
