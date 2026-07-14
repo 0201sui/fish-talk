@@ -279,7 +279,7 @@ function DesktopPet() {
 }
 
 // ===== 长按上下文菜单 =====
-function ContextMenu({ x, y, msg, isUser, onQuote, onCopy, onEdit, onDelete, onRecall, onMultiSelect, onClose }) {
+function ContextMenu({ x, y, msg, isUser, onQuote, onCopy, onEdit, onDelete, onRecall, onMultiSelect, onRegenerate, canRegenerate, onClose }) {
   const menuRef = useRef(null);
   const [adjustedPos, setAdjustedPos] = useState({ x, y });
 
@@ -300,12 +300,13 @@ function ContextMenu({ x, y, msg, isUser, onQuote, onCopy, onEdit, onDelete, onR
     { label: '编辑', onClick: () => { onEdit(msg); onClose(); } },
     { label: '撤回', onClick: () => { onRecall(msg); onClose(); } },
   ];
+  if (canRegenerate) items.unshift({ label: '重新生成', accent: true, onClick: () => { onRegenerate(msg); onClose(); } });
   items.push({ label: '删除', danger: true, onClick: () => { onDelete(msg); onClose(); } });
 
   return (
     <div className="context-menu-overlay" onClick={onClose} onContextMenu={e => { e.preventDefault(); onClose(); }}>
       <div ref={menuRef} className="context-menu" style={{ left: adjustedPos.x, top: adjustedPos.y }} onClick={e => e.stopPropagation()}>
-        {items.map((item, i) => (<button key={i} className={item.danger ? 'ctx-item danger' : 'ctx-item'} onClick={item.onClick}>{item.label}</button>))}
+        {items.map((item, i) => (<button key={i} className={item.danger ? 'ctx-item danger' : item.accent ? 'ctx-item accent' : 'ctx-item'} onClick={item.onClick}>{item.label}</button>))}
       </div>
     </div>
   );
@@ -331,8 +332,61 @@ function VoiceMessage({ voice, isUser, isPlaying, onPlay }) {
   );
 }
 
+// ===== 迷你音乐播放条（AI 放歌 / 后台播放时显示在输入框上方）=====
+function MiniMusicPlayer({ song, onToggle, onSeek, onClose, onOpen }) {
+  const formatTime = (sec) => {
+    if (!sec || isNaN(sec)) return '0:00';
+    const m = Math.floor(sec / 60);
+    const s = Math.floor(sec % 60);
+    return `${m}:${String(s).padStart(2, '0')}`;
+  };
+  const lyricLines = (song.lyric || '').split('\n').filter(l => l.trim()).map(line => {
+    const match = line.match(/\[(\d{2}):(\d{2})\.(\d{2,3})\](.*)/);
+    if (match) {
+      const time = parseInt(match[1], 10) * 60 + parseInt(match[2], 10) + parseInt(match[3], 10) / 1000;
+      return { time, text: match[4].trim() };
+    }
+    return { time: 0, text: line.trim() };
+  });
+  let currentLyric = '';
+  if (lyricLines.length > 0) {
+    currentLyric = lyricLines[0].text;
+    for (const l of lyricLines) { if (l.time <= (song.currentTime || 0)) currentLyric = l.text; else break; }
+  }
+
+  return (
+    <div className="mini-music" onClick={onOpen}>
+      <div className="mini-music-cover" style={song.cover ? { backgroundImage: `url(${song.cover})` } : {}}>
+        {!song.cover && (
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="var(--theme-accent, #5ba3c4)" strokeWidth="1.5">
+            <circle cx="12" cy="12" r="10" />
+            <circle cx="12" cy="12" r="3" fill="var(--theme-accent, #5ba3c4)" stroke="none" />
+          </svg>
+        )}
+        {song.isPlaying && <div className="mini-cover-spinning" />}
+      </div>
+      <div className="mini-music-info">
+        <div className="mini-music-name">{song.name}</div>
+        <div className="mini-music-artist">{song.artist}{currentLyric ? ' · ' + currentLyric : ''}</div>
+        <div className="mini-music-progress" onClick={(e) => { e.stopPropagation(); onSeek(e); }}>
+          <div className="mini-music-fill" style={{ width: `${song.progress || 0}%` }} />
+        </div>
+      </div>
+      <button className="mini-music-play" onClick={(e) => { e.stopPropagation(); onToggle(); }} aria-label="播放/暂停">
+        {song.isPlaying ? (
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1" /><rect x="14" y="5" width="4" height="14" rx="1" /></svg>
+        ) : (
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M8 5.5v13a1 1 0 0 0 1.5.87l11-6.5a1 1 0 0 0 0-1.74l-11-6.5A1 1 0 0 0 8 5.5z" /></svg>
+        )}
+      </button>
+      <button className="mini-music-close" onClick={(e) => { e.stopPropagation(); onClose(); }} aria-label="关闭">×</button>
+      <span className="mini-music-time">{formatTime(song.currentTime || 0)} / {formatTime(song.duration || 0)}</span>
+    </div>
+  );
+}
+
 // ===== 消息气泡组件 =====
-function MessageBubble({ msg, index, profile, onQuote, onCopy, onEdit, onDelete, onRecall, playingVoiceId, onPlayVoice, editingId, setEditingId, editContent, setEditContent, saveEdit, isQuoted, onRead, userRead, read, isLastAI, onRegenerate, showRegenerate, multiSelectMode, isSelected, onToggleSelect }) {
+function MessageBubble({ msg, index, profile, onQuote, onCopy, onEdit, onDelete, onRecall, playingVoiceId, onPlayVoice, editingId, setEditingId, editContent, setEditContent, saveEdit, isQuoted, onRead, userRead, read, isLastAI, multiSelectMode, isSelected, onToggleSelect }) {
   const longPressTimer = useRef(null);
   const touchStart = useRef(null);
   const bubbleRef = useRef(null);
@@ -352,7 +406,7 @@ function MessageBubble({ msg, index, profile, onQuote, onCopy, onEdit, onDelete,
   const handleTouchStart = (e) => {
     if (multiSelectMode) return;
     touchStart.current = e.touches[0].clientX;
-    longPressTimer.current = setTimeout(() => { const touch = e.touches[0]; window.__showContextMenu && window.__showContextMenu(touch.clientX, touch.clientY, msg); }, 500);
+    longPressTimer.current = setTimeout(() => { const touch = e.touches[0]; window.__showContextMenu && window.__showContextMenu(touch.clientX, touch.clientY, msg, index); }, 500);
   };
   const handleTouchMove = (e) => {
     if (multiSelectMode) return;
@@ -368,7 +422,7 @@ function MessageBubble({ msg, index, profile, onQuote, onCopy, onEdit, onDelete,
   };
   const handleContextMenu = (e) => {
     if (multiSelectMode) return;
-    e.preventDefault(); window.__showContextMenu && window.__showContextMenu(e.clientX, e.clientY, msg);
+    e.preventDefault(); window.__showContextMenu && window.__showContextMenu(e.clientX, e.clientY, msg, index);
   };
   const handleClick = () => {
     if (multiSelectMode) { onToggleSelect(msg.id); }
@@ -424,16 +478,6 @@ function MessageBubble({ msg, index, profile, onQuote, onCopy, onEdit, onDelete,
           )}
           {!isQuoted && (<span className="msg-time">{formatTime(msg.created_at)}{msg.edited && ' (已编辑)'}</span>)}
         </div>
-        {/* 重新生成按钮 */}
-        {showRegenerate && msg.role === 'assistant' && isLastAI && (
-          <button className="regenerate-btn" onClick={() => onRegenerate()} title="重新生成">
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="23 4 23 10 17 10" />
-              <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
-            </svg>
-            重新生成
-          </button>
-        )}
       </div>
     </div>
   );
@@ -493,6 +537,10 @@ function App() {
   const [ttsConfig, setTtsConfig] = useState(() => { try { return JSON.parse(localStorage.getItem('ttsConfig') || '{}'); } catch { return {}; } });
   const [petSettings, setPetSettings] = useState({ image: localStorage.getItem('petImage') || '', size: parseInt(localStorage.getItem('petSize') || '40') });
 
+  // ===== 音乐播放（App 统一管理的播放器，AI 也能触发放歌）=====
+  const musicAudioRef = useRef(null);
+  const [nowPlaying, setNowPlaying] = useState(null); // {id,name,artist,cover,url,lyric,isPlaying,progress,currentTime,duration}
+
   const messagesEndRef = useRef(null);
   const messagesAreaRef = useRef(null);
   const textareaRef = useRef(null);
@@ -547,7 +595,7 @@ function App() {
   useEffect(() => { localStorage.setItem('ttsConfig', JSON.stringify(ttsConfig)); }, [ttsConfig]);
   useEffect(() => { localStorage.setItem('searchSettings', JSON.stringify(searchSettings)); }, [searchSettings]);
   useEffect(() => { if (showSettings) { setPetSettings({ image: localStorage.getItem('petImage') || '', size: parseInt(localStorage.getItem('petSize') || '40') }); } }, [showSettings]);
-  useEffect(() => { window.__showContextMenu = (x, y, msg) => { setContextMenu({ x, y, msg }); }; return () => { delete window.__showContextMenu; }; }, []);
+  useEffect(() => { window.__showContextMenu = (x, y, msg, index) => { setContextMenu({ x, y, msg, index }); }; return () => { delete window.__showContextMenu; }; }, []);
 
   const fetchSessions = async () => {
     try {
@@ -761,13 +809,19 @@ function App() {
       stopTypingEffect();
       setStreamingText('');
       setTypingStatus('');
-      if (fullText.trim()) {
-        const parts = fullText.trim().split(/\n\n+/).map(p => p.trim()).filter(Boolean);
+      // 提取 AI 给出的 [music]放歌标记（不显示给用户），其余文本正常展示
+      const MUSIC_RE = /\[music\]([\s\S]*?)\[\/music\]/g;
+      const musicKeywords = [];
+      const cleanText = fullText.replace(MUSIC_RE, (m, kw) => { const t = (kw || '').trim(); if (t) musicKeywords.push(t); return ''; });
+      if (cleanText.trim()) {
+        const parts = cleanText.trim().split(/\n\n+/).map(p => p.trim()).filter(Boolean);
         for (let i = 0; i < parts.length; i++) {
           if (i > 0) await new Promise(r => setTimeout(r, 300));
           setMessages(prev => [...prev, { id: genId(), role: 'assistant', content: parts[i], created_at: new Date().toISOString(), usage: i === parts.length - 1 ? usage : null }]);
         }
       }
+      // 让 AI 主动为用户放歌
+      musicKeywords.forEach(kw => playMusicByKeyword(kw));
     } catch (err) {
       if (err.name !== 'AbortError') {
         setMessages(prev => [...prev, { role: 'assistant', content: '网络错误，请稍后再试', created_at: new Date().toISOString() }]);
@@ -838,13 +892,19 @@ function App() {
       stopTypingEffect();
       setStreamingText('');
       setTypingStatus('');
-      if (fullText.trim()) {
-        const parts = fullText.trim().split(/\n\n+/).map(p => p.trim()).filter(Boolean);
+      // 提取 AI 给出的 [music]放歌标记（不显示给用户），其余文本正常展示
+      const MUSIC_RE = /\[music\]([\s\S]*?)\[\/music\]/g;
+      const musicKeywords = [];
+      const cleanText = fullText.replace(MUSIC_RE, (m, kw) => { const t = (kw || '').trim(); if (t) musicKeywords.push(t); return ''; });
+      if (cleanText.trim()) {
+        const parts = cleanText.trim().split(/\n\n+/).map(p => p.trim()).filter(Boolean);
         for (let i = 0; i < parts.length; i++) {
           if (i > 0) await new Promise(r => setTimeout(r, 300));
           setMessages(prev => [...prev, { id: genId(), role: 'assistant', content: parts[i], created_at: new Date().toISOString(), usage: i === parts.length - 1 ? usage : null }]);
         }
       }
+      // 让 AI 主动为用户放歌
+      musicKeywords.forEach(kw => playMusicByKeyword(kw));
     } catch (err) {
       if (err.name !== 'AbortError') {
         setMessages(prev => [...prev, { role: 'assistant', content: '网络错误，请稍后再试', created_at: new Date().toISOString() }]);
@@ -859,7 +919,7 @@ function App() {
   const handleInputChange = (e) => {
     setInput(e.target.value);
     const ta = textareaRef.current;
-    if (ta) { ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight, 100) + 'px'; }
+    if (ta) { ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight, 110) + 'px'; }
   };
 
   const onScroll = () => { if (messagesAreaRef.current) { const { scrollTop, scrollHeight, clientHeight } = messagesAreaRef.current; setShowScrollBtn(scrollHeight - scrollTop - clientHeight > 200); } };
@@ -987,6 +1047,106 @@ function App() {
     setIsListening(true);
   };
 
+  // ===== 音乐播放（统一 Audio 元素，AI 也能搜索并播放）=====
+  const ensureAudio = () => {
+    if (!musicAudioRef.current) {
+      const a = new Audio();
+      a.addEventListener('timeupdate', () => {
+        if (!a.duration) return;
+        setNowPlaying(prev => prev ? { ...prev, currentTime: a.currentTime, duration: a.duration, progress: (a.currentTime / a.duration) * 100 } : prev);
+      });
+      a.addEventListener('ended', () => {
+        setNowPlaying(prev => prev ? { ...prev, isPlaying: false, progress: 100, currentTime: a.duration || 0 } : prev);
+      });
+      a.addEventListener('error', () => {
+        setNowPlaying(prev => prev ? { ...prev, isPlaying: false } : prev);
+      });
+      musicAudioRef.current = a;
+    }
+    return musicAudioRef.current;
+  };
+
+  // 播放某首歌（先取详情/歌词/URL 再播放），并通知 AI 当前播放
+  const playSong = async (song) => {
+    if (!song || !song.id) return;
+    const audio = ensureAudio();
+    try { audio.pause(); } catch (e) {}
+    setNowPlaying({
+      id: song.id, name: song.name, artist: song.artist, album: song.album || '',
+      cover: '', lyric: '', url: '', isPlaying: false, progress: 0, currentTime: 0,
+      duration: song.duration ? Math.round(song.duration / 1000) : 0
+    });
+    try {
+      const detailResp = await fetch(`${API_URL}/music/detail/${song.id}`);
+      const detailData = await detailResp.json();
+      if (detailData.success) {
+        setNowPlaying(prev => prev ? { ...prev, cover: detailData.data.cover || '', duration: Math.round((detailData.data.duration || 0) / 1000) } : prev);
+      }
+      const lyricResp = await fetch(`${API_URL}/music/lyric/${song.id}`);
+      const lyricData = await lyricResp.json();
+      if (lyricData.success && lyricData.lyric) {
+        setNowPlaying(prev => prev ? { ...prev, lyric: lyricData.lyric } : prev);
+      }
+      const urlResp = await fetch(`${API_URL}/music/url/${song.id}`);
+      const urlData = await urlResp.json();
+      if (urlData.success && urlData.url) {
+        audio.src = urlData.url;
+        audio.play().then(() => {
+          setNowPlaying(prev => prev ? { ...prev, isPlaying: true, url: urlData.url } : prev);
+        }).catch(() => {
+          setNowPlaying(prev => prev ? { ...prev, isPlaying: false, url: urlData.url } : prev);
+        });
+      } else {
+        setNowPlaying(prev => prev ? { ...prev, isPlaying: false } : prev);
+      }
+    } catch (err) {
+      console.error('播放失败:', err);
+      setNowPlaying(prev => prev ? { ...prev, isPlaying: false } : prev);
+    }
+    // 通知 AI 当前播放的歌曲
+    setMusicInfo({ name: song.name, artist: song.artist, duration: song.duration ? Math.round(song.duration / 1000) + '秒' : null });
+  };
+
+  // AI（或用户）按关键词搜歌并播放（取第一个结果）
+  const playMusicByKeyword = async (keyword) => {
+    if (!keyword || !keyword.trim()) return;
+    try {
+      const resp = await fetch(`${API_URL}/music/search`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ keyword: keyword.trim() })
+      });
+      const data = await resp.json();
+      if (data.success && data.songs && data.songs.length > 0) {
+        await playSong(data.songs[0]);
+      }
+    } catch (err) { console.error('AI 放歌搜索失败:', err); }
+  };
+
+  const togglePlayMusic = () => {
+    const audio = musicAudioRef.current;
+    if (!audio || !nowPlaying) return;
+    if (nowPlaying.isPlaying) { audio.pause(); setNowPlaying(prev => prev ? { ...prev, isPlaying: false } : prev); }
+    else {
+      audio.play().then(() => setNowPlaying(prev => prev ? { ...prev, isPlaying: true } : prev)).catch(() => {});
+    }
+  };
+
+  const seekMusic = (e) => {
+    const audio = musicAudioRef.current;
+    if (!audio || !nowPlaying || !nowPlaying.duration) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const pct = (e.clientX - rect.left) / rect.width;
+    audio.currentTime = pct * nowPlaying.duration;
+    setNowPlaying(prev => prev ? { ...prev, progress: pct * 100, currentTime: audio.currentTime } : prev);
+  };
+
+  const closeMusic = () => {
+    const audio = musicAudioRef.current;
+    if (audio) { try { audio.pause(); } catch (e) {} }
+    setNowPlaying(null);
+    setMusicInfo(null);
+  };
+
   // ===== 表情包 =====
   const addStickers = () => { const urls = stickerInput.split('\n').map(s => s.trim()).filter(Boolean); if (urls.length === 0) return; setStickers(prev => [...prev, ...urls.map(url => ({ id: Date.now() + Math.random(), url }))]); setStickerInput(''); };
   const removeSticker = (id) => setStickers(prev => prev.filter(s => s.id !== id));
@@ -1043,6 +1203,8 @@ function App() {
         <ContextMenu x={contextMenu.x} y={contextMenu.y} msg={contextMenu.msg} isUser={contextMenu.msg.role === 'user'}
           onQuote={onQuote} onCopy={onCopy} onEdit={onEdit} onDelete={onDelete} onRecall={onRecall}
           onMultiSelect={(msg) => { setMultiSelectMode(true); setSelectedMsgIds(new Set([msg.id])); }}
+          canRegenerate={contextMenu.msg.role === 'assistant' && contextMenu.index === lastAIMsgIdx}
+          onRegenerate={() => { setContextMenu(null); regenerateResponse(); }}
           onClose={() => setContextMenu(null)} />
       )}
 
@@ -1130,8 +1292,6 @@ function App() {
               userRead={msg.role === 'user' && messages.slice(index + 1).some(m => m.role === 'assistant')}
               read={msg.role === 'assistant' ? readSet.has(msg.id) : true}
               isLastAI={index === lastAIMsgIdx}
-              showRegenerate={!loading && index === lastAIMsgIdx}
-              onRegenerate={regenerateResponse}
               multiSelectMode={multiSelectMode}
               isSelected={selectedMsgIds.has(msg.id)}
               onToggleSelect={toggleMsgSelection}
@@ -1156,9 +1316,6 @@ function App() {
               <div className="message-inner">
                 <div className="bubble typing-status-bubble">
                   <span className="typing-status-text">{typingStatus}</span>
-                  <div className="typing-bubbles">
-                    <span></span><span></span><span></span><span></span><span></span><span></span>
-                  </div>
                 </div>
               </div>
             </div>
@@ -1247,7 +1404,13 @@ function App() {
 
         {/* 音乐播放器面板 */}
         {showMusicPlayer && (
-          <MusicPlayer onClose={() => setShowMusicPlayer(false)} onSongChange={(info) => setMusicInfo(info)} />
+          <MusicPlayer
+            onClose={() => setShowMusicPlayer(false)}
+            nowPlaying={nowPlaying}
+            playSong={playSong}
+            togglePlay={togglePlayMusic}
+            seek={seekMusic}
+          />
         )}
 
         {/* 待发送图片预览 */}
@@ -1303,41 +1466,58 @@ function App() {
 
         {/* 输入区 */}
         <div className="input-area">
+          {nowPlaying && (
+            <MiniMusicPlayer
+              song={nowPlaying}
+              onToggle={togglePlayMusic}
+              onSeek={seekMusic}
+              onClose={closeMusic}
+              onOpen={() => setShowMusicPlayer(true)}
+            />
+          )}
           <div className="input-wrapper">
             <button className="plus-btn" onClick={() => { setShowToolbar(!showToolbar); setShowStickerPicker(false); }}>+</button>
-            <textarea ref={textareaRef} value={input} onChange={handleInputChange} onKeyDown={handleKeyDown} placeholder={pendingCount > 0 ? `已发${pendingCount}条消息，再次点击鲸鱼让AI回复…` : "在这片海域留下你的声音..."} rows={1} />
-            {/* 语音输入按钮 */}
-            <button className={`voice-input-btn ${isListening ? 'listening' : ''}`} onClick={toggleVoiceInput} aria-label="语音输入" title={isListening ? '正在录音，点击停止' : '语音输入'}>
-              {isListening ? (
+            <div className="input-box">
+              {/* 语音输入按钮（放在输入框内，像微信）*/}
+              <button className={`voice-input-btn inside ${isListening ? 'listening' : ''}`} onClick={toggleVoiceInput} aria-label="语音输入" title={isListening ? '正在录音，点击停止' : '语音输入'}>
+                {isListening ? (
+                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor" stroke="none" />
+                  </svg>
+                ) : (
+                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+                    <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                    <line x1="12" y1="19" x2="12" y2="23" />
+                    <line x1="8" y1="23" x2="16" y2="23" />
+                  </svg>
+                )}
+              </button>
+              <textarea ref={textareaRef} className="chat-input" value={input} onChange={handleInputChange} onKeyDown={handleKeyDown} placeholder="在这片海域留下你的声音…" rows={1} />
+              <button className="sticker-btn inside" onClick={() => { setShowStickerPicker(!showStickerPicker); setShowToolbar(false); }} aria-label="表情包">
                 <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor" stroke="none" />
+                  <circle cx="12" cy="12" r="10" /><path d="M8 14.5c1.5 1.8 4.5 1.8 6 0" /><circle cx="9" cy="10" r="1.2" fill="currentColor" stroke="none" /><circle cx="15" cy="10" r="1.2" fill="currentColor" stroke="none" />
                 </svg>
+              </button>
+              {/* 发送/停止按钮 */}
+              {loading ? (
+                <button className="send-btn stop-btn" onClick={stopGeneration} title="停止生成">
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2" /></svg>
+                </button>
               ) : (
-                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
-                  <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-                  <line x1="12" y1="19" x2="12" y2="23" />
-                  <line x1="8" y1="23" x2="16" y2="23" />
-                </svg>
+                <button className={`send-btn ${pendingCount > 0 && !input.trim() ? 'pending-trigger' : ''}`} onClick={sendMessage} disabled={!input.trim() && pendingImages.length === 0 && pendingFiles.length === 0 && pendingCount === 0}>
+                  {pendingCount > 0 && !input.trim() ? (
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 2L11 13" /><polygon points="22 2 15 22 11 13 2 9 22 2" /></svg>
+                  ) : '🐋'}
+                </button>
               )}
-            </button>
-            <button className="sticker-btn" onClick={() => { setShowStickerPicker(!showStickerPicker); setShowToolbar(false); }} aria-label="表情包">
-              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="10" /><path d="M8 14.5c1.5 1.8 4.5 1.8 6 0" /><circle cx="9" cy="10" r="1.2" fill="currentColor" stroke="none" /><circle cx="15" cy="10" r="1.2" fill="currentColor" stroke="none" />
-              </svg>
-            </button>
-            {/* 发送/停止按钮 */}
-            {loading ? (
-              <button className="send-btn stop-btn" onClick={stopGeneration} title="停止生成">
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2" /></svg>
-              </button>
-            ) : (
-              <button className={`send-btn ${pendingCount > 0 && !input.trim() ? 'pending-trigger' : ''}`} onClick={sendMessage} disabled={!input.trim() && pendingImages.length === 0 && pendingFiles.length === 0 && pendingCount === 0}>
-                {pendingCount > 0 && !input.trim() ? (
-                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 2L11 13" /><polygon points="22 2 15 22 11 13 2 9 22 2" /></svg>
-                ) : '🐋'}
-              </button>
-            )}
+              {/* AI 思考时，小水泡从输入框底部上升 */}
+              {loading && (
+                <div className="input-bubbles">
+                  <span></span><span></span><span></span><span></span><span></span><span></span>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
