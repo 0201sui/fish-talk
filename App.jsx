@@ -1692,10 +1692,17 @@ function App() {
     setMusicInfo({ name: song.name, artist, duration: durationSec ? durationSec + '秒' : null });
   };
 
-  // AI（或用户）按关键词搜歌并播放（飞飞点歌台）
+  // AI（或用户）按关键词搜歌并播放——统一走后端 /music/search 代理（避免浏览器直连 ffapi.cn 被 CORS 拦截），并用“整串/标题子串优先”的评分避免放错歌
   const playMusicByKeyword = async (keyword) => {
     if (!keyword || !keyword.trim()) return;
-    const segs = keyword.split(/[\s\-—,，·|/]+/).map(s => s.trim()).filter(Boolean);
+    // 去掉 AI 可能夹带的口头语/书名号，只留「歌名 歌手」式内容
+    const cleanKw = (keyword || '')
+      .replace(/[《》「」“”‘’【】()（）\[\]]/g, ' ')
+      .replace(/(好的|给你|为您|来一首|放一首|想听|请播放|播放|听听|搜一下|搜歌|找一首|我想听|整首|吧|呢|啊|哦)/g, ' ')
+      .replace(/\s+/g, ' ').trim();
+    const kw = cleanKw || keyword.trim();
+    const segs = kw.split(/[\s\-—,，·|/]+/).map(s => s.trim()).filter(Boolean);
+    if (segs.length === 0) return;
     const candidates = [];
     const seen = new Set();
     const normalize = (s) => ({
@@ -1705,44 +1712,59 @@ function App() {
       singer: s.singer || '',
       album: s.album || '',
       pic: s.pic || s.cover || '',
+      cover: s.pic || s.cover || '',
       duration: s.duration || 0
     });
+    // 评分：整串关键词是歌名子串 → 最高分；关键词含歌名 → 次高；各片段命中歌名/歌手累加
+    const scoreSong = (song) => {
+      const name = (song.name || '').toLowerCase();
+      const artist = (song.artist || '').toLowerCase();
+      const kwLower = kw.toLowerCase();
+      let score = 0;
+      if (kwLower && name.includes(kwLower)) score += 5;
+      if (name.length >= 2 && kwLower.includes(name)) score += 4;
+      for (const seg of segs) {
+        const sg = seg.toLowerCase();
+        if (!sg) continue;
+        if (name.includes(sg)) score += 3;
+        if (artist.includes(sg)) score += 1;
+      }
+      return score;
+    };
     const collect = (arr) => {
-      for (const raw of (arr || []).slice(0, 10)) {
+      for (const raw of (arr || []).slice(0, 15)) {
         const song = normalize(raw);
         if (!song.id || !song.name) continue;
-        const hay = (song.name + ' ' + song.artist).toLowerCase();
-        let score = 0;
-        for (const seg of segs) { if (seg && hay.includes(seg.toLowerCase())) score++; }
+        const score = scoreSong(song);
         if (seen.has(song.id)) {
           const ex = candidates.find(c => c.song.id === song.id);
           if (ex && score > ex.score) ex.score = score;
         } else { seen.add(song.id); candidates.push({ song, score }); }
       }
     };
-    const doSearch = async (kw) => {
+    const doSearch = async (q) => {
       try {
-        const resp = await fetch(`${MUSIC_API}?msg=${encodeURIComponent(kw)}&limit=10&format=json&act=search`);
+        const resp = await fetch(`${API_URL}/music/search`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ keyword: q })
+        });
         const data = await resp.json();
-        if (data && Array.isArray(data.list) && data.list.length > 0) { collect(data.list); return; }
-      } catch (e) { /* ignore */ }
-      // 兜底：直接点歌
-      try {
-        const resp = await fetch(`${MUSIC_API}?msg=${encodeURIComponent(kw)}&n=1&format=json`);
-        const data = await resp.json();
-        if (data && data.code === 200 && data.data && data.data.id) {
-          const s = normalize(data.data);
-          s.url = data.data.url; s.lrc = data.data.lrc;
-          collect([s]);
-        }
-      } catch (e) { /* ignore */ }
+        if (data && data.success && Array.isArray(data.songs) && data.songs.length > 0) { collect(data.songs); return true; }
+      } catch (e) { console.error('音乐搜索失败:', e); }
+      return false;
     };
-    await doSearch(keyword.trim());
+    // 1) 用整串关键词搜索（后端 limit=15，网易已按相关度排序）
+    await doSearch(kw);
+    // 2) 若没命中，再拆片段兜底
     if (candidates.length === 0) {
-      for (const seg of segs) await doSearch(seg);
+      for (const seg of segs) { if (await doSearch(seg)) break; }
     }
     if (candidates.length === 0) return;
+    // 3) 按相关度排序，优先「整串/标题命中」的歌
     candidates.sort((a, b) => b.score - a.score);
+    const best = candidates[0];
+    // 4) 若最佳匹配几乎不相关（score=0），宁可不乱放，避免“牛头不对马嘴”
+    if (best.score <= 0) return;
     const list = candidates.map(c => c.song);
     await playSong(list[0], list, 0);
   };
