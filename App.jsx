@@ -13,8 +13,9 @@ const API_URL = (typeof window !== 'undefined' && window.location.hostname === '
   ? 'http://localhost:3000'
   : 'https://my-home-backend-9j56.onrender.com';
 
-// 音乐直连 GD Studio API（用户浏览器在国内可直连，且服务端返回 CORS *；
-// 后端 Render 美国机房会被 Cloudflare 拦 403，所以音乐走前端直连最稳）
+// 音乐直连 API：飞飞点歌台（HTTPS，支持搜索/点歌/歌词/直链）
+const MUSIC_API = 'https://ffapi.cn/int/v1/dg_netease';
+// 旧 GD Studio 已无法搜索（返回 []），仅保留作为历史兼容
 const GD_MUSIC_API = 'https://music-api.gdstudio.xyz/api.php';
 
 // 本地聊天记录缓存（防止刷新 / 重进网址后丢失记录）
@@ -179,6 +180,7 @@ function DesktopPet({ image, size, shape, onImageChange, onSizeChange, onShapeCh
   const [showSettings, setShowSettings] = useState(false);
   const [imgInput, setImgInput] = useState(image || '');
   const [sizeInput, setSizeInput] = useState(size || 40);
+  const [cutoutLoading, setCutoutLoading] = useState(false);
   const petRef = useRef(null);
   const petFileRef = useRef(null);
   const dragging = useRef(false);
@@ -231,6 +233,25 @@ function DesktopPet({ image, size, shape, onImageChange, onSizeChange, onShapeCh
   };
   const resetPet = () => { setImgInput(''); setSizeInput(40); };
 
+  const cutoutPet = async () => {
+    if (!imgInput || cutoutLoading) return;
+    setCutoutLoading(true);
+    try {
+      let cleaned = await removeBackgroundDataUrl(imgInput);
+      if (cleaned) {
+        cleaned = await cleanupPetImage(cleaned);
+      } else {
+        // 若 AI 抠图失败，尝试用简单颜色边框裁剪兜底
+        cleaned = await cleanupPetImage(imgInput);
+      }
+      setImgInput(cleaned || imgInput);
+    } catch (e) {
+      console.warn('去背景失败:', e);
+    } finally {
+      setCutoutLoading(false);
+    }
+  };
+
   const onPetFileChange = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -279,6 +300,15 @@ function DesktopPet({ image, size, shape, onImageChange, onSizeChange, onShapeCh
                 ))}
               </div>
             </div>
+            {imgInput && (
+              <div className="pet-setting-field">
+                <label>背景</label>
+                <button className="pet-cutout-btn" onClick={cutoutPet} disabled={cutoutLoading}>
+                  {cutoutLoading ? '⏳ 正在去背景…' : '✂️ 去除背景'}
+                </button>
+                <p className="pet-cutout-hint">如果图片有黑边/白边，点这里一键抠掉</p>
+              </div>
+            )}
             <div className="pet-settings-actions"><button className="btn-cancel" onClick={resetPet}>重置</button><button className="btn-save" onClick={savePetSettings}>保存</button></div>
           </div>
         </div>
@@ -1509,9 +1539,9 @@ function App() {
   };
 
   // ===== 语音输入（Web Speech API）=====
-  const toggleVoiceInput = () => {
+  const toggleVoiceInput = async () => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) { alert('你的浏览器不支持语音输入，请使用 Chrome 或 Edge'); return; }
+    if (!SpeechRecognition) { alert('你的浏览器不支持语音输入，请使用 Chrome / Edge / Safari 系统浏览器'); return; }
 
     if (isListening) {
       recognitionRef.current?.stop();
@@ -1519,11 +1549,22 @@ function App() {
       return;
     }
 
+    // 先请求麦克风权限（移动端浏览器需要显式授权后语音识别才稳定）
+    try {
+      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        await navigator.mediaDevices.getUserMedia({ audio: true });
+      }
+    } catch (e) {
+      alert('无法使用麦克风，请检查浏览器权限设置');
+      return;
+    }
+
     const recognition = new SpeechRecognition();
     recognition.lang = 'zh-CN';
-    recognition.continuous = false;
-    recognition.interimResults = true;
+    recognition.continuous = true;      // 持续收音，避免移动端过早结束
+    recognition.interimResults = true;    // 实时显示中间结果
 
+    let pendingInterim = '';
     recognition.onresult = (event) => {
       let finalText = '';
       let interimText = '';
@@ -1532,18 +1573,38 @@ function App() {
         if (event.results[i].isFinal) finalText += transcript;
         else interimText += transcript;
       }
-      if (finalText) {
-        setInput(prev => prev + finalText);
-        const ta = textareaRef.current;
-        if (ta) { ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight, 100) + 'px'; }
-      }
+      pendingInterim = interimText;
+      setInput(prev => {
+        // 去掉上一轮 interim，追加最新 interim / final
+        const base = prev.endsWith(pendingInterim) ? prev.slice(0, -pendingInterim.length) : prev;
+        const next = base + finalText + interimText;
+        return next;
+      });
+      if (finalText) pendingInterim = '';
+      const ta = textareaRef.current;
+      if (ta) { ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight, 100) + 'px'; }
     };
-    recognition.onerror = (event) => { console.error('语音识别错误:', event.error); setIsListening(false); };
+    recognition.onerror = (event) => {
+      console.error('语音识别错误:', event.error);
+      if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+        alert('麦克风权限被拒绝，请在浏览器设置中允许使用麦克风');
+      } else if (event.error === 'no-speech') {
+        // 没说话就结束，不用弹窗
+      } else if (event.error === 'network') {
+        alert('语音识别网络错误，请检查网络连接');
+      }
+      setIsListening(false);
+    };
     recognition.onend = () => { setIsListening(false); };
 
-    recognition.start();
-    recognitionRef.current = recognition;
-    setIsListening(true);
+    try {
+      recognition.start();
+      recognitionRef.current = recognition;
+      setIsListening(true);
+    } catch (e) {
+      console.error('启动语音识别失败:', e);
+      alert('启动语音识别失败，请重试');
+    }
   };
 
   // ===== 音乐播放（统一 Audio 元素，AI 也能搜索并播放）=====
@@ -1567,64 +1628,56 @@ function App() {
     return musicAudioRef.current;
   };
 
-  // 播放某首歌（先取详情/歌词/URL 再播放），并通知 AI 当前播放
+  // 播放某首歌（取歌词/URL 再播放），并通知 AI 当前播放
   const playSong = async (song, list, idx) => {
     if (!song || !song.id) return;
     if (list && Array.isArray(list)) { setPlaylist(list); if (typeof idx === 'number') setPlaylistIndex(idx); }
     const audio = ensureAudio();
     try { audio.pause(); } catch (e) {}
+    const coverUrl = song.cover || song.pic || '';
+    const artist = song.artist || song.singer || '';
+    const durationSec = (() => {
+      if (typeof song.duration === 'number') return Math.round(song.duration / 1000) || 0;
+      if (typeof song.duration === 'string') {
+        const [m, s] = song.duration.split(':').map(Number);
+        if (!isNaN(m) && !isNaN(s)) return m * 60 + s;
+      }
+      return 0;
+    })();
     setNowPlaying({
-      id: song.id, name: song.name, artist: song.artist, album: song.album || '',
-      cover: '', lyric: '', url: '', isPlaying: false, progress: 0, currentTime: 0,
-      duration: song.duration ? Math.round(song.duration / 1000) : 0
+      id: song.id, name: song.name, artist, album: song.album || '',
+      cover: coverUrl, lyric: song.lyric || '', url: '', isPlaying: false, progress: 0, currentTime: 0,
+      duration: durationSec
     });
     try {
-      // 1) 封面（GD Studio 直连；需要 pic_id）
-      let coverUrl = '';
-      if (song.pic_id) {
-        try {
-          const pr = await fetch(`${GD_MUSIC_API}?types=pic&source=netease&id=${encodeURIComponent(song.pic_id)}&size=300`);
-          const pd = await pr.json();
-          coverUrl = pd.url || '';
-          if (coverUrl) setNowPlaying(prev => prev ? { ...prev, cover: coverUrl } : prev);
-        } catch (e) {}
-      }
-      // 2) 歌词（GD Studio 直连）
+      // 1) 歌词
       try {
-        const lr = await fetch(`${GD_MUSIC_API}?types=lyric&source=netease&id=${encodeURIComponent(song.lyric_id || song.id)}`);
+        const lr = await fetch(`${MUSIC_API}?act=lrcgc&id=${encodeURIComponent(song.id)}&format=json`);
         const ld = await lr.json();
         if (ld && ld.lyric) setNowPlaying(prev => prev ? { ...prev, lyric: ld.lyric } : prev);
       } catch (e) {}
-      // 3) 播放地址（GD Studio 直连，返回可直接播放的网易云 CDN 地址）
+      // 2) 播放地址
       let playUrl = '';
       try {
-        const ur = await fetch(`${GD_MUSIC_API}?types=url&source=netease&id=${encodeURIComponent(song.id)}&br=320`);
+        const ur = await fetch(`${MUSIC_API}?act=musicurl&id=${encodeURIComponent(song.id)}&format=json`);
         const ud = await ur.json();
         if (ud && ud.url) playUrl = ud.url;
-        if (!playUrl) {
-          const ur2 = await fetch(`${GD_MUSIC_API}?types=url&source=netease&id=${encodeURIComponent(song.id)}&br=128`);
-          const ud2 = await ur2.json();
-          if (ud2 && ud2.url) playUrl = ud2.url;
-        }
       } catch (e) {}
-      // 兜底：后端代理（万一前端环境无法直连 GD Studio）
-      if (!playUrl) {
+      // 兜底：旧 GD Studio URL 格式（兼容历史 song 对象）
+      if (!playUrl && String(song.id).length < 12) {
         try {
-          const urlResp = await fetch(`${API_URL}/music/url/${song.id}`);
-          const urlData = await urlResp.json();
-          if (urlData.success && urlData.url) playUrl = urlData.url;
+          const ur = await fetch(`${GD_MUSIC_API}?types=url&source=netease&id=${encodeURIComponent(song.id)}&br=320`);
+          const ud = await ur.json();
+          if (ud && ud.url) playUrl = ud.url;
         } catch (e) {}
       }
       if (playUrl) {
-        setupMediaSession({ name: song.name, artist: song.artist, album: song.album || '', cover: coverUrl });
+        setupMediaSession({ name: song.name, artist, album: song.album || '', cover: coverUrl });
         if ('mediaSession' in navigator) { try { navigator.mediaSession.playbackState = 'playing'; } catch (e) {} }
         audio.src = playUrl;
-        // 先乐观标记为播放中；若被浏览器自动播放策略拦截，下一次用户交互（点屏幕）会由全局 unlock 恢复
         setNowPlaying(prev => prev ? { ...prev, isPlaying: true, url: playUrl } : prev);
         const p = audio.play();
-        if (p && p.then) {
-          p.catch(() => { /* 被拦截：等用户下次交互恢复，不报错 */ });
-        }
+        if (p && p.then) p.catch(() => {});
       } else {
         setNowPlaying(prev => prev ? { ...prev, isPlaying: false } : prev);
       }
@@ -1633,53 +1686,52 @@ function App() {
       setNowPlaying(prev => prev ? { ...prev, isPlaying: false } : prev);
     }
     // 通知 AI 当前播放的歌曲
-    setMusicInfo({ name: song.name, artist: song.artist, duration: song.duration ? Math.round(song.duration / 1000) + '秒' : null });
+    setMusicInfo({ name: song.name, artist, duration: durationSec ? durationSec + '秒' : null });
   };
 
-  // AI（或用户）按关键词搜歌并播放（智能匹配：按歌名/歌手片段打分取最佳）
+  // AI（或用户）按关键词搜歌并播放（飞飞点歌台）
   const playMusicByKeyword = async (keyword) => {
     if (!keyword || !keyword.trim()) return;
     const segs = keyword.split(/[\s\-—,，·|/]+/).map(s => s.trim()).filter(Boolean);
     const candidates = [];
     const seen = new Set();
-    // 归一化 GD Studio / 后端 两种返回结构
     const normalize = (s) => ({
       id: String(s.id),
       name: s.name || s.title || '',
-      artist: Array.isArray(s.artist) ? s.artist.join(' / ') : (s.artist || ''),
+      artist: Array.isArray(s.artist) ? s.artist.join(' / ') : (s.artist || s.singer || ''),
+      singer: s.singer || '',
       album: s.album || '',
-      pic_id: s.pic_id || '',
-      lyric_id: s.lyric_id || s.id,
+      pic: s.pic || s.cover || '',
       duration: s.duration || 0
     });
     const collect = (arr) => {
       for (const raw of (arr || []).slice(0, 10)) {
-        const s = normalize(raw);
-        if (!s.id || !s.name) continue;
-        const hay = (s.name + ' ' + s.artist).toLowerCase();
+        const song = normalize(raw);
+        if (!song.id || !song.name) continue;
+        const hay = (song.name + ' ' + song.artist).toLowerCase();
         let score = 0;
         for (const seg of segs) { if (seg && hay.includes(seg.toLowerCase())) score++; }
-        if (seen.has(s.id)) {
-          const ex = candidates.find(c => c.song.id === s.id);
+        if (seen.has(song.id)) {
+          const ex = candidates.find(c => c.song.id === song.id);
           if (ex && score > ex.score) ex.score = score;
-        } else { seen.add(s.id); candidates.push({ song: s, score }); }
+        } else { seen.add(song.id); candidates.push({ song, score }); }
       }
     };
     const doSearch = async (kw) => {
-      // 优先前端直连 GD Studio（用户浏览器国内可直连；后端 Render 被 Cloudflare 拦）
       try {
-        const resp = await fetch(`${GD_MUSIC_API}?types=search&source=netease&name=${encodeURIComponent(kw)}&count=15&pages=1`);
+        const resp = await fetch(`${MUSIC_API}?msg=${encodeURIComponent(kw)}&limit=10&format=json&act=search`);
         const data = await resp.json();
-        if (Array.isArray(data) && data.length > 0) { collect(data); return; }
-      } catch (e) { /* 直连失败则走后端兜底 */ }
-      // 兜底：后端代理
+        if (data && Array.isArray(data.list) && data.list.length > 0) { collect(data.list); return; }
+      } catch (e) { /* ignore */ }
+      // 兜底：直接点歌
       try {
-        const resp = await fetch(`${API_URL}/music/search`, {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ keyword: kw })
-        });
+        const resp = await fetch(`${MUSIC_API}?msg=${encodeURIComponent(kw)}&n=1&format=json`);
         const data = await resp.json();
-        if (data.success && data.songs) collect(data.songs);
+        if (data && data.code === 200 && data.data && data.data.id) {
+          const s = normalize(data.data);
+          s.url = data.data.url; s.lrc = data.data.lrc;
+          collect([s]);
+        }
       } catch (e) { /* ignore */ }
     };
     await doSearch(keyword.trim());
