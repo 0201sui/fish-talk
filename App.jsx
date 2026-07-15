@@ -279,7 +279,7 @@ function DesktopPet({ image, size, shape, onImageChange, onSizeChange, onShapeCh
 
   return (
     <>
-      <div ref={petRef} className="desktop-pet" style={{ left: pos.x, top: pos.y, width: size, height: size, transform: dir < 0 ? 'scaleX(-1)' : '' }}
+      <div ref={petRef} className={`desktop-pet ${shape === 'none' ? 'borderless' : ''}`} style={{ left: pos.x, top: pos.y, width: size, height: size, transform: dir < 0 ? 'scaleX(-1)' : '' }}
         onMouseDown={startInteract} onMouseMove={onMove} onMouseUp={endInteract} onMouseLeave={endInteract}
         onTouchStart={startInteract} onTouchMove={onMove} onTouchEnd={endInteract}
         onContextMenu={(e) => { e.preventDefault(); setShowSettings(true); setImgInput(image || ''); setSizeInput(size || 40); }}>
@@ -296,7 +296,7 @@ function DesktopPet({ image, size, shape, onImageChange, onSizeChange, onShapeCh
             <div className="pet-setting-field"><label>形状</label>
               <div className="pet-shape-row">
                 {[['none', '无边框'], ['square', '方型'], ['rounded', '圆角'], ['circle', '圆形']].map(([k, label]) => (
-                  <button key={k} className={`pet-shape-btn ${shape === k ? 'active' : ''}`} onClick={() => { if (onShapeChange) onShapeChange(k); }}>{label}</button>
+                  <button key={k} className={`pet-shape-btn ${shape === k ? 'active' : ''}`} onClick={() => { if (onShapeChange) onShapeChange(k); if (k === 'none' && imgInput && !cutoutLoading) cutoutPet(); }}>{label}</button>
                 ))}
               </div>
             </div>
