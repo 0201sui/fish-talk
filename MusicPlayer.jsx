@@ -8,7 +8,7 @@ export default function MusicPlayer({ onClose, nowPlaying, playSong, togglePlay,
   const [keyword, setKeyword] = useState('');
   const [results, setResults] = useState([]);
   const [searching, setSearching] = useState(false);
-  const [view, setView] = useState('search'); // 'search' | 'card' | 'favorites'
+  const [view, setView] = useState(() => favorites.length > 0 ? 'favorites' : 'search'); // 'search' | 'card' | 'favorites'
   const [loadingSong, setLoadingSong] = useState(false);
 
   const search = async () => {
@@ -82,22 +82,25 @@ export default function MusicPlayer({ onClose, nowPlaying, playSong, togglePlay,
       <div className="mp-tabs">
         <button className={`mp-tab ${view === 'search' || view === 'card' ? 'active' : ''}`} onClick={() => setView('search')}>🎵 搜索</button>
         <button className={`mp-tab ${view === 'favorites' ? 'active' : ''}`} onClick={() => setView('favorites')}>
-          ❤️ 收藏{favorites.length > 0 ? ` (${favorites.length})` : ''}
+          ❤️ 我的收藏{favorites.length > 0 ? ` (${favorites.length})` : ''}
         </button>
       </div>
 
-      <div className="mp-search-bar">
-        <input
-          type="text"
-          placeholder="搜索歌曲或歌手..."
-          value={keyword}
-          onChange={e => setKeyword(e.target.value)}
-          onKeyDown={e => { if (e.key === 'Enter') search(); }}
-        />
-        <button onClick={search} disabled={searching}>
-          {searching ? '...' : '搜索'}
-        </button>
-      </div>
+      {/* 搜索栏（仅搜索视图显示） */}
+      {view === 'search' && (
+        <div className="mp-search-bar">
+          <input
+            type="text"
+            placeholder="搜索歌曲或歌手..."
+            value={keyword}
+            onChange={e => setKeyword(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') search(); }}
+          />
+          <button onClick={search} disabled={searching}>
+            {searching ? '...' : '搜索'}
+          </button>
+        </div>
+      )}
 
       {/* 搜索结果列表 */}
       {view === 'search' && results.length > 0 && (
@@ -187,12 +190,13 @@ export default function MusicPlayer({ onClose, nowPlaying, playSong, togglePlay,
             </div>
           ) : (
             favorites.map(song => (
-              <div key={song.id} className="mp-result-item" onClick={() => { playSong({ id: song.id, name: song.name, artist: song.artist, cover: song.cover }); }}>
+              <div key={song.id} className={`mp-result-item ${nowPlaying && nowPlaying.id === song.id ? 'playing' : ''}`} onClick={() => { playSong({ id: song.id, name: song.name, artist: song.artist, cover: song.cover }); }}>
                 <div className="mp-result-cover" style={song.cover ? { backgroundImage: `url(${song.cover})` } : {}}>
                   {!song.cover && <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="var(--ocean-accent)" strokeWidth="1.5" style={{ margin: '8px' }}><circle cx="12" cy="12" r="10" /><circle cx="12" cy="12" r="3" fill="var(--ocean-accent)" stroke="none" /></svg>}
+                  {nowPlaying && nowPlaying.id === song.id && nowPlaying.isPlaying && <div className="mp-cover-spinning" />}
                 </div>
                 <div className="mp-result-info">
-                  <span className="mp-result-name">{song.name}</span>
+                  <span className="mp-result-name">{song.name}{nowPlaying && nowPlaying.id === song.id ? ' ♪' : ''}</span>
                   <span className="mp-result-artist">{song.artist}</span>
                 </div>
                 <button className="mp-result-del" onClick={(e) => { e.stopPropagation(); onToggleFavorite && onToggleFavorite(song); }} title="取消收藏" aria-label="取消收藏">
