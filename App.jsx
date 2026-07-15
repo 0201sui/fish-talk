@@ -791,6 +791,12 @@ function App() {
   const [searchSettings, setSearchSettings] = useState(() => {
     try { return JSON.parse(localStorage.getItem('searchSettings') || '{"enabled":true,"city":""}'); } catch { return { enabled: true, city: '' }; }
   });
+  // 环境音效
+  const [ambientOn, setAmbientOn] = useState(() => localStorage.getItem('ambientOn') === 'true');
+  const [ambientVol, setAmbientVol] = useState(() => parseFloat(localStorage.getItem('ambientVol') || '0.3'));
+  const ambientAudioRef = useRef(null);
+  // 天气联动背景
+  const [weatherBg, setWeatherBg] = useState('default'); // sunny / cloudy / rainy / snow / night / default
 
   const [readSet, setReadSet] = useState(() => {
     const sid = localStorage.getItem(SESSION_KEY);
@@ -806,7 +812,7 @@ function App() {
   const [profile, setProfile] = useState({ userBio: '', aiBio: '', userName: '我', aiName: 'ClaudeAI', nickname: '' });
   const [settings, setSettings] = useState({
     system_prompt: '', temperature: 0.7,
-    compress_threshold: 4000, compress_keep_rounds: 15, max_reply_tokens: 1024,
+    compress_threshold: 4000, compress_keep_rounds: 15, max_reply_tokens: 4096,
     auto_summarize: true, delete_after_summarize: false
   });
   const [ttsConfig, setTtsConfig] = useState(() => { try { return JSON.parse(localStorage.getItem('ttsConfig') || '{}'); } catch { return {}; } });
@@ -849,6 +855,93 @@ function App() {
     document.documentElement.setAttribute('data-theme', theme);
     localStorage.setItem('theme', theme);
   }, [theme]);
+
+  // 环境音效：用 Web Audio API 合成海洋白噪音（无需外部音频文件，不会断链）
+  useEffect(() => {
+    if (!ambientOn) {
+      if (ambientAudioRef.current) {
+        try { ambientAudioRef.current.stop(); } catch (e) {}
+        ambientAudioRef.current = null;
+      }
+      return;
+    }
+    try {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return;
+      const ctx = new AC();
+      // 棕色噪声（比白噪声更柔和，更像海浪）
+      const bufferSize = 2 * ctx.sampleRate;
+      const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+      const data = buffer.getChannelData(0);
+      let lastOut = 0;
+      for (let i = 0; i < bufferSize; i++) {
+        const white = Math.random() * 2 - 1;
+        data[i] = (lastOut + 0.02 * white) / 1.02;
+        lastOut = data[i];
+        data[i] *= 3.5;
+      }
+      const noise = ctx.createBufferSource();
+      noise.buffer = buffer;
+      noise.loop = true;
+      // 低通滤波 → 更像水下/海浪声
+      const filter = ctx.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.value = 400;
+      // 音量控制
+      const gain = ctx.createGain();
+      gain.gain.value = ambientVol;
+      // LFO 调制音量 → 模拟海浪涨落
+      const lfo = ctx.createOscillator();
+      lfo.frequency.value = 0.12;
+      const lfoGain = ctx.createGain();
+      lfoGain.gain.value = ambientVol * 0.5;
+      lfo.connect(lfoGain);
+      lfoGain.connect(gain.gain);
+      noise.connect(filter);
+      filter.connect(gain);
+      gain.connect(ctx.destination);
+      noise.start();
+      lfo.start();
+      ambientAudioRef.current = {
+        ctx, noise, lfo, gain,
+        stop: () => { try { noise.stop(); lfo.stop(); ctx.close(); } catch (e) {} }
+      };
+    } catch (e) { console.error('环境音效启动失败:', e); }
+    return () => {
+      if (ambientAudioRef.current) {
+        try { ambientAudioRef.current.stop(); } catch (e) {}
+        ambientAudioRef.current = null;
+      }
+    };
+  }, [ambientOn]);
+
+  // 音量变化时实时调整
+  useEffect(() => {
+    if (ambientAudioRef.current && ambientAudioRef.current.gain) {
+      ambientAudioRef.current.gain.gain.value = ambientVol;
+    }
+    localStorage.setItem('ambientVol', String(ambientVol));
+  }, [ambientVol]);
+
+  useEffect(() => { localStorage.setItem('ambientOn', String(ambientOn)); }, [ambientOn]);
+
+  // 天气联动背景：页面加载时获取天气，根据条件切换背景氛围
+  useEffect(() => {
+    const city = searchSettings.city || '';
+    fetch(`${API_URL}/weather/current?city=${encodeURIComponent(city)}`)
+      .then(r => r.json())
+      .then(data => {
+        if (data.success && data.condition) {
+          setWeatherBg(data.condition);
+        }
+      })
+      .catch(() => {});
+  }, [searchSettings.city]);
+
+  // 切换环境音效
+  const toggleAmbient = () => {
+    setAmbientOn(prev => !prev);
+  };
 
   const stickToBottomRef = useRef(true);
   const lastScrollRef = useRef(0);
@@ -1080,7 +1173,11 @@ function App() {
     const activeApi = getActiveModel();
     const chatBody = { message: sentInput, session_id: sessionId, model };
     // 用户引用的消息 id（供 AI 知道用户引用了哪句话）
-    if (!isRegenerate && replyTo && replyTo.id) chatBody.reply_to = replyTo.id;
+    if (!isRegenerate && replyTo && replyTo.id) {
+      chatBody.reply_to = replyTo.id;
+      chatBody.reply_content = getReplyPreview(replyTo);
+      chatBody.reply_role = replyTo.role;
+    }
     if (sentImages && sentImages.length > 0) chatBody.images = sentImages;
     if (sentFiles && sentFiles.length > 0) {
       chatBody.file_content = sentFiles.map(f => `--- ${f.name} ---\n${f.content}`).join('\n\n');
@@ -1168,6 +1265,8 @@ function App() {
       images: pendingImages.length > 0 ? pendingImages : undefined,
       file_names: pendingFiles.length > 0 ? pendingFiles.map(f => f.name) : undefined,
       created_at: new Date().toISOString(), reply_to: replyTo?.id || null,
+      reply_role: replyTo?.role || null,
+      reply_content: replyTo ? getReplyPreview(replyTo) : null,
       reply_preview: replyTo ? `${replyTo.role === 'user' ? '我' : (profile.aiName || 'ClaudeAI')}: ${getReplyPreview(replyTo)}` : null
     };
     setMessages(prev => [...prev, userMsg]);
@@ -1225,7 +1324,11 @@ function App() {
 
     // 引用（双保险）：把最近一条用户消息的 reply_to 一并带上，确保后端一定能拿到被引用的消息
     const _lastUserMsg = [...messages].reverse().find(m => m.role === 'user');
-    if (_lastUserMsg && _lastUserMsg.reply_to) chatBody.reply_to = _lastUserMsg.reply_to;
+    if (_lastUserMsg) {
+      if (_lastUserMsg.reply_to) chatBody.reply_to = _lastUserMsg.reply_to;
+      if (_lastUserMsg.reply_content) chatBody.reply_content = _lastUserMsg.reply_content;
+      if (_lastUserMsg.reply_role) chatBody.reply_role = _lastUserMsg.reply_role;
+    }
 
     abortControllerRef.current = new AbortController();
     try {
@@ -1338,7 +1441,13 @@ function App() {
     // 搜索设置
     chatBody.search_enabled = searchSettings.enabled;
     if (searchSettings.city) chatBody.search_city = searchSettings.city;
-    // 删除前端最后一条 AI 消息
+    // 引用（从最后一条用户消息透传，确保重新生成时 AI 仍能看到被引用的内容）
+    const _regenLastUser = [...messages].reverse().find(m => m.role === 'user');
+    if (_regenLastUser) {
+      if (_regenLastUser.reply_to) chatBody.reply_to = _regenLastUser.reply_to;
+      if (_regenLastUser.reply_content) chatBody.reply_content = _regenLastUser.reply_content;
+      if (_regenLastUser.reply_role) chatBody.reply_role = _regenLastUser.reply_role;
+    }
     setMessages(prev => {
       const arr = [...prev];
       for (let i = arr.length - 1; i >= 0; i--) { if (arr[i].role === 'assistant') { arr.splice(i, 1); break; } }
@@ -1876,9 +1985,9 @@ function App() {
     const arg = idx === -1 ? '' : raw.slice(idx + 1).trim();
     switch (cmd) {
       case 'theme': {
-        const map = { '海洋蓝': 'ocean', '浅橙': 'orange', '浅灰': 'gray', '浅紫': 'purple', ocean: 'ocean', orange: 'orange', gray: 'gray', purple: 'purple' };
+        const map = { '海洋蓝': 'ocean', '浅橙': 'orange', '浅灰': 'gray', '浅紫': 'purple', '深海': 'deepsea', '珊瑚': 'coral', '极地': 'polar', ocean: 'ocean', orange: 'orange', gray: 'gray', purple: 'purple', deepsea: 'deepsea', coral: 'coral', polar: 'polar' };
         const t = map[arg] || arg;
-        if (['ocean', 'orange', 'gray', 'purple'].includes(t)) setTheme(t);
+        if (['ocean', 'orange', 'gray', 'purple', 'deepsea', 'coral', 'polar'].includes(t)) setTheme(t);
         break;
       }
       case 'open': {
@@ -1992,9 +2101,10 @@ function App() {
   if (showSplash) { return <SplashScreen onDone={() => setShowSplash(false)} />; }
 
   return (
-    <div className="app">
+    <div className={`app weather-${weatherBg}`}>
       <DesktopPet image={petSettings.image} size={petSettings.size} shape={petShape} onImageChange={handlePetImageChange} onSizeChange={handlePetSizeChange} onShapeChange={(k) => { setPetShape(k); localStorage.setItem('petShape', k); }} />
-
+      {/* 天气联动背景层 */}
+      <div className={`weather-overlay weather-${weatherBg}`} />
       {contextMenu && (
         <ContextMenu x={contextMenu.x} y={contextMenu.y} msg={contextMenu.msg} isUser={contextMenu.msg.role === 'user'}
           onQuote={onQuote} onCopy={onCopy} onEdit={onEdit} onDelete={onDelete} onRecall={onRecall}
@@ -2038,7 +2148,7 @@ function App() {
           <button className="sidebar-btn" onClick={() => setShowApiConfig(true)}>🔌 API配置</button>
           <button className="sidebar-btn" onClick={() => setShowMemoryPalace(true)}>🪸 记忆宫殿</button>
           <button className="sidebar-btn" onClick={exportMarkdown}>📝 导出Markdown</button>
-          {/* 主题切换 - 四色系 */}
+          {/* 主题切换 - 七色系 */}
           <div className="theme-picker">
             <span className="theme-picker-label">主题</span>
             <div className="theme-dots">
@@ -2046,7 +2156,20 @@ function App() {
               <button className={`theme-dot orange ${theme === 'orange' ? 'active' : ''}`} onClick={() => setTheme('orange')} title="浅橙色" />
               <button className={`theme-dot gray ${theme === 'gray' ? 'active' : ''}`} onClick={() => setTheme('gray')} title="浅灰色" />
               <button className={`theme-dot purple ${theme === 'purple' ? 'active' : ''}`} onClick={() => setTheme('purple')} title="浅紫色" />
+              <button className={`theme-dot deepsea ${theme === 'deepsea' ? 'active' : ''}`} onClick={() => setTheme('deepsea')} title="深海" />
+              <button className={`theme-dot coral ${theme === 'coral' ? 'active' : ''}`} onClick={() => setTheme('coral')} title="珊瑚" />
+              <button className={`theme-dot polar ${theme === 'polar' ? 'active' : ''}`} onClick={() => setTheme('polar')} title="极地" />
             </div>
+          </div>
+          {/* 环境音效 */}
+          <div className="ambient-control">
+            <button className={`ambient-toggle ${ambientOn ? 'on' : ''}`} onClick={toggleAmbient} title="海洋环境音">
+              {ambientOn ? '🌊' : '💤'}
+            </button>
+            {ambientOn && (
+              <input type="range" className="ambient-volume" min="0" max="1" step="0.05" value={ambientVol}
+                onChange={(e) => setAmbientVol(parseFloat(e.target.value))} />
+            )}
           </div>
         </div>
       </aside>
