@@ -64,52 +64,52 @@
   --theme-accent: #a888d8;
 }
 
-/* 深海主题（深蓝暗色系） */
+/* 深海主题（深蓝近黑暗色系） */
 [data-theme="deepsea"] {
-  --ocean-1: #0a1929;
-  --ocean-2: #0d2137;
-  --ocean-3: #15304d;
-  --ocean-deep: #2a6b8a;
-  --ocean-deeper: #4a9fb8;
-  --ocean-text: #c8e0ec;
-  --ocean-light: #07111c;
-  --ocean-accent: #3a7a9a;
-  --ocean-foam: rgba(10, 25, 41, 0.92);
-  --ocean-warn: #d48888;
-  --ocean-ok: #4a9fb8;
-  --theme-accent: #4a9fb8;
+  --ocean-1: #050d1a;
+  --ocean-2: #0a1628;
+  --ocean-3: #0f1f38;
+  --ocean-deep: #1a4a7a;
+  --ocean-deeper: #2a7ab8;
+  --ocean-text: #8ab4d8;
+  --ocean-light: #020610;
+  --ocean-accent: #1a5a8a;
+  --ocean-foam: rgba(10, 22, 40, 0.92);
+  --ocean-warn: #c46a6a;
+  --ocean-ok: #2a8ab8;
+  --theme-accent: #2a7ab8;
 }
 
-/* 珊瑚主题（暖橙粉色系） */
+/* 珊瑚主题（明显暖橙粉色系） */
 [data-theme="coral"] {
-  --ocean-1: #fff5f0;
-  --ocean-2: #ffe4d6;
-  --ocean-3: #ffcdb8;
-  --ocean-deep: #e8755a;
-  --ocean-deeper: #c85a3e;
-  --ocean-text: #5a2e1e;
-  --ocean-light: #fffbf8;
-  --ocean-accent: #e89878;
-  --ocean-foam: rgba(255, 251, 248, 0.88);
-  --ocean-warn: #c47a7a;
-  --ocean-ok: #e8755a;
-  --theme-accent: #e8755a;
+  --ocean-1: #fff0e8;
+  --ocean-2: #ffd4c0;
+  --ocean-3: #ff9a7a;
+  --ocean-deep: #e85a3a;
+  --ocean-deeper: #c83820;
+  --ocean-text: #6a1e0a;
+  --ocean-light: #fff8f4;
+  --ocean-accent: #ff7a5a;
+  --ocean-foam: rgba(255, 248, 244, 0.90);
+  --ocean-warn: #c45a5a;
+  --ocean-ok: #e85a3a;
+  --theme-accent: #e85a3a;
 }
 
-/* 极地主题（冰蓝白色系） */
+/* 极地主题（亮冰蓝白色系） */
 [data-theme="polar"] {
-  --ocean-1: #f0f8ff;
-  --ocean-2: #e0f0fa;
-  --ocean-3: #cce8f5;
-  --ocean-deep: #5a9fc8;
-  --ocean-deeper: #3a7fa8;
-  --ocean-text: #2a4a60;
-  --ocean-light: #f8fcff;
-  --ocean-accent: #7ab0d4;
-  --ocean-foam: rgba(255, 255, 255, 0.9);
+  --ocean-1: #e8f6ff;
+  --ocean-2: #c8e8fa;
+  --ocean-3: #8ac8f0;
+  --ocean-deep: #2a8ac8;
+  --ocean-deeper: #106aa8;
+  --ocean-text: #0a3a5a;
+  --ocean-light: #f4fbff;
+  --ocean-accent: #4aa8e0;
+  --ocean-foam: rgba(248, 252, 255, 0.92);
   --ocean-warn: #c47a7a;
-  --ocean-ok: #5a9fc8;
-  --theme-accent: #5a9fc8;
+  --ocean-ok: #2a8ac8;
+  --theme-accent: #2a8ac8;
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -1632,47 +1632,52 @@ body {
 }
 
 .theme-dot {
-  width: 22px;
-  height: 22px;
+  width: 26px;
+  height: 26px;
   border-radius: 50%;
-  border: 2px solid transparent;
+  border: 2px solid rgba(0,0,0,0.08);
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   flex-shrink: 0;
   position: relative;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.12), inset 0 1px 2px rgba(255,255,255,0.3);
 }
 
-.theme-dot:hover { transform: scale(1.15); }
+.theme-dot:hover {
+  transform: scale(1.2) translateY(-2px);
+  box-shadow: 0 4px 10px rgba(0,0,0,0.2), inset 0 1px 2px rgba(255,255,255,0.4);
+}
 
-.theme-dot.ocean { background: #d4eaf7; }
-.theme-dot.ocean.active { border-color: #5ba3c4; box-shadow: 0 0 0 2px rgba(91, 163, 196, 0.2); }
+.theme-dot.ocean { background: linear-gradient(135deg, #d4eaf7 0%, #5ba3c4 100%); }
+.theme-dot.ocean.active { border-color: #5ba3c4; box-shadow: 0 0 0 3px rgba(91, 163, 196, 0.25), 0 2px 6px rgba(0,0,0,0.15); }
 
-.theme-dot.orange { background: #ffeede; }
-.theme-dot.orange.active { border-color: #e8a060; box-shadow: 0 0 0 2px rgba(232, 160, 96, 0.2); }
+.theme-dot.orange { background: linear-gradient(135deg, #ffeede 0%, #e8a060 100%); }
+.theme-dot.orange.active { border-color: #e8a060; box-shadow: 0 0 0 3px rgba(232, 160, 96, 0.25), 0 2px 6px rgba(0,0,0,0.15); }
 
-.theme-dot.gray { background: #ededf0; }
-.theme-dot.gray.active { border-color: #8888a0; box-shadow: 0 0 0 2px rgba(136, 136, 160, 0.2); }
+.theme-dot.gray { background: linear-gradient(135deg, #ededf0 0%, #8888a0 100%); }
+.theme-dot.gray.active { border-color: #8888a0; box-shadow: 0 0 0 3px rgba(136, 136, 160, 0.25), 0 2px 6px rgba(0,0,0,0.15); }
 
-.theme-dot.purple { background: #ede4f6; }
-.theme-dot.purple.active { border-color: #a888d8; box-shadow: 0 0 0 2px rgba(168, 136, 216, 0.2); }
+.theme-dot.purple { background: linear-gradient(135deg, #ede4f6 0%, #a888d8 100%); }
+.theme-dot.purple.active { border-color: #a888d8; box-shadow: 0 0 0 3px rgba(168, 136, 216, 0.25), 0 2px 6px rgba(0,0,0,0.15); }
 
-.theme-dot.deepsea { background: #0d2137; }
-.theme-dot.deepsea.active { border-color: #4a9fb8; box-shadow: 0 0 0 2px rgba(74, 159, 184, 0.3); }
+.theme-dot.deepsea { background: linear-gradient(135deg, #0a1628 0%, #1a4a7a 60%, #2a7ab8 100%); }
+.theme-dot.deepsea.active { border-color: #2a7ab8; box-shadow: 0 0 0 3px rgba(42, 122, 184, 0.35), 0 2px 8px rgba(0,0,0,0.3); }
 
-.theme-dot.coral { background: #ffcdb8; }
-.theme-dot.coral.active { border-color: #e8755a; box-shadow: 0 0 0 2px rgba(232, 117, 90, 0.2); }
+.theme-dot.coral { background: linear-gradient(135deg, #ffd4c0 0%, #ff7a5a 50%, #e85a3a 100%); }
+.theme-dot.coral.active { border-color: #e85a3a; box-shadow: 0 0 0 3px rgba(232, 90, 58, 0.3), 0 2px 8px rgba(232, 90, 58, 0.2); }
 
-.theme-dot.polar { background: #e0f0fa; }
-.theme-dot.polar.active { border-color: #5a9fc8; box-shadow: 0 0 0 2px rgba(90, 159, 200, 0.2); }
+.theme-dot.polar { background: linear-gradient(135deg, #f4fbff 0%, #8ac8f0 50%, #2a8ac8 100%); }
+.theme-dot.polar.active { border-color: #2a8ac8; box-shadow: 0 0 0 3px rgba(42, 138, 200, 0.3), 0 2px 8px rgba(42, 138, 200, 0.2); }
 
 .theme-dot.active::after {
   content: '';
   position: absolute;
   top: 50%; left: 50%;
   transform: translate(-50%, -50%);
-  width: 6px; height: 6px;
+  width: 7px; height: 7px;
   border-radius: 50%;
-  background: var(--ocean-deep);
+  background: #fff;
+  box-shadow: 0 0 4px rgba(0,0,0,0.4);
 }
 
 /* ===== 环境音效控制 ===== */
@@ -1699,6 +1704,19 @@ body {
 
 .ambient-toggle:hover { background: var(--ocean-2); }
 .ambient-toggle.on { background: var(--ocean-2); }
+
+.ambient-select {
+  font-size: 12px;
+  padding: 3px 6px;
+  border: 1px solid var(--ocean-3);
+  border-radius: 6px;
+  background: var(--ocean-foam);
+  color: var(--ocean-text);
+  cursor: pointer;
+  outline: none;
+  flex-shrink: 0;
+}
+.ambient-select:hover { border-color: var(--theme-accent); }
 
 .ambient-volume {
   flex: 1;
