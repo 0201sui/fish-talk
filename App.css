@@ -302,6 +302,9 @@ body {
   justify-content: center;
 }
 
+.desktop-pet.borderless { filter: none; background: transparent !important; }
+.desktop-pet.borderless img { border-radius: 0 !important; }
+
 .desktop-pet:active { cursor: grabbing; transform: scale(1.15); }
 
 .desktop-pet img {
@@ -1195,7 +1198,7 @@ body {
   outline: none;
   resize: none;
   background: transparent;
-  padding: 7px 32px 7px 4px;
+  padding: 7px 4px 7px 4px;
   font-size: 15px;
   font-family: inherit;
   color: var(--ocean-text);
@@ -1210,21 +1213,22 @@ body {
 
 .chat-input::placeholder { color: #9ab7c4; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-/* 语音按钮移入输入框内右侧（像微信），不要外方框 */
-.voice-input-btn.inside {
-  position: absolute;
-  right: 5px;
-  top: 50%;
-  transform: translateY(-50%);
+/* 语音按钮放在输入框内右侧作为 flex 子项，不占用 textarea 的 padding 空间 */
+.input-box .voice-input-btn.inside {
+  position: static;
   width: 30px;
   height: 30px;
   flex-shrink: 0;
-  margin: 0;
+  margin: 0 0 4px 0;
   z-index: 2;
   background: transparent;
   border: none;
   box-shadow: none;
   color: var(--ocean-deep);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
 }
 
 /* AI 思考时，小水泡从底部栏底下往上冒 */
