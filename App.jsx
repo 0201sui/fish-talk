@@ -483,9 +483,9 @@ function FloatingMusicPlayer({ song, onToggle, onSeek, onClose, onOpen, onPrev, 
   }
 
   const [mode, setMode] = useState('ball'); // 'ball' | 'bar'
-  const LINE_H = 24; // 单行歌词高度（需与 CSS .music-lyrics-line 一致）
-  const WIN_H = 34;  // 歌词窗口高度（宽扁：约 1~1.5 行，需与 CSS .music-lyrics-window 一致）
+  const [desktopLyric, setDesktopLyric] = useState(false); // 桌面歌词浮窗
   const [pos, setPos] = useState({ right: 16, bottom: 96 });
+  const [lyricPos, setLyricPos] = useState({ left: '50%', top: 80 });
   const dragState = useRef(null);
   const movedRef = useRef(false);
   const clickTimer = useRef(null);
@@ -516,13 +516,13 @@ function FloatingMusicPlayer({ song, onToggle, onSeek, onClose, onOpen, onPrev, 
     window.addEventListener('touchend', up);
   };
 
-  // 悬浮球：单击展开播放条，双击开关歌词栏
+  // 悬浮球：单击展开播放条，双击开关桌面歌词浮窗
   const handleBallClick = () => {
     if (movedRef.current) return;
     if (clickTimer.current) {
       clearTimeout(clickTimer.current);
       clickTimer.current = null;
-      if (onToggleLyrics) onToggleLyrics();
+      setDesktopLyric(prev => !prev);
     } else {
       clickTimer.current = setTimeout(() => { clickTimer.current = null; setMode('bar'); }, 250);
     }
@@ -530,8 +530,9 @@ function FloatingMusicPlayer({ song, onToggle, onSeek, onClose, onOpen, onPrev, 
 
   if (mode === 'ball') {
     return (
+      <>
       <div className="music-ball" style={{ right: pos.right, bottom: pos.bottom }}
-           onMouseDown={onDragStart} onTouchStart={onDragStart} onClick={handleBallClick} title="单击展开 · 双击开关歌词">
+           onMouseDown={onDragStart} onTouchStart={onDragStart} onClick={handleBallClick} title="单击展开 · 双击开关桌面歌词">
         <div className="music-ball-cover" style={song.cover ? { backgroundImage: `url(${song.cover})` } : {}}>
           {!song.cover && (
             <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#fff" strokeWidth="1.5">
@@ -544,10 +545,30 @@ function FloatingMusicPlayer({ song, onToggle, onSeek, onClose, onOpen, onPrev, 
           <div className="music-ball-eq"><span></span><span></span><span></span></div>
         )}
       </div>
+      {desktopLyric && currentLyric && (
+        <div className="desktop-lyric" style={{ left: lyricPos.left, top: lyricPos.top }}
+             onMouseDown={(e) => {
+               const p = e.touches ? e.touches[0] : e;
+               const sX = p.clientX, sY = p.clientY;
+               const startL = typeof lyricPos.left === 'number' ? lyricPos.left : window.innerWidth / 2;
+               const startT = typeof lyricPos.top === 'number' ? lyricPos.top : 80;
+               const move = (ev) => {
+                 const q = ev.touches ? ev.touches[0] : ev;
+                 setLyricPos({ left: Math.max(20, Math.min(window.innerWidth - 100, startL + q.clientX - sX)), top: Math.max(20, Math.min(window.innerHeight - 60, startT + q.clientY - sY)) });
+               };
+               const up = () => { window.removeEventListener('mousemove', move); window.removeEventListener('mouseup', up); window.removeEventListener('touchmove', move); window.removeEventListener('touchend', up); };
+               window.addEventListener('mousemove', move); window.addEventListener('mouseup', up); window.addEventListener('touchmove', move, { passive: false }); window.addEventListener('touchend', up);
+             }}
+             onClick={() => setDesktopLyric(false)} title="双击球开关 · 点击关闭">
+          <span className="desktop-lyric-text" key={currentLyric}>{currentLyric}</span>
+        </div>
+      )}
+      </>
     );
   }
 
   return (
+    <>
     <div className="mini-music" style={{ right: pos.right, bottom: pos.bottom }}>
       <div className="mini-music-cover" style={song.cover ? { backgroundImage: `url(${song.cover})` } : {}}
            onMouseDown={onDragStart} onTouchStart={onDragStart} title="拖动我">
@@ -606,6 +627,25 @@ function FloatingMusicPlayer({ song, onToggle, onSeek, onClose, onOpen, onPrev, 
       )}
       <button className="mini-music-close" onClick={(e) => { e.stopPropagation(); onClose(); }} aria-label="关闭">×</button>
     </div>
+    {desktopLyric && currentLyric && (
+      <div className="desktop-lyric" style={{ left: lyricPos.left, top: lyricPos.top }}
+           onMouseDown={(e) => {
+             const p = e.touches ? e.touches[0] : e;
+             const sX = p.clientX, sY = p.clientY;
+             const startL = typeof lyricPos.left === 'number' ? lyricPos.left : window.innerWidth / 2;
+             const startT = typeof lyricPos.top === 'number' ? lyricPos.top : 80;
+             const move = (ev) => {
+               const q = ev.touches ? ev.touches[0] : ev;
+               setLyricPos({ left: Math.max(20, Math.min(window.innerWidth - 100, startL + q.clientX - sX)), top: Math.max(20, Math.min(window.innerHeight - 60, startT + q.clientY - sY)) });
+             };
+             const up = () => { window.removeEventListener('mousemove', move); window.removeEventListener('mouseup', up); window.removeEventListener('touchmove', move); window.removeEventListener('touchend', up); };
+             window.addEventListener('mousemove', move); window.addEventListener('mouseup', up); window.addEventListener('touchmove', move, { passive: false }); window.addEventListener('touchend', up);
+           }}
+           onClick={() => setDesktopLyric(false)} title="双击球开关 · 点击关闭">
+        <span className="desktop-lyric-text" key={currentLyric}>{currentLyric}</span>
+      </div>
+    )}
+    </>
   );
 }
 
@@ -793,6 +833,8 @@ function App() {
     try { const s = JSON.parse(localStorage.getItem('musicFavorites') || '[]'); return Array.isArray(s) ? s : []; } catch { return []; }
   });
   const [showFavorites, setShowFavorites] = useState(false);
+  const [toolboxOpen, setToolboxOpen] = useState(() => localStorage.getItem('toolboxOpen') !== 'false');
+  useEffect(() => { localStorage.setItem('toolboxOpen', String(toolboxOpen)); }, [toolboxOpen]);
   const musicFavoritesRef = useRef(musicFavorites);
   useEffect(() => { musicFavoritesRef.current = musicFavorites; try { localStorage.setItem('musicFavorites', JSON.stringify(musicFavorites)); } catch (e) {} }, [musicFavorites]);
 
@@ -2286,51 +2328,58 @@ function App() {
             <p style={{ padding: '20px', color: 'var(--ocean-accent)', fontSize: '13px', textAlign: 'center' }}>海洋馆里还没有故事，点击"+ 新对话"开始吧 🌊</p>
           )}
         </div>
-        <div className="sidebar-footer">
-          <button className="sidebar-btn" onClick={() => setShowProfile(true)}>🐬 简介</button>
-          <button className="sidebar-btn" onClick={() => setShowApiConfig(true)}>🔌 API配置</button>
-          <button className="sidebar-btn" onClick={() => setShowMemoryPalace(true)}>🪸 记忆宫殿</button>
-          <button className="sidebar-btn" onClick={exportMarkdown}>📝 导出Markdown</button>
-          <button className="sidebar-btn" onClick={() => setShowFavorites(true)}>❤️ 我的收藏{musicFavorites.length > 0 ? ` (${musicFavorites.length})` : ''}</button>
-          {/* 主题切换 - 七色系 */}
-          <div className="theme-picker">
-            <span className="theme-picker-label">主题</span>
-            <div className="theme-dots">
-              <button className={`theme-dot ocean ${theme === 'ocean' ? 'active' : ''}`} onClick={() => setTheme('ocean')} title="海洋蓝" />
-              <button className={`theme-dot orange ${theme === 'orange' ? 'active' : ''}`} onClick={() => setTheme('orange')} title="浅橙色" />
-              <button className={`theme-dot gray ${theme === 'gray' ? 'active' : ''}`} onClick={() => setTheme('gray')} title="浅灰色" />
-              <button className={`theme-dot purple ${theme === 'purple' ? 'active' : ''}`} onClick={() => setTheme('purple')} title="浅紫色" />
-              <button className={`theme-dot deepsea ${theme === 'deepsea' ? 'active' : ''}`} onClick={() => setTheme('deepsea')} title="深海" />
-              <button className={`theme-dot coral ${theme === 'coral' ? 'active' : ''}`} onClick={() => setTheme('coral')} title="珊瑚" />
+        <div className={`sidebar-toolbox ${toolboxOpen ? 'open' : ''}`}>
+          <button className="toolbox-header" onClick={() => setToolboxOpen(prev => !prev)}>
+            <span>🧰 工具箱</span>
+            <svg className={`toolbox-chevron ${toolboxOpen ? 'rotated' : ''}`} viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9" /></svg>
+          </button>
+          <div className="toolbox-body">
+            <div className="toolbox-content">
+              <button className="sidebar-btn" onClick={() => setShowProfile(true)}>🐬 简介</button>
+              <button className="sidebar-btn" onClick={() => setShowApiConfig(true)}>🔌 API配置</button>
+              <button className="sidebar-btn" onClick={() => setShowMemoryPalace(true)}>🪸 记忆宫殿</button>
+              <button className="sidebar-btn" onClick={exportMarkdown}>📝 导出Markdown</button>
+              {/* 主题切换 */}
+              <div className="theme-picker">
+                <span className="theme-picker-label">主题</span>
+                <div className="theme-dots">
+                  <button className={`theme-dot ocean ${theme === 'ocean' ? 'active' : ''}`} onClick={() => setTheme('ocean')} title="海洋蓝" />
+                  <button className={`theme-dot orange ${theme === 'orange' ? 'active' : ''}`} onClick={() => setTheme('orange')} title="浅橙色" />
+                  <button className={`theme-dot gray ${theme === 'gray' ? 'active' : ''}`} onClick={() => setTheme('gray')} title="浅灰色" />
+                  <button className={`theme-dot purple ${theme === 'purple' ? 'active' : ''}`} onClick={() => setTheme('purple')} title="浅紫色" />
+                  <button className={`theme-dot deepsea ${theme === 'deepsea' ? 'active' : ''}`} onClick={() => setTheme('deepsea')} title="深海" />
+                  <button className={`theme-dot coral ${theme === 'coral' ? 'active' : ''}`} onClick={() => setTheme('coral')} title="珊瑚" />
+                </div>
+              </div>
+              {/* 环境音效 */}
+              <div className="ambient-control">
+                <button className={`ambient-toggle ${ambientOn ? 'on' : ''}`} onClick={toggleAmbient} title="环境音效">
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    {ambientOn
+                      ? <><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" /><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" /></>
+                      : <><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" /><line x1="23" y1="9" x2="17" y2="15" /><line x1="17" y1="9" x2="23" y2="15" /></>
+                    }
+                  </svg>
+                  <span>环境音</span>
+                </button>
+                {ambientOn && (
+                  <>
+                    <div className="ambient-types">
+                      <button className={`ambient-type ${ambientType === '海浪' ? 'active' : ''}`} onClick={() => setAmbientType('海浪')} title="海浪">🌊</button>
+                      <button className={`ambient-type ${ambientType === '雨声' ? 'active' : ''}`} onClick={() => setAmbientType('雨声')} title="雨声">🌧️</button>
+                      <button className={`ambient-type ${ambientType === '水泡' ? 'active' : ''}`} onClick={() => setAmbientType('水泡')} title="水泡">🫧</button>
+                      <button className={`ambient-type ${ambientType === '鲸鸣' ? 'active' : ''}`} onClick={() => setAmbientType('鲸鸣')} title="鲸鸣">🐋</button>
+                      <button className={`ambient-type ${ambientType === '海鸥' ? 'active' : ''}`} onClick={() => setAmbientType('海鸥')} title="海鸥">🕊️</button>
+                    </div>
+                    <div className="ambient-vol-row">
+                      <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" /><path d="M15.54 8.46a5 5 0 0 1 0 7.07" /></svg>
+                      <input type="range" className="ambient-volume" min="0" max="1" step="0.05" value={ambientVol}
+                        onChange={(e) => setAmbientVol(parseFloat(e.target.value))} />
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
-          </div>
-          {/* 环境音效 */}
-          <div className="ambient-control">
-            <button className={`ambient-toggle ${ambientOn ? 'on' : ''}`} onClick={toggleAmbient} title="环境音效">
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                {ambientOn
-                  ? <><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" /><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" /></>
-                  : <><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" /><line x1="23" y1="9" x2="17" y2="15" /><line x1="17" y1="9" x2="23" y2="15" /></>
-                }
-              </svg>
-              <span>环境音</span>
-            </button>
-            {ambientOn && (
-              <>
-                <div className="ambient-types">
-                  <button className={`ambient-type ${ambientType === '海浪' ? 'active' : ''}`} onClick={() => setAmbientType('海浪')} title="海浪">🌊</button>
-                  <button className={`ambient-type ${ambientType === '雨声' ? 'active' : ''}`} onClick={() => setAmbientType('雨声')} title="雨声">🌧️</button>
-                  <button className={`ambient-type ${ambientType === '水泡' ? 'active' : ''}`} onClick={() => setAmbientType('水泡')} title="水泡">🫧</button>
-                  <button className={`ambient-type ${ambientType === '鲸鸣' ? 'active' : ''}`} onClick={() => setAmbientType('鲸鸣')} title="鲸鸣">🐋</button>
-                  <button className={`ambient-type ${ambientType === '海鸥' ? 'active' : ''}`} onClick={() => setAmbientType('海鸥')} title="海鸥">🕊️</button>
-                </div>
-                <div className="ambient-vol-row">
-                  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" /><path d="M15.54 8.46a5 5 0 0 1 0 7.07" /></svg>
-                  <input type="range" className="ambient-volume" min="0" max="1" step="0.05" value={ambientVol}
-                    onChange={(e) => setAmbientVol(parseFloat(e.target.value))} />
-                </div>
-              </>
-            )}
           </div>
         </div>
       </aside>
@@ -2525,6 +2574,8 @@ function App() {
             playSong={playSong}
             togglePlay={togglePlayMusic}
             seek={seekMusic}
+            favorites={musicFavorites}
+            onToggleFavorite={toggleFavorite}
           />
         )}
 
@@ -2748,42 +2799,6 @@ function App() {
 
       {showApiConfig && <ApiConfig onClose={() => { setShowApiConfig(false); }} onConfigChange={() => {}} />}
       {showMemoryPalace && <MemoryPalace onClose={() => setShowMemoryPalace(false)} currentSessionId={currentSessionId} />}
-
-      {/* 音乐收藏夹弹窗 */}
-      {showFavorites && (
-        <div className="modal-overlay" onClick={() => setShowFavorites(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>❤️ 我的收藏</h2>
-              <button className="modal-close-x" onClick={() => setShowFavorites(false)} aria-label="关闭">
-                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="6" y1="6" x2="18" y2="18" /><line x1="18" y1="6" x2="6" y2="18" /></svg>
-              </button>
-            </div>
-            <div className="settings-section">
-              {musicFavorites.length === 0 ? (
-                <p className="fav-empty">还没有收藏的歌曲，播放音乐时点击 ❤ 即可收藏</p>
-              ) : (
-                <div className="fav-list">
-                  {musicFavorites.map(fav => (
-                    <div key={fav.id} className="fav-item" onClick={() => { playSong({ id: fav.id, name: fav.name, artist: fav.artist, cover: fav.cover }); setShowFavorites(false); }}>
-                      <div className="fav-item-cover" style={fav.cover ? { backgroundImage: `url(${fav.cover})` } : {}}>
-                        {!fav.cover && <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="var(--ocean-accent)" strokeWidth="1.5" style={{ margin: '9px' }}><circle cx="12" cy="12" r="10" /><circle cx="12" cy="12" r="3" fill="var(--ocean-accent)" stroke="none" /></svg>}
-                      </div>
-                      <div className="fav-item-info">
-                        <div className="fav-item-name">{fav.name}</div>
-                        <div className="fav-item-artist">{fav.artist}</div>
-                      </div>
-                      <button className="fav-item-del" onClick={(e) => { e.stopPropagation(); setMusicFavorites(prev => prev.filter(x => x.id !== fav.id)); }} title="取消收藏" aria-label="取消收藏">
-                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
