@@ -4,11 +4,11 @@ const API_URL = (typeof window !== 'undefined' && window.location.hostname === '
   ? 'http://localhost:3000'
   : 'https://my-home-backend-9j56.onrender.com';
 
-export default function MusicPlayer({ onClose, nowPlaying, playSong, togglePlay, seek }) {
+export default function MusicPlayer({ onClose, nowPlaying, playSong, togglePlay, seek, favorites = [], onToggleFavorite }) {
   const [keyword, setKeyword] = useState('');
   const [results, setResults] = useState([]);
   const [searching, setSearching] = useState(false);
-  const [view, setView] = useState('search'); // 'search' | 'card'
+  const [view, setView] = useState('search'); // 'search' | 'card' | 'favorites'
   const [loadingSong, setLoadingSong] = useState(false);
 
   const search = async () => {
@@ -76,6 +76,14 @@ export default function MusicPlayer({ onClose, nowPlaying, playSong, togglePlay,
       <div className="mp-header">
         <span>音乐</span>
         <button onClick={onClose}>x</button>
+      </div>
+
+      {/* 标签切换：搜索 / 收藏 */}
+      <div className="mp-tabs">
+        <button className={`mp-tab ${view === 'search' || view === 'card' ? 'active' : ''}`} onClick={() => setView('search')}>🎵 搜索</button>
+        <button className={`mp-tab ${view === 'favorites' ? 'active' : ''}`} onClick={() => setView('favorites')}>
+          ❤️ 收藏{favorites.length > 0 ? ` (${favorites.length})` : ''}
+        </button>
       </div>
 
       <div className="mp-search-bar">
@@ -161,6 +169,38 @@ export default function MusicPlayer({ onClose, nowPlaying, playSong, togglePlay,
           <button className="mp-back-btn" onClick={() => setView('search')}>
             返回搜索
           </button>
+        </div>
+      )}
+
+      {/* 收藏列表 */}
+      {view === 'favorites' && (
+        <div className="mp-results">
+          {favorites.length === 0 ? (
+            <div className="mp-empty">
+              <div className="mp-empty-icon">
+                <svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="var(--theme-accent, #5ba3c4)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+                </svg>
+              </div>
+              <p>还没有收藏的歌曲</p>
+              <p style={{ fontSize: '11px', opacity: 0.6, marginTop: '4px' }}>播放音乐时点击 ❤ 即可收藏</p>
+            </div>
+          ) : (
+            favorites.map(song => (
+              <div key={song.id} className="mp-result-item" onClick={() => { playSong({ id: song.id, name: song.name, artist: song.artist, cover: song.cover }); }}>
+                <div className="mp-result-cover" style={song.cover ? { backgroundImage: `url(${song.cover})` } : {}}>
+                  {!song.cover && <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="var(--ocean-accent)" strokeWidth="1.5" style={{ margin: '8px' }}><circle cx="12" cy="12" r="10" /><circle cx="12" cy="12" r="3" fill="var(--ocean-accent)" stroke="none" /></svg>}
+                </div>
+                <div className="mp-result-info">
+                  <span className="mp-result-name">{song.name}</span>
+                  <span className="mp-result-artist">{song.artist}</span>
+                </div>
+                <button className="mp-result-del" onClick={(e) => { e.stopPropagation(); onToggleFavorite && onToggleFavorite(song); }} title="取消收藏" aria-label="取消收藏">
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>
+                </button>
+              </div>
+            ))
+          )}
         </div>
       )}
 
