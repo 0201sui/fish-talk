@@ -1170,28 +1170,32 @@ body {
 
 .input-box {
   position: relative;
-  flex: 1;
+  flex: 1 1 auto;
+  min-width: 0;
   display: flex;
   align-items: flex-end;
-  gap: 6px;
+  gap: 4px;
   background: white;
   border: 1px solid var(--ocean-3);
   border-radius: 12px;
-  padding: 2px 6px;
+  padding: 2px 4px;
   min-height: 38px;
   max-height: 110px;
   transition: border-color 0.2s;
+  overflow: hidden;
 }
 
 .input-box:focus-within { border-color: var(--ocean-deep); }
 
 .chat-input {
-  flex: 1;
+  flex: 1 1 auto;
+  min-width: 0;
+  width: 100%;
   border: none;
   outline: none;
   resize: none;
   background: transparent;
-  padding: 7px 40px 7px 4px;
+  padding: 7px 32px 7px 4px;
   font-size: 15px;
   font-family: inherit;
   color: var(--ocean-text);
@@ -1201,6 +1205,7 @@ body {
   overflow-y: auto;
   white-space: pre-wrap;
   word-break: break-word;
+  box-sizing: border-box;
 }
 
 .chat-input::placeholder { color: #9ab7c4; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -2803,3 +2808,14 @@ body {
   border: 1px solid var(--ocean-3); border-radius: 8px;
 }
 .pet-shape-btn.active { background: var(--theme-accent); border-color: var(--theme-accent); color: #fff; }
+
+.pet-cutout-btn {
+  width: 100%; padding: 8px 0; font-size: 13px; cursor: pointer;
+  background: #f0f8ff; color: var(--ocean-deeper);
+  border: 1px dashed var(--ocean-deep); border-radius: 8px;
+  margin-top: 4px;
+}
+.pet-cutout-btn:disabled { opacity: 0.7; cursor: not-allowed; }
+.pet-cutout-hint {
+  font-size: 11px; color: var(--ocean-accent); margin-top: 4px;
+}
