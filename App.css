@@ -511,24 +511,31 @@ body {
   overflow: hidden;
 }
 
-.toolbox-header {
+.toolbox-toggle-btn {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  width: 100%;
-  padding: 10px 16px;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  margin: 8px auto 4px;
   background: var(--ocean-foam);
-  border: none;
+  border: 1px solid var(--ocean-3);
+  border-radius: 50%;
   cursor: pointer;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--ocean-deeper);
-  transition: background 0.2s;
+  color: var(--ocean-accent);
+  transition: all 0.2s;
+  padding: 0;
 }
-.toolbox-header:hover { background: var(--ocean-2); }
-
-.toolbox-chevron { transition: transform 0.3s ease; }
-.toolbox-chevron.rotated { transform: rotate(180deg); }
+.toolbox-toggle-btn:hover {
+  background: var(--ocean-2);
+  border-color: var(--ocean-accent);
+  color: var(--theme-accent);
+}
+.sidebar-toolbox.open .toolbox-toggle-btn {
+  background: var(--ocean-2);
+  border-color: var(--ocean-accent);
+  color: var(--theme-accent);
+}
 
 .toolbox-body {
   max-height: 0;
@@ -2588,6 +2595,15 @@ body {
   background: var(--ocean-1);
 }
 
+.mp-result-item.playing {
+  background: var(--ocean-1);
+  border-left: 3px solid var(--theme-accent);
+}
+.mp-result-item.playing .mp-result-name {
+  color: var(--theme-accent);
+  font-weight: 600;
+}
+
 .mp-result-info {
   display: flex;
   flex-direction: column;
@@ -2953,6 +2969,68 @@ body {
 .music-ball-eq span:nth-child(2) { height: 9px; animation-delay: 0.2s; }
 .music-ball-eq span:nth-child(3) { height: 6px; animation-delay: 0.4s; }
 @keyframes music-eq { 0%, 100% { transform: scaleY(0.4); } 50% { transform: scaleY(1); } }
+
+/* 歌词横幅模式（双击悬浮球触发，紧凑不占位） */
+.music-lyric-banner {
+  position: fixed;
+  z-index: 60;
+  max-width: 260px;
+  min-height: 44px;
+  padding: 6px 12px;
+  border-radius: 22px;
+  background: rgba(0, 0, 0, 0.38);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.22);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  animation: mlb-in 0.3s ease;
+}
+.music-lyric-banner:active { cursor: grabbing; }
+@keyframes mlb-in {
+  from { opacity: 0; transform: scale(0.85); }
+  to { opacity: 1; transform: scale(1); }
+}
+.mlb-cover {
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  background-size: cover; background-position: center;
+  flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
+.mlb-text {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.95);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  animation: mlb-text-in 0.4s cubic-bezier(0.25, 0.8, 0.35, 1);
+}
+@keyframes mlb-text-in {
+  from { opacity: 0; transform: translateY(4px); filter: blur(2px); }
+  to { opacity: 1; transform: translateY(0); filter: blur(0); }
+}
+.mlb-eq {
+  display: flex; gap: 2px; align-items: flex-end; height: 10px;
+  flex-shrink: 0;
+}
+.mlb-eq span {
+  width: 3px; background: rgba(255,255,255,0.8); border-radius: 1px;
+  animation: music-eq 0.9s infinite ease-in-out;
+}
+.mlb-eq span:nth-child(1) { height: 4px; animation-delay: 0s; }
+.mlb-eq span:nth-child(2) { height: 9px; animation-delay: 0.2s; }
+.mlb-eq span:nth-child(3) { height: 6px; animation-delay: 0.4s; }
 
 /* 流动歌词滚动器 */
 .music-lyrics {
