@@ -794,6 +794,7 @@ function App() {
   // 环境音效
   const [ambientOn, setAmbientOn] = useState(() => localStorage.getItem('ambientOn') === 'true');
   const [ambientVol, setAmbientVol] = useState(() => parseFloat(localStorage.getItem('ambientVol') || '0.3'));
+  const [ambientType, setAmbientType] = useState(() => localStorage.getItem('ambientType') || '海浪');
   const ambientAudioRef = useRef(null);
   // 天气联动背景
   const [weatherBg, setWeatherBg] = useState('default'); // sunny / cloudy / rainy / snow / night / default
@@ -856,7 +857,8 @@ function App() {
     localStorage.setItem('theme', theme);
   }, [theme]);
 
-  // 环境音效：用 Web Audio API 合成海洋白噪音（无需外部音频文件，不会断链）
+  // 环境音效：用 Web Audio API 合成多种自然音效（无需外部音频文件）
+  // 支持海浪、雨声、水泡、鲸鸣、海鸥 五种音效
   useEffect(() => {
     if (!ambientOn) {
       if (ambientAudioRef.current) {
@@ -869,42 +871,166 @@ function App() {
       const AC = window.AudioContext || window.webkitAudioContext;
       if (!AC) return;
       const ctx = new AC();
-      // 棕色噪声（比白噪声更柔和，更像海浪）
-      const bufferSize = 2 * ctx.sampleRate;
-      const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-      const data = buffer.getChannelData(0);
-      let lastOut = 0;
-      for (let i = 0; i < bufferSize; i++) {
-        const white = Math.random() * 2 - 1;
-        data[i] = (lastOut + 0.02 * white) / 1.02;
-        lastOut = data[i];
-        data[i] *= 3.5;
-      }
-      const noise = ctx.createBufferSource();
-      noise.buffer = buffer;
-      noise.loop = true;
-      // 低通滤波 → 更像水下/海浪声
-      const filter = ctx.createBiquadFilter();
-      filter.type = 'lowpass';
-      filter.frequency.value = 400;
-      // 音量控制
+      const nodes = [];
+      let stopped = false;
+
+      // 创建噪声 buffer 的通用函数
+      const makeNoiseBuffer = (type) => {
+        const bufferSize = 2 * ctx.sampleRate;
+        const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+        if (type === 'brown') {
+          let lastOut = 0;
+          for (let i = 0; i < bufferSize; i++) {
+            const white = Math.random() * 2 - 1;
+            data[i] = (lastOut + 0.02 * white) / 1.02;
+            lastOut = data[i];
+            data[i] *= 3.5;
+          }
+        } else {
+          for (let i = 0; i < bufferSize; i++) {
+            data[i] = Math.random() * 2 - 1;
+          }
+        }
+        return buffer;
+      };
+
       const gain = ctx.createGain();
       gain.gain.value = ambientVol;
-      // LFO 调制音量 → 模拟海浪涨落
-      const lfo = ctx.createOscillator();
-      lfo.frequency.value = 0.12;
-      const lfoGain = ctx.createGain();
-      lfoGain.gain.value = ambientVol * 0.5;
-      lfo.connect(lfoGain);
-      lfoGain.connect(gain.gain);
-      noise.connect(filter);
-      filter.connect(gain);
       gain.connect(ctx.destination);
-      noise.start();
-      lfo.start();
+
+      if (ambientType === '海浪') {
+        // 海浪：棕色噪声 + 低通滤波 + LFO 调制音量模拟涨落
+        const noise = ctx.createBufferSource();
+        noise.buffer = makeNoiseBuffer('brown');
+        noise.loop = true;
+        const filter = ctx.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.value = 400;
+        const lfo = ctx.createOscillator();
+        lfo.frequency.value = 0.12;
+        const lfoGain = ctx.createGain();
+        lfoGain.gain.value = ambientVol * 0.5;
+        lfo.connect(lfoGain);
+        lfoGain.connect(gain.gain);
+        noise.connect(filter);
+        filter.connect(gain);
+        noise.start();
+        lfo.start();
+        nodes.push(noise, lfo);
+      } else if (ambientType === '雨声') {
+        // 雨声：白噪声 + 带通滤波 + 高频细节
+        const noise = ctx.createBufferSource();
+        noise.buffer = makeNoiseBuffer('white');
+        noise.loop = true;
+        const filter = ctx.createBiquadFilter();
+        filter.type = 'bandpass';
+        filter.frequency.value = 2000;
+        filter.Q.value = 0.5;
+        const highFilter = ctx.createBiquadFilter();
+        highFilter.type = 'highpass';
+        highFilter.frequency.value = 800;
+        noise.connect(filter);
+        filter.connect(highFilter);
+        highFilter.connect(gain);
+        // 轻微的音量波动模拟雨势变化
+        const lfo = ctx.createOscillator();
+        lfo.frequency.value = 0.3;
+        const lfoGain = ctx.createGain();
+        lfoGain.gain.value = ambientVol * 0.15;
+        lfo.connect(lfoGain);
+        lfoGain.connect(gain.gain);
+        noise.start();
+        lfo.start();
+        nodes.push(noise, lfo);
+      } else if (ambientType === '水泡') {
+        // 水泡：随机正弦波泡泡声
+        const bubbleInterval = setInterval(() => {
+          if (stopped) return;
+          const osc = ctx.createOscillator();
+          const bubbleGain = ctx.createGain();
+          const freq = 200 + Math.random() * 600;
+          osc.frequency.setValueAtTime(freq, ctx.currentTime);
+          osc.frequency.exponentialRampToValueAtTime(freq * 0.5, ctx.currentTime + 0.08);
+          bubbleGain.gain.setValueAtTime(0, ctx.currentTime);
+          bubbleGain.gain.linearRampToValueAtTime(ambientVol * 0.6, ctx.currentTime + 0.01);
+          bubbleGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
+          osc.connect(bubbleGain);
+          bubbleGain.connect(gain);
+          osc.start();
+          osc.stop(ctx.currentTime + 0.2);
+        }, 200 + Math.random() * 400);
+        nodes.push({ stop: () => clearInterval(bubbleInterval) });
+      } else if (ambientType === '鲸鸣') {
+        // 鲸鸣：低频正弦波 + 慢速频率调制 + 颤音
+        const osc1 = ctx.createOscillator();
+        osc1.type = 'sine';
+        osc1.frequency.value = 80;
+        const osc2 = ctx.createOscillator();
+        osc2.type = 'sine';
+        osc2.frequency.value = 120;
+        // 慢速频率调制模拟鲸鸣的起伏
+        const lfo = ctx.createOscillator();
+        lfo.frequency.value = 0.15;
+        const lfoGain = ctx.createGain();
+        lfoGain.gain.value = 40;
+        lfo.connect(lfoGain);
+        lfoGain.connect(osc1.frequency);
+        lfoGain.connect(osc2.frequency);
+        // 颤音
+        const vibrato = ctx.createOscillator();
+        vibrato.frequency.value = 5;
+        const vibratoGain = ctx.createGain();
+        vibratoGain.gain.value = 8;
+        vibrato.connect(vibratoGain);
+        vibratoGain.connect(osc1.frequency);
+        const oscGain = ctx.createGain();
+        oscGain.gain.value = ambientVol * 0.4;
+        osc1.connect(oscGain);
+        osc2.connect(oscGain);
+        oscGain.connect(gain);
+        osc1.start();
+        osc2.start();
+        lfo.start();
+        vibrato.start();
+        nodes.push(osc1, osc2, lfo, vibrato);
+      } else if (ambientType === '海鸥') {
+        // 海鸥：滤波噪声短促爆发 + 间歇
+        const gullInterval = setInterval(() => {
+          if (stopped) return;
+          // 每次发出 1-3 声海鸥叫
+          const calls = 1 + Math.floor(Math.random() * 3);
+          for (let c = 0; c < calls; c++) {
+            setTimeout(() => {
+              if (stopped) return;
+              const noise = ctx.createBufferSource();
+              noise.buffer = makeNoiseBuffer('white');
+              const filter = ctx.createBiquadFilter();
+              filter.type = 'bandpass';
+              filter.frequency.value = 1500 + Math.random() * 1000;
+              filter.Q.value = 5;
+              const gullGain = ctx.createGain();
+              gullGain.gain.setValueAtTime(0, ctx.currentTime);
+              gullGain.gain.linearRampToValueAtTime(ambientVol * 0.5, ctx.currentTime + 0.05);
+              gullGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
+              noise.connect(filter);
+              filter.connect(gullGain);
+              gullGain.connect(gain);
+              noise.start();
+              noise.stop(ctx.currentTime + 0.35);
+            }, c * 250);
+          }
+        }, 3000 + Math.random() * 4000);
+        nodes.push({ stop: () => clearInterval(gullInterval) });
+      }
+
       ambientAudioRef.current = {
-        ctx, noise, lfo, gain,
-        stop: () => { try { noise.stop(); lfo.stop(); ctx.close(); } catch (e) {} }
+        ctx, gain, nodes,
+        stop: () => {
+          stopped = true;
+          nodes.forEach(n => { try { n.stop ? n.stop() : null; } catch (e) {} });
+          try { ctx.close(); } catch (e) {}
+        }
       };
     } catch (e) { console.error('环境音效启动失败:', e); }
     return () => {
@@ -913,7 +1039,7 @@ function App() {
         ambientAudioRef.current = null;
       }
     };
-  }, [ambientOn]);
+  }, [ambientOn, ambientType]);
 
   // 音量变化时实时调整
   useEffect(() => {
@@ -924,6 +1050,7 @@ function App() {
   }, [ambientVol]);
 
   useEffect(() => { localStorage.setItem('ambientOn', String(ambientOn)); }, [ambientOn]);
+  useEffect(() => { localStorage.setItem('ambientType', ambientType); }, [ambientType]);
 
   // 天气联动背景：页面加载时获取天气，根据条件切换背景氛围
   useEffect(() => {
@@ -941,6 +1068,14 @@ function App() {
   // 切换环境音效
   const toggleAmbient = () => {
     setAmbientOn(prev => !prev);
+  };
+
+  const playAmbient = (type) => {
+    const validTypes = ['海浪', '雨声', '水泡', '鲸鸣', '海鸥'];
+    if (validTypes.includes(type)) {
+      setAmbientType(type);
+      if (!ambientOn) setAmbientOn(true);
+    }
   };
 
   const stickToBottomRef = useRef(true);
@@ -1354,7 +1489,7 @@ function App() {
           if (!trimmed.startsWith('data: ')) continue;
           try {
             const data = JSON.parse(trimmed.slice(6));
-            if (data.type === 'searching') { setTypingStatus('正在留下足迹……'); }
+            if (data.type === 'searching') { setTypingStatus('正在思考……'); }
             else if (data.type === 'delta') {
               fullText += data.content;
               setTypingStatus('');
@@ -1478,7 +1613,7 @@ function App() {
           if (!trimmed.startsWith('data: ')) continue;
           try {
             const data = JSON.parse(trimmed.slice(6));
-            if (data.type === 'searching') { setTypingStatus('正在留下足迹……'); }
+            if (data.type === 'searching') { setTypingStatus('正在思考……'); }
             else if (data.type === 'delta') {
               fullText += data.content;
               setTypingStatus('');
@@ -2003,6 +2138,21 @@ function App() {
         }
         break;
       }
+      case 'ambient': {
+        // 环境音效控制：ambient:play:海浪 / ambient:stop / ambient:volume:0.5
+        const parts = arg.split(':');
+        const action = parts[0]?.trim();
+        const param = parts.slice(1).join(':').trim();
+        if (action === 'play') {
+          playAmbient(param);
+        } else if (action === 'stop') {
+          setAmbientOn(false);
+        } else if (action === 'volume') {
+          const vol = parseFloat(param);
+          if (!isNaN(vol) && vol >= 0 && vol <= 1) setAmbientVol(vol);
+        }
+        break;
+      }
       case 'type': {
         inputRef.current = arg;
         setInput(arg);
@@ -2163,12 +2313,21 @@ function App() {
           </div>
           {/* 环境音效 */}
           <div className="ambient-control">
-            <button className={`ambient-toggle ${ambientOn ? 'on' : ''}`} onClick={toggleAmbient} title="海洋环境音">
-              {ambientOn ? '🌊' : '💤'}
+            <button className={`ambient-toggle ${ambientOn ? 'on' : ''}`} onClick={toggleAmbient} title="环境音效">
+              {ambientOn ? '🔊' : '🔇'}
             </button>
             {ambientOn && (
-              <input type="range" className="ambient-volume" min="0" max="1" step="0.05" value={ambientVol}
-                onChange={(e) => setAmbientVol(parseFloat(e.target.value))} />
+              <>
+                <select className="ambient-select" value={ambientType} onChange={(e) => setAmbientType(e.target.value)}>
+                  <option value="海浪">🌊 海浪</option>
+                  <option value="雨声">🌧️ 雨声</option>
+                  <option value="水泡">🫧 水泡</option>
+                  <option value="鲸鸣">🐋 鲸鸣</option>
+                  <option value="海鸥">🕊️ 海鸥</option>
+                </select>
+                <input type="range" className="ambient-volume" min="0" max="1" step="0.05" value={ambientVol}
+                  onChange={(e) => setAmbientVol(parseFloat(e.target.value))} />
+              </>
             )}
           </div>
         </div>
