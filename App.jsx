@@ -461,7 +461,7 @@ const cleanupPetImage = (dataUrl) => new Promise((resolve) => {
 });
 
 // ===== 迷你音乐播放条（AI 放歌 / 后台播放时显示在输入框上方）=====
-function FloatingMusicPlayer({ song, onToggle, onSeek, onClose, onOpen, onPrev, onNext, repeatMode, onCycleRepeat }) {
+function FloatingMusicPlayer({ song, onToggle, onSeek, onClose, onOpen, onPrev, onNext, repeatMode, onCycleRepeat, isFav, onToggleFav, onToggleLyrics, lyricsOn }) {
   const formatTime = (sec) => {
     if (!sec || isNaN(sec)) return '0:00';
     const m = Math.floor(sec / 60);
@@ -482,7 +482,7 @@ function FloatingMusicPlayer({ song, onToggle, onSeek, onClose, onOpen, onPrev, 
     for (const l of lyricLines) { if (l.time <= (song.currentTime || 0)) currentLyric = l.text; else break; }
   }
 
-  const [mode, setMode] = useState('ball'); // 'ball' | 'bar' | 'lyrics'
+  const [mode, setMode] = useState('ball'); // 'ball' | 'bar'
   const LINE_H = 24; // 单行歌词高度（需与 CSS .music-lyrics-line 一致）
   const WIN_H = 34;  // 歌词窗口高度（宽扁：约 1~1.5 行，需与 CSS .music-lyrics-window 一致）
   const [pos, setPos] = useState({ right: 16, bottom: 96 });
@@ -516,27 +516,22 @@ function FloatingMusicPlayer({ song, onToggle, onSeek, onClose, onOpen, onPrev, 
     window.addEventListener('touchend', up);
   };
 
-  // 悬浮球：单击展开播放条，双击切换为流动歌词滚动器
+  // 悬浮球：单击展开播放条，双击开关歌词栏
   const handleBallClick = () => {
     if (movedRef.current) return;
     if (clickTimer.current) {
       clearTimeout(clickTimer.current);
       clickTimer.current = null;
-      setMode('lyrics');
+      if (onToggleLyrics) onToggleLyrics();
     } else {
       clickTimer.current = setTimeout(() => { clickTimer.current = null; setMode('bar'); }, 250);
     }
-  };
-  // 歌词滚动器：单击恢复为悬浮球
-  const handleLyricsClick = () => {
-    if (movedRef.current) return;
-    setMode('ball');
   };
 
   if (mode === 'ball') {
     return (
       <div className="music-ball" style={{ right: pos.right, bottom: pos.bottom }}
-           onMouseDown={onDragStart} onTouchStart={onDragStart} onClick={handleBallClick} title="单击展开 · 双击看歌词">
+           onMouseDown={onDragStart} onTouchStart={onDragStart} onClick={handleBallClick} title="单击展开 · 双击开关歌词">
         <div className="music-ball-cover" style={song.cover ? { backgroundImage: `url(${song.cover})` } : {}}>
           {!song.cover && (
             <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#fff" strokeWidth="1.5">
@@ -548,64 +543,6 @@ function FloatingMusicPlayer({ song, onToggle, onSeek, onClose, onOpen, onPrev, 
         {song.isPlaying && (
           <div className="music-ball-eq"><span></span><span></span><span></span></div>
         )}
-      </div>
-    );
-  }
-
-  if (mode === 'lyrics') {
-    // 解析 LRC 时间戳，得到 {time, text} 数组
-    const timed = (song.lyric || '').split('\n').map(line => {
-      const m = line.match(/\[(\d{1,2}):(\d{2})(?:\.(\d{1,3}))?\](.*)/);
-      if (m) {
-        const t = parseInt(m[1], 10) * 60 + parseInt(m[2], 10) + (m[3] ? parseInt(m[3], 10) / Math.pow(10, m[3].length) : 0);
-        return { time: t, text: (m[4] || '').trim() };
-      }
-      return { time: -1, text: line.replace(/\[\d{2}:\d{2}(?:\.\d{1,3})?\]/g, '').trim() };
-    }).filter(l => l.text.length > 0);
-    const hasTiming = timed.length > 0 && timed.some(l => l.time >= 0);
-    const now = song.currentTime || 0;
-    // 当前唱到的那一句
-    let activeIdx = 0;
-    if (hasTiming) {
-      for (let i = 0; i < timed.length; i++) { if (timed[i].time <= now) activeIdx = i; else break; }
-    }
-    // 当前句逐字进度（卡拉OK 高亮到唱到的字）
-    let charProgress = 1;
-    if (hasTiming && timed[activeIdx]) {
-      const cur = timed[activeIdx];
-      const next = timed[activeIdx + 1];
-      const dur = (next ? next.time : (song.duration || now + 6)) - cur.time;
-      charProgress = dur > 0 ? Math.min(1, Math.max(0, (now - cur.time) / dur)) : 1;
-    }
-    const offset = hasTiming ? (-activeIdx * LINE_H + (WIN_H - LINE_H) / 2) : 0;
-    const fillN = (txt) => Math.round(charProgress * txt.length);
-    return (
-      <div className="music-lyrics" style={{ right: pos.right, bottom: pos.bottom }}
-           onMouseDown={onDragStart} onTouchStart={onDragStart} onClick={handleLyricsClick} title="单击恢复悬浮球">
-        <div className="music-lyrics-head">
-          <span className="music-lyrics-title">{song.name || '歌词'}</span>
-          {song.artist && <span className="music-lyrics-artist">{song.artist}</span>}
-        </div>
-        <div className="music-lyrics-window">
-          <div className="music-lyrics-track" style={{ transform: `translateY(${offset}px)` }}>
-            {hasTiming ? timed.map((l, i) => {
-              const isActive = i === activeIdx;
-              const dim = Math.abs(i - activeIdx) > 1;
-              return (
-                <div key={i} className={`music-lyrics-line ${isActive ? 'active' : ''} ${dim ? 'dim' : ''}`}>
-                  {isActive
-                    ? (<span><span className="karaoke-done">{l.text.slice(0, fillN(l.text))}</span><span className="karaoke-todo">{l.text.slice(fillN(l.text))}</span></span>)
-                    : l.text}
-                </div>
-              );
-            }) : (
-              (song.lyric && song.lyric.trim())
-                ? (song.lyric.split('\n').filter(l => l.trim()).map((t, i) => (<div key={i} className="music-lyrics-line">{t.replace(/\[\d{2}:\d{2}(?:\.\d{1,3})?\]/g, '')}</div>)))
-                : (<div className="music-lyrics-line active">暂无歌词</div>)
-            )}
-          </div>
-        </div>
-        <div className="music-lyrics-hint">单击收起</div>
       </div>
     );
   }
@@ -630,6 +567,18 @@ function FloatingMusicPlayer({ song, onToggle, onSeek, onClose, onOpen, onPrev, 
         </div>
       </div>
       <button className="mini-music-min" onClick={() => setMode('ball')} aria-label="缩小" title="缩小">—</button>
+      <button className={`mini-music-fav ${isFav ? 'active' : ''}`} onClick={(e) => { e.stopPropagation(); onToggleFav && onToggleFav(); }} aria-label="收藏" title={isFav ? '取消收藏' : '收藏'}>
+        <svg viewBox="0 0 24 24" width="15" height="15" fill={isFav ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+        </svg>
+      </button>
+      {onToggleLyrics && (
+        <button className={`mini-music-lyric ${lyricsOn ? 'active' : ''}`} onClick={(e) => { e.stopPropagation(); onToggleLyrics(); }} aria-label="歌词" title={lyricsOn ? '关闭歌词' : '显示歌词'}>
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="4" y1="6" x2="20" y2="6" /><line x1="4" y1="12" x2="14" y2="12" /><line x1="4" y1="18" x2="18" y2="18" />
+          </svg>
+        </button>
+      )}
       <button className="mini-music-prev" onClick={(e) => { e.stopPropagation(); onPrev && onPrev(); }} aria-label="上一首" title="上一首">
         <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor"><path d="M6 5h2v14H6zM20 5v14l-11-7z" /></svg>
       </button>
@@ -837,6 +786,27 @@ function App() {
   const repeatModeRef = useRef('off');
   const playlistRef = useRef([]);
   const playlistIndexRef = useRef(-1);
+  // 歌词窄条
+  const [showLyricBar, setShowLyricBar] = useState(true);
+  // 音乐收藏夹
+  const [musicFavorites, setMusicFavorites] = useState(() => {
+    try { const s = JSON.parse(localStorage.getItem('musicFavorites') || '[]'); return Array.isArray(s) ? s : []; } catch { return []; }
+  });
+  const [showFavorites, setShowFavorites] = useState(false);
+  const musicFavoritesRef = useRef(musicFavorites);
+  useEffect(() => { musicFavoritesRef.current = musicFavorites; try { localStorage.setItem('musicFavorites', JSON.stringify(musicFavorites)); } catch (e) {} }, [musicFavorites]);
+
+  // 收藏/取消收藏
+  const toggleFavorite = (song) => {
+    if (!song || !song.id) return;
+    const exists = musicFavoritesRef.current.find(f => f.id === song.id);
+    if (exists) {
+      setMusicFavorites(prev => prev.filter(f => f.id !== song.id));
+    } else {
+      setMusicFavorites(prev => [{ id: song.id, name: song.name || '', artist: song.artist || '', cover: song.cover || '' }, ...prev]);
+    }
+  };
+  const isFavorited = (song) => song && musicFavorites.some(f => f.id === song.id);
 
   const messagesEndRef = useRef(null);
   const messagesAreaRef = useRef(null);
@@ -2321,6 +2291,7 @@ function App() {
           <button className="sidebar-btn" onClick={() => setShowApiConfig(true)}>🔌 API配置</button>
           <button className="sidebar-btn" onClick={() => setShowMemoryPalace(true)}>🪸 记忆宫殿</button>
           <button className="sidebar-btn" onClick={exportMarkdown}>📝 导出Markdown</button>
+          <button className="sidebar-btn" onClick={() => setShowFavorites(true)}>❤️ 我的收藏{musicFavorites.length > 0 ? ` (${musicFavorites.length})` : ''}</button>
           {/* 主题切换 - 七色系 */}
           <div className="theme-picker">
             <span className="theme-picker-label">主题</span>
@@ -2608,6 +2579,37 @@ function App() {
           </div>
         )}
 
+        {/* 歌词窄条：只显示当前一句，半透明不遮挡聊天 */}
+        {nowPlaying && nowPlaying.lyric && nowPlaying.lyric.trim() && showLyricBar && (() => {
+          const lines = nowPlaying.lyric.split('\n').map(l => {
+            const m = l.match(/\[(\d{1,2}):(\d{2})(?:\.(\d{1,3}))?\](.*)/);
+            if (m) {
+              const t = parseInt(m[1], 10) * 60 + parseInt(m[2], 10) + (m[3] ? parseInt(m[3], 10) / Math.pow(10, m[3].length) : 0);
+              return { time: t, text: (m[4] || '').trim() };
+            }
+            return { time: -1, text: l.replace(/\[\d{2}:\d{2}(?:\.\d{1,3})?\]/g, '').trim() };
+          }).filter(l => l.text);
+          const hasTiming = lines.some(l => l.time >= 0);
+          let curText = '';
+          if (hasTiming) {
+            curText = lines[0]?.text || '';
+            for (const l of lines) { if (l.time <= (nowPlaying.currentTime || 0)) curText = l.text; else break; }
+          } else if (lines.length > 0) {
+            // 无时间戳：按播放进度比例取行
+            const prog = (nowPlaying.currentTime || 0) / (nowPlaying.duration || 1);
+            curText = lines[Math.min(lines.length - 1, Math.floor(prog * lines.length))]?.text || lines[0]?.text || '';
+          }
+          if (!curText) return null;
+          return (
+            <div className="lyric-bar" key={curText}>
+              <span className="lyric-bar-text">{curText}</span>
+              <button className="lyric-bar-close" onClick={() => setShowLyricBar(false)} aria-label="关闭歌词" title="关闭歌词">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="6" y1="6" x2="18" y2="18" /><line x1="18" y1="6" x2="6" y2="18" /></svg>
+              </button>
+            </div>
+          );
+        })()}
+
         {/* 输入区 */}
         <div className="input-area">
           <div className="input-wrapper">
@@ -2668,6 +2670,10 @@ function App() {
             onNext={playNext}
             repeatMode={repeatMode}
             onCycleRepeat={cycleRepeat}
+            isFav={isFavorited(nowPlaying)}
+            onToggleFav={() => toggleFavorite(nowPlaying)}
+            onToggleLyrics={() => setShowLyricBar(prev => !prev)}
+            lyricsOn={showLyricBar}
           />
         )}
       </div>
@@ -2742,6 +2748,42 @@ function App() {
 
       {showApiConfig && <ApiConfig onClose={() => { setShowApiConfig(false); }} onConfigChange={() => {}} />}
       {showMemoryPalace && <MemoryPalace onClose={() => setShowMemoryPalace(false)} currentSessionId={currentSessionId} />}
+
+      {/* 音乐收藏夹弹窗 */}
+      {showFavorites && (
+        <div className="modal-overlay" onClick={() => setShowFavorites(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>❤️ 我的收藏</h2>
+              <button className="modal-close-x" onClick={() => setShowFavorites(false)} aria-label="关闭">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="6" y1="6" x2="18" y2="18" /><line x1="18" y1="6" x2="6" y2="18" /></svg>
+              </button>
+            </div>
+            <div className="settings-section">
+              {musicFavorites.length === 0 ? (
+                <p className="fav-empty">还没有收藏的歌曲，播放音乐时点击 ❤ 即可收藏</p>
+              ) : (
+                <div className="fav-list">
+                  {musicFavorites.map(fav => (
+                    <div key={fav.id} className="fav-item" onClick={() => { playSong({ id: fav.id, name: fav.name, artist: fav.artist, cover: fav.cover }); setShowFavorites(false); }}>
+                      <div className="fav-item-cover" style={fav.cover ? { backgroundImage: `url(${fav.cover})` } : {}}>
+                        {!fav.cover && <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="var(--ocean-accent)" strokeWidth="1.5" style={{ margin: '9px' }}><circle cx="12" cy="12" r="10" /><circle cx="12" cy="12" r="3" fill="var(--ocean-accent)" stroke="none" /></svg>}
+                      </div>
+                      <div className="fav-item-info">
+                        <div className="fav-item-name">{fav.name}</div>
+                        <div className="fav-item-artist">{fav.artist}</div>
+                      </div>
+                      <button className="fav-item-del" onClick={(e) => { e.stopPropagation(); setMusicFavorites(prev => prev.filter(x => x.id !== fav.id)); }} title="取消收藏" aria-label="取消收藏">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
