@@ -1223,6 +1223,10 @@ function App() {
       chatBody.tts_config = { apiKey: ttsConfig.apiKey, voiceId: ttsConfig.customVoiceId || ttsConfig.voiceId || 'male-qn-qingse', customVoiceId: ttsConfig.customVoiceId || '', groupId: ttsConfig.groupId || '', speed: ttsConfig.speed || 1.0, model: ttsConfig.model || 'speech-02-hd' };
     }
 
+    // 引用（双保险）：把最近一条用户消息的 reply_to 一并带上，确保后端一定能拿到被引用的消息
+    const _lastUserMsg = [...messages].reverse().find(m => m.role === 'user');
+    if (_lastUserMsg && _lastUserMsg.reply_to) chatBody.reply_to = _lastUserMsg.reply_to;
+
     abortControllerRef.current = new AbortController();
     try {
       const res = await fetch(`${API_URL}/chat/respond`, {
@@ -1252,8 +1256,7 @@ function App() {
               fullText += data.content;
               setTypingStatus('');
               // 语音 / 音乐 / 工具标记不要以流式文字显示，避免"先打字再变语音"或"显示工具过程"的怪异观感
-              if (/\[voice\]/.test(fullText)) setStreamingText('正在生成语音…');
-              else if (/\[music\]/.test(fullText)) setStreamingText('正在找歌…');
+              if (/\[music\]/.test(fullText)) setStreamingText('正在找歌…');
               else if (/\[act\]/.test(fullText)) setStreamingText('正在处理…');
               else setStreamingText(stripStreamingTags(fullText));
             }
@@ -1371,8 +1374,7 @@ function App() {
               fullText += data.content;
               setTypingStatus('');
               // 语音 / 音乐 / 工具标记不要以流式文字显示，避免"先打字再变语音"或"显示工具过程"的怪异观感
-              if (/\[voice\]/.test(fullText)) setStreamingText('正在生成语音…');
-              else if (/\[music\]/.test(fullText)) setStreamingText('正在找歌…');
+              if (/\[music\]/.test(fullText)) setStreamingText('正在找歌…');
               else if (/\[act\]/.test(fullText)) setStreamingText('正在处理…');
               else setStreamingText(stripStreamingTags(fullText));
             }
@@ -1650,19 +1652,20 @@ function App() {
       duration: durationSec
     });
     try {
-      // 1) 歌词
+      // 1) 歌词（走后端代理 /music/lyric/:id，避免浏览器直连 ffapi.cn 被 CORS 拦截导致歌词永远出不来）
       try {
-        const lr = await fetch(`${MUSIC_API}?act=lrcgc&id=${encodeURIComponent(song.id)}&format=json`);
+        const lr = await fetch(`${API_URL}/music/lyric/${encodeURIComponent(song.id)}`);
         const ld = await lr.json();
-        if (ld && ld.lyric) setNowPlaying(prev => prev ? { ...prev, lyric: ld.lyric } : prev);
-      } catch (e) {}
-      // 2) 播放地址
+        const lyricText = (ld && (ld.lyric || ld.lrc)) || '';
+        if (lyricText) setNowPlaying(prev => prev ? { ...prev, lyric: lyricText } : prev);
+      } catch (e) { console.error('歌词获取失败:', e); }
+      // 2) 播放地址（同样走后端代理 /music/url/:id，规避 CORS）
       let playUrl = '';
       try {
-        const ur = await fetch(`${MUSIC_API}?act=musicurl&id=${encodeURIComponent(song.id)}&format=json`);
+        const ur = await fetch(`${API_URL}/music/url/${encodeURIComponent(song.id)}`);
         const ud = await ur.json();
-        if (ud && ud.url) playUrl = ud.url;
-      } catch (e) {}
+        if (ud && ud.success && ud.url) playUrl = ud.url;
+      } catch (e) { console.error('播放地址获取失败:', e); }
       // 兜底：旧 GD Studio URL 格式（兼容历史 song 对象）
       if (!playUrl && String(song.id).length < 12) {
         try {
@@ -1857,9 +1860,16 @@ function App() {
         break;
       }
       case 'open': {
-        const map = { '音乐': () => setShowMusicPlayer(true), '简介': () => setShowProfile(true), '记忆宫殿': () => setShowMemoryPalace(true), '工具栏': () => setShowToolbar(true), '一起读': () => setShowReadTogether(true) };
+        const map = { '音乐': () => setShowMusicPlayer(true), '简介': () => setShowProfile(true), '记忆宫殿': () => setShowMemoryPalace(true), '工具栏': () => setShowToolbar(true), '一起读': () => setShowReadTogether(true), '设置': () => setShowSettings(true) };
         const fn = map[arg];
         if (fn) fn();
+        break;
+      }
+      case 'search': {
+        // 直接开关"联网搜索"（等效于在设置面板里切换）
+        if (arg === 'on' || arg === 'off') {
+          setSearchSettings(prev => ({ ...prev, enabled: arg === 'on' }));
+        }
         break;
       }
       case 'type': {
