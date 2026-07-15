@@ -1075,6 +1075,8 @@ function App() {
     if (validTypes.includes(type)) {
       setAmbientType(type);
       if (!ambientOn) setAmbientOn(true);
+      // AI 开启音效时确保有音量，避免开了没声音
+      if (ambientVol < 0.05) setAmbientVol(0.3);
     }
   };
 
@@ -1248,7 +1250,26 @@ function App() {
     localStorage.setItem('petSize', String(sz));
     try { fetch(`${API_URL}/profile`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ petSize: sz }) }); } catch (e) {}
   };
-  const selectPet = (pet) => { if (pet && pet.url) handlePetImageChange(pet.url); };
+  // 选桌宠：优先用缓存的抠图结果，没有则实时抠图并缓存
+  const selectPet = async (pet) => {
+    if (!pet || !pet.url) return;
+    // 已有缓存的抠图结果，直接用
+    if (pet.cutoutUrl) { handlePetImageChange(pet.cutoutUrl); return; }
+    // 没有缓存：先设为原图（立即可见），后台异步抠图
+    handlePetImageChange(pet.url);
+    setPetCutoutLoading(true);
+    try {
+      const cut = await removeBackgroundDataUrl(pet.url);
+      if (cut) {
+        const cleaned = await cleanupPetImage(cut);
+        // 缓存抠图结果到 petImages，下次同一张图不用重新抠
+        const next = petImagesRef.current.map(x => x.id === pet.id ? { ...x, cutoutUrl: cleaned } : x);
+        persistPetImages(next);
+        handlePetImageChange(cleaned);
+      }
+    } catch (e) { /* 抠图失败，保持原图 */ }
+    setPetCutoutLoading(false);
+  };
   const savePetImages = async (next) => {
     try { await fetch(`${API_URL}/profile`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ petImages: next }) }); } catch (e) {}
   };
@@ -1290,9 +1311,11 @@ function App() {
     try {
       const cut = await removeBackgroundDataUrl(p.url);
       const cleaned = await cleanupPetImage(cut || p.url); // 重新抠图后同样清理边缘/去边框
-      const next = petImagesRef.current.map(x => x.id === p.id ? { ...x, url: cleaned } : x);
+      // 缓存到 cutoutUrl 字段，不覆盖原图 url
+      const next = petImagesRef.current.map(x => x.id === p.id ? { ...x, cutoutUrl: cleaned } : x);
       persistPetImages(next);
-      if (petSettings.image === p.url) handlePetImageChange(cleaned);
+      // 如果当前桌宠正在用这张图，切换到抠图后的版本
+      if (petSettings.image === p.url || petSettings.image === p.cutoutUrl) handlePetImageChange(cleaned);
     } catch (e) { /* 失败则保持原样 */ }
     setPetCutoutLoading(false);
   };
@@ -1300,7 +1323,7 @@ function App() {
     const target = petImages.find(p => p.id === id);
     const next = petImages.filter(p => p.id !== id);
     persistPetImages(next);
-    if (target && target.url === petSettings.image) handlePetImageChange('');
+    if (target && (target.url === petSettings.image || target.cutoutUrl === petSettings.image)) handlePetImageChange('');
   };
 
   // ===== 构建聊天请求体 =====
@@ -2120,9 +2143,9 @@ function App() {
     const arg = idx === -1 ? '' : raw.slice(idx + 1).trim();
     switch (cmd) {
       case 'theme': {
-        const map = { '海洋蓝': 'ocean', '浅橙': 'orange', '浅灰': 'gray', '浅紫': 'purple', '深海': 'deepsea', '珊瑚': 'coral', '极地': 'polar', ocean: 'ocean', orange: 'orange', gray: 'gray', purple: 'purple', deepsea: 'deepsea', coral: 'coral', polar: 'polar' };
+        const map = { '海洋蓝': 'ocean', '浅橙': 'orange', '浅灰': 'gray', '浅紫': 'purple', '深海': 'deepsea', '珊瑚': 'coral', ocean: 'ocean', orange: 'orange', gray: 'gray', purple: 'purple', deepsea: 'deepsea', coral: 'coral' };
         const t = map[arg] || arg;
-        if (['ocean', 'orange', 'gray', 'purple', 'deepsea', 'coral', 'polar'].includes(t)) setTheme(t);
+        if (['ocean', 'orange', 'gray', 'purple', 'deepsea', 'coral'].includes(t)) setTheme(t);
         break;
       }
       case 'open': {
@@ -2308,25 +2331,33 @@ function App() {
               <button className={`theme-dot purple ${theme === 'purple' ? 'active' : ''}`} onClick={() => setTheme('purple')} title="浅紫色" />
               <button className={`theme-dot deepsea ${theme === 'deepsea' ? 'active' : ''}`} onClick={() => setTheme('deepsea')} title="深海" />
               <button className={`theme-dot coral ${theme === 'coral' ? 'active' : ''}`} onClick={() => setTheme('coral')} title="珊瑚" />
-              <button className={`theme-dot polar ${theme === 'polar' ? 'active' : ''}`} onClick={() => setTheme('polar')} title="极地" />
             </div>
           </div>
           {/* 环境音效 */}
           <div className="ambient-control">
             <button className={`ambient-toggle ${ambientOn ? 'on' : ''}`} onClick={toggleAmbient} title="环境音效">
-              {ambientOn ? '🔊' : '🔇'}
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                {ambientOn
+                  ? <><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" /><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" /></>
+                  : <><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" /><line x1="23" y1="9" x2="17" y2="15" /><line x1="17" y1="9" x2="23" y2="15" /></>
+                }
+              </svg>
+              <span>环境音</span>
             </button>
             {ambientOn && (
               <>
-                <select className="ambient-select" value={ambientType} onChange={(e) => setAmbientType(e.target.value)}>
-                  <option value="海浪">🌊 海浪</option>
-                  <option value="雨声">🌧️ 雨声</option>
-                  <option value="水泡">🫧 水泡</option>
-                  <option value="鲸鸣">🐋 鲸鸣</option>
-                  <option value="海鸥">🕊️ 海鸥</option>
-                </select>
-                <input type="range" className="ambient-volume" min="0" max="1" step="0.05" value={ambientVol}
-                  onChange={(e) => setAmbientVol(parseFloat(e.target.value))} />
+                <div className="ambient-types">
+                  <button className={`ambient-type ${ambientType === '海浪' ? 'active' : ''}`} onClick={() => setAmbientType('海浪')} title="海浪">🌊</button>
+                  <button className={`ambient-type ${ambientType === '雨声' ? 'active' : ''}`} onClick={() => setAmbientType('雨声')} title="雨声">🌧️</button>
+                  <button className={`ambient-type ${ambientType === '水泡' ? 'active' : ''}`} onClick={() => setAmbientType('水泡')} title="水泡">🫧</button>
+                  <button className={`ambient-type ${ambientType === '鲸鸣' ? 'active' : ''}`} onClick={() => setAmbientType('鲸鸣')} title="鲸鸣">🐋</button>
+                  <button className={`ambient-type ${ambientType === '海鸥' ? 'active' : ''}`} onClick={() => setAmbientType('海鸥')} title="海鸥">🕊️</button>
+                </div>
+                <div className="ambient-vol-row">
+                  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" /><path d="M15.54 8.46a5 5 0 0 1 0 7.07" /></svg>
+                  <input type="range" className="ambient-volume" min="0" max="1" step="0.05" value={ambientVol}
+                    onChange={(e) => setAmbientVol(parseFloat(e.target.value))} />
+                </div>
               </>
             )}
           </div>
@@ -2669,11 +2700,12 @@ function App() {
                     <span className="pet-lib-upload-text">{petCutoutLoading ? (<><span className="pet-cut-spinner" /> 抠图中…</>) : '上传图片'}</span>
                   </div>
                   {petImages.map(p => (
-                    <div key={p.id} className={`pet-lib-item ${petSettings.image === p.url ? 'active' : ''}`} onClick={() => selectPet(p)}>
-                      <img src={p.url} alt={p.name || '桌宠'} />
+                    <div key={p.id} className={`pet-lib-item ${petSettings.image === (p.cutoutUrl || p.url) ? 'active' : ''}`} onClick={() => selectPet(p)}>
+                      <img src={p.cutoutUrl || p.url} alt={p.name || '桌宠'} />
                       <button className="pet-lib-recut" onClick={(e) => { e.stopPropagation(); recutPet(p); }} title="智能抠图" disabled={petCutoutLoading}><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36" /><polyline points="21 3 21 9 15 9" /></svg></button>
                       <button className="pet-lib-del" onClick={(e) => { e.stopPropagation(); removePetImage(p.id); }}>×</button>
-                      {petSettings.image === p.url && <span className="pet-lib-badge">使用中</span>}
+                      {p.cutoutUrl && <span className="pet-lib-badge cached" title="已缓存抠图">✓</span>}
+                      {petSettings.image === (p.cutoutUrl || p.url) && <span className="pet-lib-badge">使用中</span>}
                     </div>
                   ))}
                   {petImages.length === 0 && <p className="pet-lib-empty">点击左上角「＋」上传你的桌宠形象吧</p>}
