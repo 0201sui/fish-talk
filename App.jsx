@@ -2243,7 +2243,11 @@ function App() {
   };
 
   const activeApi = getActiveModel();
-  const availableModels = activeApi?.allModels || ['claude', 'deepseek'];
+  const builtInModels = ['claude', 'deepseek', 'gemini'];
+  const availableModels = (activeApi?.allModels?.length)
+    ? Array.from(new Set([...activeApi.allModels, ...builtInModels]))
+    : builtInModels;
+  const modelLabels = { claude: 'Claude', deepseek: 'DeepSeek', gemini: 'Gemini' };
 
   const miniMaxVoices = [
     { id: 'male-qn-qingse', name: '青涩青年男声' }, { id: 'male-qn-jingying', name: '精英青年男声' },
@@ -2380,7 +2384,7 @@ function App() {
           </div>
           <div className="chat-header-right">
             <select className="model-select" value={model} onChange={(e) => setModel(e.target.value)}>
-              {availableModels.map(m => (<option key={m} value={m}>{m.length > 20 ? m.slice(0, 20) + '…' : m}</option>))}
+              {availableModels.map(m => (<option key={m} value={m}>{modelLabels[m] || (m.length > 20 ? m.slice(0, 20) + '…' : m)}</option>))}
             </select>
             <button className="settings-btn" onClick={() => setShowSettings(true)}>⚙</button>
           </div>
