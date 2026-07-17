@@ -1,0 +1,90 @@
+/* ===== 我的赛博日记 面板（适配主题变量）===== */
+.cd-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 30, 50, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  padding: 16px;
+  box-sizing: border-box;
+}
+
+.cd-modal {
+  width: 100%;
+  max-width: 520px;
+  max-height: 88vh;
+  background: var(--ocean-foam);
+  border-radius: 18px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 24px 64px rgba(0, 40, 70, 0.28);
+  border: 1px solid var(--ocean-3);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.cd-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--ocean-3);
+  flex-shrink: 0;
+}
+.cd-top h2 { margin: 0; font-size: 17px; color: var(--ocean-deeper); font-weight: 700; }
+.cd-x {
+  background: var(--ocean-1);
+  border: none;
+  width: 34px; height: 34px;
+  border-radius: 50%;
+  font-size: 20px;
+  color: var(--ocean-deeper);
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.cd-x:hover { background: var(--ocean-2); }
+
+.cd-body {
+  padding: 18px 20px 24px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.cd-stats { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.cd-stat { display: flex; flex-direction: column; gap: 2px; }
+.cd-stat-label { font-size: 12px; color: var(--ocean-deeper); opacity: 0.7; }
+.cd-stat-value { font-size: 22px; font-weight: 700; color: var(--ocean-deeper); }
+.cd-stat-sub { font-size: 11px; color: var(--ocean-deeper); opacity: 0.55; }
+
+.cd-seg { margin-left: auto; display: flex; background: var(--ocean-1); border-radius: 10px; padding: 3px; gap: 3px; }
+.cd-seg button {
+  border: none; background: transparent; padding: 6px 12px;
+  border-radius: 8px; font-size: 13px; color: var(--ocean-deeper);
+  cursor: pointer; transition: background 0.15s;
+}
+.cd-seg button.active { background: var(--ocean-accent); color: #fff; font-weight: 600; }
+
+.cd-chart-wrap { position: relative; height: 260px; width: 100%; }
+.cd-loading, .cd-empty {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  color: var(--ocean-deeper); gap: 8px; text-align: center; padding: 16px;
+}
+.cd-empty-icon { font-size: 40px; }
+.cd-empty p { margin: 0; font-size: 14px; }
+.cd-empty-sub { font-size: 12px; opacity: 0.6; }
+
+.cd-latest-note {
+  background: var(--ocean-1);
+  border-radius: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--ocean-3);
+}
+.cd-latest-label { font-size: 12px; color: var(--ocean-deeper); opacity: 0.7; }
+.cd-latest-note p { margin: 6px 0 0; font-size: 14px; color: var(--ocean-deeper); line-height: 1.5; }
