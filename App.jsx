@@ -8,6 +8,7 @@ import ApiConfig from './ApiConfig.jsx';
 import MemoryPalace from './MemoryPalace.jsx';
 import ReadTogether from './ReadTogether.jsx';
 import MusicPlayer from './MusicPlayer.jsx';
+import CyberDiary from './CyberDiary.jsx';
 
 const API_URL = (typeof window !== 'undefined' && window.location.hostname === 'localhost')
   ? 'http://localhost:3000'
@@ -746,6 +747,7 @@ function App() {
   const [showToolbar, setShowToolbar] = useState(false);
   const [showReadTogether, setShowReadTogether] = useState(false);
   const [showMusicPlayer, setShowMusicPlayer] = useState(false);
+  const [showCyberDiary, setShowCyberDiary] = useState(false);
   const [musicInfo, setMusicInfo] = useState(null);
   const [replyTo, setReplyTo] = useState(null);
   const [editingId, setEditingId] = useState(null);
@@ -2329,6 +2331,7 @@ function App() {
               <button className="sidebar-btn" onClick={() => setShowProfile(true)}>🐬 简介</button>
               <button className="sidebar-btn" onClick={() => setShowApiConfig(true)}>🔌 API配置</button>
               <button className="sidebar-btn" onClick={() => setShowMemoryPalace(true)}>🪸 记忆宫殿</button>
+              <button className="sidebar-btn" onClick={() => { setShowCyberDiary(true); }}>📔 我的赛博日记</button>
               <button className="sidebar-btn" onClick={exportMarkdown}>📝 导出Markdown</button>
               {/* 主题切换 */}
               <div className="theme-picker">
@@ -2790,6 +2793,7 @@ function App() {
 
       {showApiConfig && <ApiConfig onClose={() => { setShowApiConfig(false); }} onConfigChange={() => {}} />}
       {showMemoryPalace && <MemoryPalace onClose={() => setShowMemoryPalace(false)} currentSessionId={currentSessionId} />}
+      {showCyberDiary && <CyberDiary onClose={() => setShowCyberDiary(false)} />}
     </div>
   );
 }
