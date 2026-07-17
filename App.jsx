@@ -2243,7 +2243,7 @@ function App() {
   };
 
   const activeApi = getActiveModel();
-  const builtInModels = ['claude', 'deepseek', 'gemini'];
+  const builtInModels = ['gemini', 'claude', 'deepseek'];
   const availableModels = (activeApi?.allModels?.length)
     ? Array.from(new Set([...activeApi.allModels, ...builtInModels]))
     : builtInModels;
